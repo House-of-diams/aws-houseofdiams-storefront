@@ -1,8 +1,10 @@
-import type { SupabaseClient, User } from '@supabase/supabase-js'
-import { sendOrderConfirmationEmail } from '@/lib/email'
+import 'server-only'
 import { buildCheckoutChargeQuote } from '@/lib/exchange-rates'
 import { resolveAuthoritativeCheckoutPricing } from '@/lib/checkout-pricing'
 import { isValidEmail, isValidPhone } from '@/lib/validation'
+import { loadCheckoutCustomerProfile, loadCheckoutDropdownGroups, loadCheckoutDropdownOptions } from '@/lib/repositories/checkout-profile-repository'
+import { requireF7WritePrepared } from '@/lib/f7-write-prepared'
+import { createRdsPendingOrder } from '@/lib/repositories/checkout-repository'
 
 export type CheckoutPayload = {
   idempotencyKey?: string
@@ -124,40 +126,6 @@ type CustomDropdownOptionRow = {
   display_order?: number | null
 }
 
-type OrderEmailItemRow = {
-  product_name: string
-  quantity: number | null
-  line_total: number | null
-}
-
-type StockFinalizationResult = {
-  ok: boolean
-  message?: string | null
-  error_code?: string | null
-  already_paid?: boolean | null
-  order_id: string
-  order_number: string
-  total_amount: number | null
-}
-
-type StoredGatewayPayload = {
-  checkout?: {
-    coupon?: {
-      code?: string | null
-      discountAmount?: number | null
-    } | null
-  } | null
-  totals?: {
-    chargedSubtotal?: number | null
-    chargedGst?: number | null
-    gstLabel?: string | null
-    gstPercentage?: number | null
-    shippingCharged?: number | null
-    chargedCouponDiscount?: number | null
-    exchangeRate?: number | null
-  } | null
-}
-
 type PreparedCheckout = {
   normalizedItems: PreparedItem[]
   subtotalAmount: number
@@ -237,12 +205,12 @@ function buildGatewayPayload(input: {
       })),
       coupon: input.prepared.couponId && input.prepared.couponCode
         ? {
-            id: input.prepared.couponId,
-            code: input.prepared.couponCode,
-            discountAmount: input.prepared.couponDiscountAmount,
-            rewardType: input.prepared.couponRewardType,
-            gift: input.prepared.gift,
-          }
+          id: input.prepared.couponId,
+          code: input.prepared.couponCode,
+          discountAmount: input.prepared.couponDiscountAmount,
+          rewardType: input.prepared.couponRewardType,
+          gift: input.prepared.gift,
+        }
         : null,
       loveLetter: input.payload.loveLetter || null,
     },
@@ -280,27 +248,22 @@ function buildGatewayPayload(input: {
 }
 
 export async function prepareCheckoutPayload({
-  adminClient,
   payload,
-  user,
+  customerIdentity,
 }: {
-  adminClient: SupabaseClient
   payload: CheckoutPayload | null
-  user: User | null
+  customerIdentity?: { id: string; email: string } | null
 }) {
+
   const checkoutItems = (payload?.items?.length ? payload.items : payload?.item ? [payload.item] : []).filter(Boolean) as CheckoutPayloadItem[]
 
   if (!checkoutItems.length || checkoutItems.some((entry) => !entry?.name || !entry.slug)) {
     return { error: 'Invalid checkout payload.', status: 400 as const }
   }
 
-  const profileResult = user
-    ? await adminClient
-        .from('profiles')
-        .select('email, first_name, last_name, phone, birth_date, anniversary_date, country, state, district, city, postal_code, address_line_1, address_line_2')
-        .eq('id', user.id)
-        .maybeSingle()
-    : { data: null, error: null }
+  const profileResult = customerIdentity
+    ? { data: await loadCheckoutCustomerProfile(customerIdentity.id), error: null as { code?: string; message: string } | null }
+    : { data: null, error: null as { code?: string; message: string } | null }
   const profile = profileResult.data
 
   if (profileResult.error) {
@@ -308,7 +271,6 @@ export async function prepareCheckoutPayload({
   }
 
   const pricingResult = await resolveAuthoritativeCheckoutPricing({
-    adminClient,
     items: checkoutItems,
     coupon: payload?.coupon ?? null,
   })
@@ -318,11 +280,15 @@ export async function prepareCheckoutPayload({
   const pricing = pricingResult.data
   const productRows = pricing.lines.map((line) => line.product)
   const productIds = productRows.map((product) => product.id)
-  const groupsResult = productIds.length ? await adminClient.from('product_custom_dropdowns').select('id, product_id, name, label, is_required').in('product_id', productIds).eq('is_enabled', true) : { data: [], error: null }
+  const groupsResult = productIds.length
+    ? { data: await loadCheckoutDropdownGroups(productIds), error: null as { code?: string; message: string } | null }
+    : { data: [], error: null as { code?: string; message: string } | null }
   if (groupsResult.error) return { error: groupsResult.error.message, status: 500 as const }
   const dropdownGroups = (groupsResult.data || []) as CustomDropdownGroupRow[]
   const groupIds = dropdownGroups.map((group) => group.id)
-  const optionsResult = groupIds.length ? await adminClient.from('product_custom_dropdown_options').select('id, dropdown_id, label, value, display_order').in('dropdown_id', groupIds).eq('is_enabled', true).order('display_order', { ascending: true }) : { data: [], error: null }
+  const optionsResult = groupIds.length
+    ? { data: await loadCheckoutDropdownOptions(groupIds), error: null as { code?: string; message: string } | null }
+    : { data: [], error: null as { code?: string; message: string } | null }
   if (optionsResult.error) return { error: optionsResult.error.message, status: 500 as const }
   const dropdownOptions = (optionsResult.data || []) as CustomDropdownOptionRow[]
   let selectionError = ''
@@ -369,13 +335,16 @@ export async function prepareCheckoutPayload({
   const { subtotalAmount, gstAmount, gstLabel, gstPercentage, couponId, couponCode, couponDiscountAmount, couponRewardType, gift, totalAmount } = pricing
   const loveLetter = payload?.loveLetter ?? null
   const customer = payload?.customer ?? {}
+  const profileDate = (value: unknown) => value instanceof Date
+    ? value.toISOString().slice(0, 10)
+    : typeof value === 'string' ? value : ''
   const resolvedCustomer = {
-    first_name: (customer.first_name || profile?.first_name || user?.user_metadata?.first_name || '').trim(),
-    last_name: (customer.last_name || profile?.last_name || user?.user_metadata?.last_name || '').trim(),
-    email: (customer.email || profile?.email || user?.email || '').trim(),
-    phone: (customer.phone || profile?.phone || user?.user_metadata?.phone || '').trim(),
-    birth_date: (customer.birth_date || profile?.birth_date || '').trim(),
-    anniversary_date: (customer.anniversary_date || profile?.anniversary_date || '').trim(),
+    first_name: (customer.first_name || profile?.first_name || '' || '').trim(),
+    last_name: (customer.last_name || profile?.last_name || '' || '').trim(),
+    email: (customer.email || (customerIdentity?.email) || '' || '').trim(),
+    phone: (customer.phone || profile?.phone || '' || '').trim(),
+    birth_date: (customer.birth_date || profileDate(profile?.birth_date)).trim(),
+    anniversary_date: (customer.anniversary_date || profileDate(profile?.anniversary_date)).trim(),
     country: (customer.country || profile?.country || '').trim(),
     state: (customer.state || profile?.state || '').trim(),
     district: (customer.district || profile?.district || '').trim(),
@@ -451,20 +420,25 @@ export async function prepareCheckoutPayload({
 }
 
 export async function createPendingOrder({
-  adminClient,
   userId,
+  customerIdentityId,
   guestTokenHash,
   payload,
   prepared,
   razorpayOrderId,
 }: {
-  adminClient: SupabaseClient
   userId: string | null
+  customerIdentityId?: string | null
   guestTokenHash: string | null
   payload: CheckoutPayload
   prepared: PreparedCheckout
   razorpayOrderId: string
 }) {
+
+  requireF7WritePrepared()
+  if (userId !== null || Boolean(customerIdentityId) === Boolean(guestTokenHash)) {
+    throw new Error('Exactly one RDS checkout owner is required.')
+  }
   const gatewayPayload = buildGatewayPayload({ payload, prepared, razorpayOrderId })
   const notes = [
     'Created from Razorpay checkout flow.',
@@ -474,37 +448,37 @@ export async function createPendingOrder({
     .join(' ')
 
   const orderInput = {
-      user_id: userId,
-      guest_token_hash: guestTokenHash,
-      customer_email: prepared.resolvedCustomer.email,
-      customer_first_name: prepared.resolvedCustomer.first_name || 'Customer',
-      customer_last_name: prepared.resolvedCustomer.last_name,
-      customer_phone: prepared.resolvedCustomer.phone,
-      customer_birth_date: prepared.resolvedCustomer.birth_date || null,
-      customer_anniversary_date: prepared.resolvedCustomer.anniversary_date || null,
-      shipping_country: prepared.resolvedCustomer.country,
-      shipping_state: prepared.resolvedCustomer.state,
-      shipping_district: prepared.resolvedCustomer.district,
-      shipping_city: prepared.resolvedCustomer.city,
-      shipping_postal_code: prepared.resolvedCustomer.postal_code,
-      shipping_address_line_1: prepared.resolvedCustomer.address_line_1,
-      shipping_address_line_2: prepared.resolvedCustomer.address_line_2,
-      subtotal_amount: prepared.subtotalAmount,
-      gst_amount: prepared.gstAmount,
-      shipping_amount: 0,
-      total_amount: prepared.totalAmount,
-      love_letter_included: Boolean(prepared.loveLetter?.wantsLetter),
-      love_letter_type: prepared.loveLetter?.letterType || 'no_letter',
-      status: 'pending',
-      payment_status: 'pending',
-      payment_gateway: 'razorpay',
-      payment_currency: prepared.chargeQuote.chargeCurrency,
-      payment_amount: prepared.chargeQuote.totalCharged,
-      razorpay_order_id: razorpayOrderId,
-      gateway_order_status: 'created',
-      gateway_payment_status: 'pending',
-      gateway_payload: gatewayPayload,
-      notes,
+    user_id: userId,
+    guest_token_hash: guestTokenHash,
+    customer_email: prepared.resolvedCustomer.email,
+    customer_first_name: prepared.resolvedCustomer.first_name || 'Customer',
+    customer_last_name: prepared.resolvedCustomer.last_name,
+    customer_phone: prepared.resolvedCustomer.phone,
+    customer_birth_date: prepared.resolvedCustomer.birth_date || null,
+    customer_anniversary_date: prepared.resolvedCustomer.anniversary_date || null,
+    shipping_country: prepared.resolvedCustomer.country,
+    shipping_state: prepared.resolvedCustomer.state,
+    shipping_district: prepared.resolvedCustomer.district,
+    shipping_city: prepared.resolvedCustomer.city,
+    shipping_postal_code: prepared.resolvedCustomer.postal_code,
+    shipping_address_line_1: prepared.resolvedCustomer.address_line_1,
+    shipping_address_line_2: prepared.resolvedCustomer.address_line_2,
+    subtotal_amount: prepared.subtotalAmount,
+    gst_amount: prepared.gstAmount,
+    shipping_amount: 0,
+    total_amount: prepared.totalAmount,
+    love_letter_included: Boolean(prepared.loveLetter?.wantsLetter),
+    love_letter_type: prepared.loveLetter?.letterType || 'no_letter',
+    status: 'pending',
+    payment_status: 'pending',
+    payment_gateway: 'razorpay',
+    payment_currency: prepared.chargeQuote.chargeCurrency,
+    payment_amount: prepared.chargeQuote.totalCharged,
+    razorpay_order_id: razorpayOrderId,
+    gateway_order_status: 'created',
+    gateway_payment_status: 'pending',
+    gateway_payload: gatewayPayload,
+    notes,
   }
   const loveLetterInput = prepared.loveLetter
     ? {
@@ -521,28 +495,28 @@ export async function createPendingOrder({
     }
     : null
   const itemInputs: Array<Record<string, unknown>> = prepared.normalizedItems.map(({ entry, product, quantity, unitPrice, subtotalAmount, gstSlabId, gstPercentage, gstAmount, selectedCustomDropdowns }) => ({
-      product_id: product?.id || null,
-      product_name: entry.name,
-      product_slug: entry.slug,
-      sku: product?.sku || null,
-      quantity,
-      unit_price: unitPrice,
-      line_total: subtotalAmount,
-      selected_metal: buildSelectionLabel(entry.metal, entry.purity) || null,
-      selected_purity: null,
-      selected_size_or_fit: entry.sizeOrFit || null,
-      selected_gemstone: entry.gemstone || null,
-      selected_carat: entry.carat || null,
-      gst_slab_id: gstSlabId,
-      gst_percentage: gstPercentage,
-      gst_amount: gstAmount,
-      image_url: entry.imageUrl || null,
-      selected_custom_dropdowns: selectedCustomDropdowns,
-      item_type: 'regular',
-      promotion_coupon_id: null,
-      original_unit_price: null,
-      promotion_metadata: {},
-    }))
+    product_id: product?.id || null,
+    product_name: entry.name,
+    product_slug: entry.slug,
+    sku: product?.sku || null,
+    quantity,
+    unit_price: unitPrice,
+    line_total: subtotalAmount,
+    selected_metal: buildSelectionLabel(entry.metal, entry.purity) || null,
+    selected_purity: null,
+    selected_size_or_fit: entry.sizeOrFit || null,
+    selected_gemstone: entry.gemstone || null,
+    selected_carat: entry.carat || null,
+    gst_slab_id: gstSlabId,
+    gst_percentage: gstPercentage,
+    gst_amount: gstAmount,
+    image_url: entry.imageUrl || null,
+    selected_custom_dropdowns: selectedCustomDropdowns,
+    item_type: 'regular',
+    promotion_coupon_id: null,
+    original_unit_price: null,
+    promotion_metadata: {},
+  }))
   if (prepared.gift && prepared.couponId && prepared.couponCode) {
     itemInputs.push({
       product_id: prepared.gift.productId,
@@ -569,15 +543,19 @@ export async function createPendingOrder({
     })
   }
 
-  const { data: order, error: orderError } = await adminClient
-    .rpc('create_pending_order_v2', {
-      p_user_id: userId,
-      p_order: orderInput,
-      p_items: itemInputs,
-      p_love_letter: loveLetterInput,
-      p_customer_birth_date: prepared.resolvedCustomer.birth_date || null,
-      p_customer_anniversary_date: prepared.resolvedCustomer.anniversary_date || null,
-    })
+  const { data: order, error: orderError } = await (async () => {
+    try {
+      const order = await createRdsPendingOrder({
+        order: { ...orderInput, customer_identity_id: customerIdentityId ?? null, fulfillment_mode: 'made_to_order' },
+        items: itemInputs, loveLetter: loveLetterInput,
+        birthDate: prepared.resolvedCustomer.birth_date || null,
+        anniversaryDate: prepared.resolvedCustomer.anniversary_date || null,
+      })
+      return { data: order, error: null as { code?: string; message: string } | null }
+    } catch {
+      return { data: null, error: { message: 'Unable to create order.' } }
+    }
+  })()
 
   if (orderError || !order) {
     return { error: orderError?.message || 'Unable to create order.' }
@@ -587,197 +565,6 @@ export async function createPendingOrder({
     data: {
       order: order as PendingOrderRecord,
       gatewayPayload,
-    },
-  } as const
-}
-
-export async function markOrderPaymentFailed({
-  adminClient,
-  orderId,
-  razorpayOrderId,
-  paymentId,
-  error,
-  rawEvent,
-}: {
-  adminClient: SupabaseClient
-  orderId?: string | null
-  razorpayOrderId?: string | null
-  paymentId?: string | null
-  error?: {
-    code?: string | null
-    description?: string | null
-    source?: string | null
-    step?: string | null
-    reason?: string | null
-    metadata?: {
-      order_id?: string | null
-      payment_id?: string | null
-    } | null
-  } | null
-  rawEvent?: unknown
-}) {
-  let query = adminClient.from('orders').select('id, gateway_payload').limit(1)
-
-  if (orderId) {
-    query = query.eq('id', orderId)
-  } else if (razorpayOrderId) {
-    query = query.eq('razorpay_order_id', razorpayOrderId)
-  } else {
-    return null
-  }
-
-  const { data: order, error: orderError } = await query.maybeSingle()
-  if (orderError || !order) return null
-
-  const { data: failedOrder, error: failureUpdateError } = await adminClient
-    .from('orders')
-    .update({
-      payment_status: 'failed',
-      gateway_payment_status: 'failed',
-      razorpay_order_id: razorpayOrderId || error?.metadata?.order_id || null,
-      razorpay_payment_id: paymentId || error?.metadata?.payment_id || null,
-      razorpay_error_code: error?.code || null,
-      razorpay_error_description: error?.description || null,
-      razorpay_error_source: error?.source || null,
-      razorpay_error_step: error?.step || null,
-      razorpay_error_reason: error?.reason || null,
-      payment_failed_at: new Date().toISOString(),
-      gateway_payload: {
-        ...(order.gateway_payload || {}),
-        failure: {
-          error: error || null,
-          rawEvent: rawEvent || null,
-        },
-      },
-    })
-    .eq('id', order.id)
-    .eq('payment_status', 'pending')
-    .select('id')
-    .maybeSingle()
-
-  if (failureUpdateError || !failedOrder) return order.id as string
-
-  // TODO(sql-audit): Review release_order_inventory_reservation for ambiguous column references in its SQL definition.
-  const { error: releaseError } = await adminClient
-    .rpc('release_order_inventory_reservation', { p_order_id: order.id })
-  if (releaseError) {
-    console.error('Failed to release inventory reservation after payment failure:', releaseError)
-  }
-
-  return order.id as string
-}
-
-export async function finalizePaidOrder({
-  adminClient,
-  orderId,
-  paymentId,
-  razorpayOrderId,
-  signature,
-  paymentMethod,
-  paymentContact,
-  paymentEmail,
-  gatewayPaymentStatus,
-  paymentAmountInSubunits,
-  paymentCurrency,
-  rawEvent,
-}: {
-  adminClient: SupabaseClient
-  orderId?: string | null
-  paymentId: string
-  razorpayOrderId: string
-  signature?: string | null
-  paymentMethod?: string | null
-  paymentContact?: string | null
-  paymentEmail?: string | null
-  gatewayPaymentStatus?: string | null
-  paymentAmountInSubunits: number
-  paymentCurrency: string
-  rawEvent?: unknown
-}) {
-  let query = adminClient.from('orders').select('*').limit(1)
-  if (orderId) {
-    query = query.eq('id', orderId)
-  } else {
-    query = query.eq('razorpay_order_id', razorpayOrderId)
-  }
-
-  const { data: order, error: orderError } = await query.maybeSingle()
-  if (orderError || !order) {
-    return { error: orderError?.message || 'Order not found.' }
-  }
-
-  const { data: stockFinalization, error: stockFinalizationError } = await adminClient
-    .rpc('finalize_paid_order_with_coupon_secure', {
-      p_order_id: order.id,
-      p_razorpay_order_id: razorpayOrderId,
-      p_payment_id: paymentId,
-      p_signature: signature || null,
-      p_payment_method: paymentMethod || null,
-      p_payment_contact: paymentContact || null,
-      p_payment_email: paymentEmail || null,
-      p_gateway_payment_status: gatewayPaymentStatus || 'captured',
-      p_payment_amount_subunits: paymentAmountInSubunits,
-      p_payment_currency: paymentCurrency,
-      p_raw_event: rawEvent ?? null,
-    })
-    .single()
-
-  if (stockFinalizationError) {
-    return { error: stockFinalizationError.message, errorCode: 'finalization_rpc_error', orderId: order.id }
-  }
-
-  const finalization = stockFinalization as StockFinalizationResult | null
-  if (!finalization?.ok) {
-    return {
-      error:
-        finalization?.message ||
-        'Payment was verified, but stock could not be allocated. Please contact support.',
-      errorCode: finalization?.error_code || 'inventory_finalization_failed',
-      orderId: finalization?.order_id || order.id,
-    }
-  }
-
-  const storedGatewayPayload = order.gateway_payload as StoredGatewayPayload | null
-  const coupon = storedGatewayPayload?.checkout?.coupon
-
-  if (!finalization.already_paid) {
-    const { data: items } = await adminClient
-      .from('order_items')
-      .select('product_name, quantity, line_total')
-      .eq('order_id', order.id)
-      .order('created_at', { ascending: true })
-
-    try {
-      await sendOrderConfirmationEmail({
-        customerEmail: order.customer_email || '',
-        customerName: [order.customer_first_name, order.customer_last_name].filter(Boolean).join(' ') || 'Client',
-        orderNumber: order.order_number,
-        orderDate: order.created_at,
-        subtotalAmount: Number((storedGatewayPayload?.totals?.chargedSubtotal ?? order.subtotal_amount) || 0),
-        gstAmount: Number((storedGatewayPayload?.totals?.chargedGst ?? order.gst_amount) || 0),
-        gstLabel: storedGatewayPayload?.totals?.gstLabel || 'Taxes',
-        gstPercentage: Number(storedGatewayPayload?.totals?.gstPercentage || 0),
-        shippingAmount: Number((storedGatewayPayload?.totals?.shippingCharged ?? order.shipping_amount) || 0),
-        couponCode: coupon?.code || null,
-        couponDiscountAmount: Number((storedGatewayPayload?.totals?.chargedCouponDiscount ?? coupon?.discountAmount) || 0),
-        totalAmount: Number(order.payment_amount || order.total_amount || 0),
-        currency: (order.payment_currency as string | null) || 'USD',
-        items: ((items || []) as OrderEmailItemRow[]).map((item) => ({
-          product_name: item.product_name,
-          quantity: Number(item.quantity || 0),
-          line_total: Number(item.line_total || 0) * Number(storedGatewayPayload?.totals?.exchangeRate || 1),
-        })),
-      })
-    } catch (emailError) {
-      console.error('Order confirmation email failed after payment verification:', emailError)
-    }
-  }
-
-  return {
-    data: {
-      orderId: finalization.order_id,
-      orderNumber: finalization.order_number,
-      totalAmount: Number(finalization.total_amount || 0),
     },
   } as const
 }

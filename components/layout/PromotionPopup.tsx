@@ -3,6 +3,7 @@
 import { type FormEvent, useEffect, useRef, useState } from 'react'
 import { ArrowLeft, Check, Copy } from 'lucide-react'
 import { cinzelFont } from '@/app/fonts'
+import { mediaUrl } from '@/lib/media-url'
 
 type PromotionOption = string | { id?: string | number; value?: string; label?: string }
 type PromotionQuestion = { id: number; field_key: string; question: string; input_type: 'text' | 'email' | 'phone' | 'number' | 'options'; options?: PromotionOption[] | null; allow_multiple?: boolean; validation_pattern?: string | null; validation_message?: string | null; is_required: boolean; sort_order: number }
@@ -35,8 +36,6 @@ type PromotionPopupData = {
 }
 
 const SESSION_KEY = 'hod_promotion_popup_shown_v3'
-const SUPABASE_PUBLIC_BASE = process.env.NEXT_PUBLIC_SUPABASE_URL
-const SUPABASE_COLLECTION_BUCKET = process.env.NEXT_PUBLIC_SUPABASE_COLLECTION_BUCKET || 'hod'
 
 function buildVersionToken(item: PromotionPopupData) {
   return (
@@ -59,10 +58,7 @@ function buildVersionToken(item: PromotionPopupData) {
 }
 
 function toPublicUrl(path: string) {
-  if (!path) return ''
-  if (path.startsWith('http://') || path.startsWith('https://')) return path
-  if (!SUPABASE_PUBLIC_BASE) return path
-  return `${SUPABASE_PUBLIC_BASE}/storage/v1/object/public/${SUPABASE_COLLECTION_BUCKET}/${path}`
+  return mediaUrl(path)
 }
 
 function appendCacheBuster(src: string, versionToken: string) {

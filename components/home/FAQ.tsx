@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Plus_Jakarta_Sans } from 'next/font/google';
-import { supabase } from '@/lib/supabase';
 import { cinzelFont } from '@/app/fonts';
 
 const plusJakartaSans = Plus_Jakarta_Sans({
@@ -101,22 +100,11 @@ export default function FAQ() {
     let ignore = false;
 
     const loadFaq = async () => {
-      const { data: sectionData } = await supabase
-        .from('support_faq_section')
-        .select('id, title, subtitle')
-        .eq('section_key', 'global_support_faq')
-        .maybeSingle();
-
-      if (ignore || !sectionData?.id) return;
-
-      const { data: itemData, error: itemError } = await supabase
-        .from('support_faq_items')
-        .select('id, sort_order, question, answer, is_active')
-        .eq('section_id', sectionData.id)
-        .eq('is_active', true)
-        .order('sort_order', { ascending: true });
-
-      if (ignore || itemError) return;
+      const response = await fetch('/api/public/home-faq')
+      const payload = await response.json().catch(() => null)
+      const sectionData = payload?.data?.section
+      const itemData = payload?.data?.items
+      if (ignore || !response.ok || !sectionData?.id) return;
 
       setSection({
         title: sectionData.title || fallbackSection.title,

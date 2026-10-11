@@ -3,7 +3,7 @@ import JsonLd from '@/components/seo/JsonLd'
 import FaqClient from '@/components/pages/FaqClient'
 import { createPageMetadata } from '@/lib/seo'
 import { createFaqSchema } from '@/lib/structured-data'
-import { createSupabaseServerClient } from '@/lib/server-supabase'
+import { findFaqSectionFromRds, loadFaqCategoriesFromRds, loadFaqItemsFromRds } from '@/lib/repositories/support-repository'
 
 export const metadata: Metadata = createPageMetadata({
   title: 'FAQ',
@@ -41,28 +41,14 @@ type FaqCategory = {
 
 async function getFaqContent() {
   try {
-    const supabase = createSupabaseServerClient()
 
-    const { data: sectionData } = await supabase
-      .from('support_faq_section')
-      .select('id, title, subtitle')
-      .eq('section_key', 'global_support_faq')
-      .maybeSingle()
+    const { data: sectionData } = { data: await findFaqSectionFromRds() }
 
-    const { data: categoryData } = await supabase
-      .from('support_faq_categories')
-      .select('id, name, image_path, image_alt')
-      .eq('is_active', true)
-      .order('sort_order', { ascending: true })
+    const { data: categoryData } = { data: await loadFaqCategoriesFromRds() }
 
-    let items = fallbackFaqs
+    let items: Array<{ question: string; answer: string; category_id: number | null }> = fallbackFaqs
     if (sectionData?.id) {
-      const { data: itemData } = await supabase
-        .from('support_faq_items')
-        .select('question, answer, category_id')
-        .eq('section_id', sectionData.id)
-        .eq('is_active', true)
-        .order('sort_order', { ascending: true })
+      const { data: itemData } = { data: await loadFaqItemsFromRds(sectionData.id) }
 
       const parsed = (itemData ?? [])
         .filter((item) => item.question && item.answer)

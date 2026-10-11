@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { useState } from 'react'
 import type { HomeMaterialItem } from '@/lib/home-data'
+import { mediaUrl } from '@/lib/media-url'
 
 type MaterialItem = {
   sort_order: number
@@ -12,9 +13,7 @@ type MaterialItem = {
 }
 
 function buildIconUrl(path: string) {
-  const base = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const bucket = process.env.NEXT_PUBLIC_SUPABASE_COLLECTION_BUCKET ?? 'hod'
-  return base ? `${base}/storage/v1/object/public/${bucket}/${path}` : ''
+  return mediaUrl(path)
 }
 
 function fallbackIcon() {

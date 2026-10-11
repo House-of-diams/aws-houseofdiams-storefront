@@ -1,5 +1,9 @@
 import { cache } from 'react'
-import { createSupabaseServerClient } from '@/lib/server-supabase'
+import {
+  findActiveCatalogCategoryBySlug,
+  findActiveCatalogOptionBySlug,
+  findActiveCatalogSubcategoryBySlug,
+} from '@/lib/repositories/catalog-repository'
 
 export type ResolvedCatalogTaxonomy = {
   category: {
@@ -26,35 +30,13 @@ export const resolveCatalogTaxonomy = cache(async (args: {
   subcategorySlug: string
   optionSlug?: string
 }): Promise<ResolvedCatalogTaxonomy | null> => {
-  const supabase = createSupabaseServerClient()
-  const { data: category } = await supabase
-    .from('catalog_categories')
-    .select('id, name, slug')
-    .eq('slug', args.categorySlug)
-    .eq('status', 'active')
-    .maybeSingle()
-
+  // Preserve active-category boundaries for every RDS taxonomy lookup.
+  const category = await findActiveCatalogCategoryBySlug(args.categorySlug)
   if (!category) return null
-
-  const { data: subcategory } = await supabase
-    .from('catalog_subcategories')
-    .select('id, category_id, name, slug')
-    .eq('category_id', category.id)
-    .eq('slug', args.subcategorySlug)
-    .eq('status', 'active')
-    .maybeSingle()
-
+  const subcategory = await findActiveCatalogSubcategoryBySlug(category.id, args.subcategorySlug)
   if (!subcategory) return null
-
   if (!args.optionSlug) return { category, subcategory, option: null }
-
-  const { data: option } = await supabase
-    .from('catalog_options')
-    .select('id, subcategory_id, name, slug')
-    .eq('subcategory_id', subcategory.id)
-    .eq('slug', args.optionSlug)
-    .eq('status', 'active')
-    .maybeSingle()
-
+  const option = await findActiveCatalogOptionBySlug(subcategory.id, args.optionSlug)
   return option ? { category, subcategory, option } : null
+
 })

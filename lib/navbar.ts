@@ -1,4 +1,5 @@
 import { buildCategoryPath, buildOptionPath, buildSubcategoryPath } from '@/lib/catalog-paths'
+import { mediaUrl } from '@/lib/media-url'
 
 export type NavbarSectionType =
   | 'category_list'
@@ -170,20 +171,8 @@ export type NavbarRenderItem = {
   }
 }
 
-const SUPABASE_PUBLIC_BASE = process.env.NEXT_PUBLIC_SUPABASE_URL
-const SUPABASE_COLLECTION_BUCKET = process.env.NEXT_PUBLIC_SUPABASE_COLLECTION_BUCKET || 'hod'
-
 function resolveStoragePublicUrl(path: string | null | undefined) {
-  if (!path) return null
-  if (/^https?:\/\//i.test(path)) return path
-  if (path.startsWith('/storage/v1/object/public/')) {
-    return SUPABASE_PUBLIC_BASE ? `${SUPABASE_PUBLIC_BASE}${path}` : path
-  }
-  if (path.startsWith('storage/v1/object/public/')) {
-    return SUPABASE_PUBLIC_BASE ? `${SUPABASE_PUBLIC_BASE}/${path}` : `/${path}`
-  }
-  if (!SUPABASE_PUBLIC_BASE) return path
-  return `${SUPABASE_PUBLIC_BASE}/storage/v1/object/public/${SUPABASE_COLLECTION_BUCKET}/${path}`
+  return path ? mediaUrl(path) : null
 }
 
 const METAL_TYPE_MAP: Record<string, 'yellow' | 'rose' | 'white' | 'platinum'> = {
@@ -392,15 +381,15 @@ export function buildNavbarRenderItems(args: {
       const isDirectLink = item.item_type !== 'mega_menu' || itemCategory?.nav_type === 'direct_link'
 
       if (isDirectLink) {
-      return {
-        slug: item.slug,
-        linkedCategoryId: item.linked_category_id,
-        label: item.label,
-        href: itemCategory?.nav_type === 'direct_link'
-          ? itemCategory.direct_link_url ?? item.direct_link_url ?? buildItemBaseHref(item.slug)
-          : item.direct_link_url ?? buildItemBaseHref(item.slug),
-        navigationType: 'direct_link' as const,
-      }
+        return {
+          slug: item.slug,
+          linkedCategoryId: item.linked_category_id,
+          label: item.label,
+          href: itemCategory?.nav_type === 'direct_link'
+            ? itemCategory.direct_link_url ?? item.direct_link_url ?? buildItemBaseHref(item.slug)
+            : item.direct_link_url ?? buildItemBaseHref(item.slug),
+          navigationType: 'direct_link' as const,
+        }
       }
 
       const itemSections = visibleSections
@@ -414,12 +403,12 @@ export function buildNavbarRenderItems(args: {
               : null
           const categoryLink: NavbarRenderLink[] = injectedCategory
             ? [
-                {
-                  label: injectedCategory.name,
-                  href: buildCategoryPath(injectedCategory),
-                  isCategoryLink: true,
-                },
-              ]
+              {
+                label: injectedCategory.name,
+                href: buildCategoryPath(injectedCategory),
+                isCategoryLink: true,
+              },
+            ]
             : []
 
           if (section.section_type === 'manual_links') {
@@ -524,13 +513,13 @@ export function buildNavbarRenderItems(args: {
                 ? buildCategoryListLinks({ category: itemCategory, subcategory, options: filteredSubcategoryOptions })
                 : []
               : [
-                  {
-                    label: subcategory.name,
-                    href: itemCategory ? buildSubcategoryPath(itemCategory, subcategory) : itemHref,
-                    iconUrl: resolveStoragePublicUrl(subcategory.image_path ?? subcategory.icon_svg_path),
-                    type: resolveStoragePublicUrl(subcategory.image_path ?? subcategory.icon_svg_path) ? 'icon' : 'default',
-                  } satisfies NavbarRenderLink,
-                ]
+                {
+                  label: subcategory.name,
+                  href: itemCategory ? buildSubcategoryPath(itemCategory, subcategory) : itemHref,
+                  iconUrl: resolveStoragePublicUrl(subcategory.image_path ?? subcategory.icon_svg_path),
+                  type: resolveStoragePublicUrl(subcategory.image_path ?? subcategory.icon_svg_path) ? 'icon' : 'default',
+                } satisfies NavbarRenderLink,
+              ]
             : []
 
           return {
@@ -551,23 +540,23 @@ export function buildNavbarRenderItems(args: {
       const fallbackSections =
         itemSections.length === 0 && item.linked_category_id
           ? subcategories
-              .filter((entry) => entry.category_id === item.linked_category_id && entry.status === 'active')
-              .sort((left, right) => left.display_order - right.display_order)
-              .map((subcategory) => ({
-                id: `fallback-${item.id}-${subcategory.id}`,
-                title: subcategory.name,
-                iconUrl: resolveStoragePublicUrl(subcategory.image_path ?? subcategory.icon_svg_path),
-                type: 'category_list' as const,
-                links: itemCategory
-                  ? buildCategoryListLinks({
-                      category: itemCategory,
-                      subcategory,
-                      options: optionsBySubcategory.get(subcategory.id) ?? [],
-                    })
-                  : [],
-                showAsFilter: false,
-              }))
-              .filter((section) => (section.links?.length ?? 0) > 0)
+            .filter((entry) => entry.category_id === item.linked_category_id && entry.status === 'active')
+            .sort((left, right) => left.display_order - right.display_order)
+            .map((subcategory) => ({
+              id: `fallback-${item.id}-${subcategory.id}`,
+              title: subcategory.name,
+              iconUrl: resolveStoragePublicUrl(subcategory.image_path ?? subcategory.icon_svg_path),
+              type: 'category_list' as const,
+              links: itemCategory
+                ? buildCategoryListLinks({
+                  category: itemCategory,
+                  subcategory,
+                  options: optionsBySubcategory.get(subcategory.id) ?? [],
+                })
+                : [],
+              showAsFilter: false,
+            }))
+            .filter((section) => (section.links?.length ?? 0) > 0)
           : []
       const renderedSections = itemSections.length > 0 ? itemSections : fallbackSections
       const featuredCard = featuredCards.find((entry) => entry.navbar_item_id === item.id && entry.enabled)
@@ -583,11 +572,11 @@ export function buildNavbarRenderItems(args: {
           sections: renderedSections,
           featuredImage: featuredCard?.image_path
             ? {
-                imageUrl: resolveStoragePublicUrl(featuredCard.image_path) ?? featuredCard.image_path,
-                imageAlt: featuredCard.image_alt ?? item.label,
-                buttonLabel: featuredCard.button_label ?? '',
-                buttonUrl: featuredCard.button_url ?? buildItemBaseHref(item.slug),
-              }
+              imageUrl: resolveStoragePublicUrl(featuredCard.image_path) ?? featuredCard.image_path,
+              imageAlt: featuredCard.image_alt ?? item.label,
+              buttonLabel: featuredCard.button_label ?? '',
+              buttonUrl: featuredCard.button_url ?? buildItemBaseHref(item.slug),
+            }
             : null,
         },
       }

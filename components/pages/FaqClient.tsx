@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import { Search } from 'lucide-react';
+import { mediaUrl } from '@/lib/media-url';
 
 export type FaqClientCategory = {
   id: number;
@@ -15,8 +16,6 @@ export type FaqClientItem = {
   answer: string;
   category_id: number | null;
 };
-
-const storageBase = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/${process.env.NEXT_PUBLIC_SUPABASE_COLLECTION_BUCKET || 'hod'}`;
 
 export default function FaqClient({
   title,
@@ -151,7 +150,7 @@ export default function FaqClient({
               >
                 {category.image_path ? (
                   <img
-                    src={`${storageBase}/${category.image_path}`}
+                    src={mediaUrl(category.image_path)}
                     alt={category.image_alt || category.name}
                     className="h-12 w-12 object-contain"
                   />

@@ -8,5 +8,5 @@ export const metadata: Metadata = {
 }
 
 export default function CheckoutSuccessPage() {
-  return <CheckoutSuccessClient />
+  return <CheckoutSuccessClient customerAuthEnabled={process.env.HOD_CUSTOMER_AUTH_ENABLED === 'true'} />
 }

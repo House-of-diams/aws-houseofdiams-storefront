@@ -3,12 +3,10 @@ import { useEffect, useMemo, useRef, useState, type AnchorHTMLAttributes, type K
 import Link from 'next/link';
 import { createPortal } from 'react-dom';
 import { useRouter } from 'next/navigation';
-import { supabase } from '@/lib/supabase';
 import {
   type NavbarRenderItem,
   type NavbarRenderSection,
 } from '@/lib/navbar';
-import type { User } from '@supabase/supabase-js';
 import { useWishlistStore } from '@/lib/hooks/useWishlistStore';
 import { useCart } from '@/lib/hooks/useCart';
 
@@ -147,7 +145,7 @@ function getMobileSectionEntries(section: NavbarRenderSection) {
         <img
           src={link.iconUrl}
           alt={link.label}
-            className="h-5 w-5 flex-shrink-0 object-contain"
+          className="h-5 w-5 flex-shrink-0 object-contain"
         />
       ) : null,
     })) ?? [];
@@ -155,9 +153,7 @@ function getMobileSectionEntries(section: NavbarRenderSection) {
   return [...metalEntries, ...linkEntries];
 }
 
-
-
-export default function Navbar({ navItems = [] }: { navItems?: NavbarRenderItem[] }) {
+export default function Navbar({ navItems = [], customerAuthEnabled = false }: { navItems?: NavbarRenderItem[]; customerAuthEnabled?: boolean }) {
   const router = useRouter();
   const { count: wishlistCount } = useWishlistStore();
   const { count: cartCount, openCart } = useCart();
@@ -188,7 +184,7 @@ export default function Navbar({ navItems = [] }: { navItems?: NavbarRenderItem[
   const [announcementIndex, setAnnouncementIndex] = useState(0);
   const [announcementAutoplay, setAnnouncementAutoplay] = useState(true);
   const [announcementActive, setAnnouncementActive] = useState(true);
-  const [authUser, setAuthUser] = useState<User | null>(null);
+  const [authUser, setAuthUser] = useState<{ id: string } | null>(null);
   const [authReady, setAuthReady] = useState(false);
   const lastScrollY = useRef(0);
   const searchRef = useRef<HTMLDivElement>(null);
@@ -198,7 +194,6 @@ export default function Navbar({ navItems = [] }: { navItems?: NavbarRenderItem[
   const megaCloseTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const mobileMenuCloseTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const prefetchedNavRoutesRef = useRef(new Set<string>());
-
 
   useEffect(() => {
     let frameId: number | null = null;
@@ -291,12 +286,12 @@ export default function Navbar({ navItems = [] }: { navItems?: NavbarRenderItem[
     const timer = window.setTimeout(() => {
       void loadSearchItems('', controller.signal)
         .then((items) => {
-        if (!controller.signal.aborted) {
-          defaultSearchItemsRef.current = items;
-          setDefaultSearchItems(items);
-        }
+          if (!controller.signal.aborted) {
+            defaultSearchItemsRef.current = items;
+            setDefaultSearchItems(items);
+          }
         })
-        .catch(() => {});
+        .catch(() => { });
     }, 800);
 
     return () => {
@@ -405,17 +400,17 @@ export default function Navbar({ navItems = [] }: { navItems?: NavbarRenderItem[
   useEffect(() => {
     let mounted = true;
 
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (!mounted) return;
-      setAuthUser(session?.user ?? null);
-      setAuthReady(true);
-    });
+    if (customerAuthEnabled) {
+      void fetch('/api/customer-auth/session', { cache: 'no-store' }).then(async (response) => {
+        if (!response.ok) throw new Error('Customer session unavailable');
+        const payload = await response.json();
+        if (mounted) { setAuthUser(payload.identity ?? null); setAuthReady(true); }
+      }).catch(() => { if (mounted) { setAuthUser(null); setAuthReady(true); } });
+      return () => { mounted = false; };
+    }
 
-    return () => {
-      mounted = false;
-      listener.subscription.unsubscribe();
-    };
-  }, []);
+    return () => { mounted = false; };
+  }, [customerAuthEnabled]);
 
   const closeMenu = () => {
     setMenuOpen(false);
@@ -485,7 +480,13 @@ export default function Navbar({ navItems = [] }: { navItems?: NavbarRenderItem[
   };
 
   const handleSignOut = async () => {
-    await supabase.auth.signOut();
+    if (customerAuthEnabled) {
+      const response = await fetch('/api/customer-auth/logout', { method: 'POST' });
+      if (!response.ok) return;
+      const payload = await response.json();
+      window.location.assign(payload.redirect);
+      return;
+    }
     closeMenu();
     router.replace('/login');
     router.refresh();
@@ -667,20 +668,20 @@ export default function Navbar({ navItems = [] }: { navItems?: NavbarRenderItem[
           }}
         >
           <div key={`${announcementIndex}-${announcementItem.message}`} className="hod-announcement-message flex max-w-full items-center justify-center gap-x-[var(--space-3)]">
-                  <span className="block max-w-full">
-                    {announcementItem.linkUrl ? (
-                      <Link
-                        href={announcementItem.linkUrl}
-                        target={announcementItem.openInNewTab ? '_blank' : undefined}
-                        rel={announcementItem.openInNewTab ? 'noreferrer' : undefined}
-                        className="transition-opacity duration-200 hover:opacity-70"
-                      >
-                        {announcementItem.message}
-                      </Link>
-                    ) : (
-                      <span>{announcementItem.message}</span>
-                    )}
-                  </span>
+            <span className="block max-w-full">
+              {announcementItem.linkUrl ? (
+                <Link
+                  href={announcementItem.linkUrl}
+                  target={announcementItem.openInNewTab ? '_blank' : undefined}
+                  rel={announcementItem.openInNewTab ? 'noreferrer' : undefined}
+                  className="transition-opacity duration-200 hover:opacity-70"
+                >
+                  {announcementItem.message}
+                </Link>
+              ) : (
+                <span>{announcementItem.message}</span>
+              )}
+            </span>
           </div>
         </div>
       ) : null}
@@ -703,323 +704,323 @@ export default function Navbar({ navItems = [] }: { navItems?: NavbarRenderItem[
           className="nav-desktop-row relative h-[var(--hod-navbar-height)] py-0 lg:pb-[34px] lg:pt-0"
         >
           <div className="relative flex h-full items-center border-b border-black/[0.06] bg-white px-3 lg:hidden">
-          <div className="order-2 ml-auto flex items-center gap-2" aria-label="Header actions">
-            <button
-              type="button"
-              onClick={openSearch}
-              aria-label="Search"
-              className="group relative flex h-9 w-9 items-center justify-center border-0 bg-transparent transition-opacity duration-300 hover:opacity-75"
+            <div className="order-2 ml-auto flex items-center gap-2" aria-label="Header actions">
+              <button
+                type="button"
+                onClick={openSearch}
+                aria-label="Search"
+                className="group relative flex h-9 w-9 items-center justify-center border-0 bg-transparent transition-opacity duration-300 hover:opacity-75"
+              >
+                <img src="/Navbar svgs/search-01-stroke-rounded (1).svg" alt="" aria-hidden="true" className="h-[20px] w-[20px] object-contain opacity-75 transition-opacity group-hover:opacity-100" />
+              </button>
+              <button
+                type="button"
+                onClick={openCart}
+                aria-label="Cart"
+                className="group relative flex h-9 w-9 items-center justify-center border-0 bg-transparent transition-opacity duration-300 hover:opacity-75"
+              >
+                <img src="/Navbar svgs/handbag-simple.svg" alt="" aria-hidden="true" className="h-[20px] w-[20px] object-contain opacity-75 transition-opacity group-hover:opacity-100" />
+                {cartCount ? <span className="absolute -right-1 -top-1 inline-flex min-w-[18px] items-center justify-center rounded-full bg-[#0A1628] px-1 text-[10px] text-white">{cartCount}</span> : null}
+              </button>
+              <button
+                onClick={() => {
+                  if (menuOpen) closeMenu();
+                  else openMobileMenu();
+                }}
+                aria-label="Menu"
+                aria-expanded={menuOpen}
+                className="relative flex h-11 w-11 cursor-pointer items-center justify-center border-none bg-transparent p-1"
+              >
+                <img
+                  src="/menu-09-stroke-rounded.svg"
+                  alt=""
+                  aria-hidden="true"
+                  className={`absolute h-[22px] w-[22px] object-contain transition-all duration-300 ease-out ${menuOpen ? 'rotate-90 scale-75 opacity-0' : 'rotate-0 scale-100 opacity-100'}`}
+                />
+                <img
+                  src="/cancel-01-stroke-rounded.svg"
+                  alt=""
+                  aria-hidden="true"
+                  className={`absolute h-[22px] w-[22px] object-contain transition-all duration-300 ease-out ${menuOpen ? 'rotate-0 scale-100 opacity-100' : '-rotate-90 scale-75 opacity-0'}`}
+                />
+              </button>
+            </div>
+            <Link
+              href="/"
+              className="order-1 flex min-w-0 items-center no-underline cursor-pointer"
             >
-              <img src="/Navbar svgs/search-01-stroke-rounded (1).svg" alt="" aria-hidden="true" className="h-[20px] w-[20px] object-contain opacity-75 transition-opacity group-hover:opacity-100" />
-            </button>
-            <button
-              type="button"
-              onClick={openCart}
-              aria-label="Cart"
-              className="group relative flex h-9 w-9 items-center justify-center border-0 bg-transparent transition-opacity duration-300 hover:opacity-75"
-            >
-              <img src="/Navbar svgs/handbag-simple.svg" alt="" aria-hidden="true" className="h-[20px] w-[20px] object-contain opacity-75 transition-opacity group-hover:opacity-100" />
-              {cartCount ? <span className="absolute -right-1 -top-1 inline-flex min-w-[18px] items-center justify-center rounded-full bg-[#0A1628] px-1 text-[10px] text-white">{cartCount}</span> : null}
-            </button>
-            <button
-              onClick={() => {
-                if (menuOpen) closeMenu();
-                else openMobileMenu();
-              }}
-              aria-label="Menu"
-              aria-expanded={menuOpen}
-              className="relative flex h-11 w-11 cursor-pointer items-center justify-center border-none bg-transparent p-1"
-            >
-              <img
-                src="/menu-09-stroke-rounded.svg"
-                alt=""
-                aria-hidden="true"
-                className={`absolute h-[22px] w-[22px] object-contain transition-all duration-300 ease-out ${menuOpen ? 'rotate-90 scale-75 opacity-0' : 'rotate-0 scale-100 opacity-100'}`}
-              />
-              <img
-                src="/cancel-01-stroke-rounded.svg"
-                alt=""
-                aria-hidden="true"
-                className={`absolute h-[22px] w-[22px] object-contain transition-all duration-300 ease-out ${menuOpen ? 'rotate-0 scale-100 opacity-100' : '-rotate-90 scale-75 opacity-0'}`}
-              />
-            </button>
-          </div>
-          <Link
-            href="/"
-            className="order-1 flex min-w-0 items-center no-underline cursor-pointer"
-          >
-            <span
-              className="whitespace-nowrap text-[17px] min-[360px]:text-[19px] min-[390px]:text-[20px] sm:text-[27px] font-bold"
-              style={{ color: 'var(--color-brand-primary, #000000)', fontFamily: 'var(--font-family-logo1, Cinzel, serif)', fontWeight: 600, fontVariationSettings: '"wght" 600', fontSynthesis: 'none' }}
-            >
-              House of Diams
-            </span>
-          </Link>
+              <span
+                className="whitespace-nowrap text-[17px] min-[360px]:text-[19px] min-[390px]:text-[20px] sm:text-[27px] font-bold"
+                style={{ color: 'var(--color-brand-primary, #000000)', fontFamily: 'var(--font-family-logo1, Cinzel, serif)', fontWeight: 600, fontVariationSettings: '"wght" 600', fontSynthesis: 'none' }}
+              >
+                House of Diams
+              </span>
+            </Link>
           </div>
 
           <div className="relative hidden min-h-[62px] lg:flex lg:items-center lg:justify-between" style={{ color: desktopHeaderText, fontFamily: 'var(--font-family-secondary, Inter, sans-serif)' }}>
-          <button type="button" data-navbar-search-root onClick={() => searchOpen ? closeSearch() : openSearch()} className="relative z-[2] flex min-w-[184px] items-center gap-2 border-b pb-2 text-[10px] font-medium uppercase tracking-[0.1em]" style={{ color: desktopHeaderText, borderColor: desktopHeaderBorder }} aria-label="Search" aria-expanded={searchOpen} aria-controls="navbar-search-panel">
-            <img src="/Navbar svgs/search-01-stroke-rounded (1).svg" alt="" aria-hidden="true" className="h-[20px] w-[20px] object-contain opacity-80" />
-            <span>Search</span>
-          </button>
-          <Link
-            href="/"
-            className="absolute left-1/2 top-1/2 z-[2] flex -translate-x-1/2 -translate-y-1/2 items-center whitespace-nowrap no-underline"
-          >
-            <span
-              className="text-[clamp(22px,2.1vw,32px)] font-bold  tracking-[0.06em]"
-              style={{ color: desktopHeaderText, fontFamily: 'var(--font-family-logo1, Cinzel, serif)', fontWeight: 600, fontVariationSettings: '"wght" 600', fontSynthesis: 'none' }}
+            <button type="button" data-navbar-search-root onClick={() => searchOpen ? closeSearch() : openSearch()} className="relative z-[2] flex min-w-[184px] items-center gap-2 border-b pb-2 text-[10px] font-medium uppercase tracking-[0.1em]" style={{ color: desktopHeaderText, borderColor: desktopHeaderBorder }} aria-label="Search" aria-expanded={searchOpen} aria-controls="navbar-search-panel">
+              <img src="/Navbar svgs/search-01-stroke-rounded (1).svg" alt="" aria-hidden="true" className="h-[20px] w-[20px] object-contain opacity-80" />
+              <span>Search</span>
+            </button>
+            <Link
+              href="/"
+              className="absolute left-1/2 top-1/2 z-[2] flex -translate-x-1/2 -translate-y-1/2 items-center whitespace-nowrap no-underline"
             >
-              House of Diams
-            </span>
-          </Link>
+              <span
+                className="text-[clamp(22px,2.1vw,32px)] font-bold  tracking-[0.06em]"
+                style={{ color: desktopHeaderText, fontFamily: 'var(--font-family-logo1, Cinzel, serif)', fontWeight: 600, fontVariationSettings: '"wght" 600', fontSynthesis: 'none' }}
+              >
+                House of Diams
+              </span>
+            </Link>
 
-          <nav className="contents" aria-label="Primary navigation">
-            <ul className="absolute left-1/2 top-[58px] flex -translate-x-1/2 items-center whitespace-nowrap list-none m-0 p-0">
-              {navItems.map((item) => (
-                <li
-                  key={item.label}
-                  className={hasMegaMenu(item) ? `mega-parent${activeMegaItem === item.label ? ' mega-open' : ''}` : ''}
-                  style={{ position: 'static' }}
-                  onMouseEnter={() => {
-                    if (hasMegaMenu(item)) {
-                      openMegaMenu(item.label);
-                      const preview = getDefaultMegaPreview(item);
-                      if (preview) setActiveMegaPreview({ itemLabel: item.label, ...preview });
-                      prefetchMegaMenu(item);
-                    }
-                  }}
-                  onMouseLeave={() => {
-                    if (hasMegaMenu(item)) queueCloseMegaMenu(item.label);
-                  }}
-                >
-                  <SmartNavLink
-                    href={item.href ?? '#'}
-                    onClick={closeMegaMenu}
-                    className="nav-link-underline relative block px-[18px] py-[11px] text-[11px] font-semibold tracking-[0.19em] uppercase no-underline cursor-pointer transition-colors duration-300"
-                    style={{
-                      fontFamily: 'var(--font-family-secondary, Inter, sans-serif)',
-                      color: desktopHeaderMuted,
+            <nav className="contents" aria-label="Primary navigation">
+              <ul className="absolute left-1/2 top-[58px] flex -translate-x-1/2 items-center whitespace-nowrap list-none m-0 p-0">
+                {navItems.map((item) => (
+                  <li
+                    key={item.label}
+                    className={hasMegaMenu(item) ? `mega-parent${activeMegaItem === item.label ? ' mega-open' : ''}` : ''}
+                    style={{ position: 'static' }}
+                    onMouseEnter={() => {
+                      if (hasMegaMenu(item)) {
+                        openMegaMenu(item.label);
+                        const preview = getDefaultMegaPreview(item);
+                        if (preview) setActiveMegaPreview({ itemLabel: item.label, ...preview });
+                        prefetchMegaMenu(item);
+                      }
+                    }}
+                    onMouseLeave={() => {
+                      if (hasMegaMenu(item)) queueCloseMegaMenu(item.label);
                     }}
                   >
-                    {item.label}
-                  </SmartNavLink>
-
-                  {hasMegaMenu(item) && item.mega ? (
-                    <div
-                      className="mega-drop absolute top-full min-h-[calc((100dvh-var(--hod-site-header-height,131px))*0.8)] overflow-hidden border-t border-black/10 bg-white"
+                    <SmartNavLink
+                      href={item.href ?? '#'}
+                      onClick={closeMegaMenu}
+                      className="nav-link-underline relative block px-[18px] py-[11px] text-[11px] font-semibold tracking-[0.19em] uppercase no-underline cursor-pointer transition-colors duration-300"
                       style={{
-                        left: '50%',
-                        width: '100vw',
-                        marginLeft: '-50vw',
-                        opacity: 0,
-                        visibility: 'hidden',
-                        pointerEvents: 'none',
-                        transform: 'translateY(6px)',
-                        transition: 'opacity .25s ease, visibility .25s, transform .25s ease',
-                        zIndex: 100,
-                      }}
-                      onMouseEnter={() => openMegaMenu(item.label)}
-                      onMouseLeave={() => queueCloseMegaMenu(item.label)}
-                      onMouseMove={(event) => {
-                        const overContent = (event.target as HTMLElement).closest('[data-mega-content], a, button');
-                        if (overContent) {
-                          openMegaMenu(item.label);
-                        } else if (!megaCloseTimeoutRef.current) {
-                          queueCloseMegaMenu(item.label);
-                        }
+                        fontFamily: 'var(--font-family-secondary, Inter, sans-serif)',
+                        color: desktopHeaderMuted,
                       }}
                     >
-                      <div className="flex min-h-[calc((100dvh-var(--hod-site-header-height,131px))*0.8)] w-full px-[56px] py-[44px]">
-                        <div
-                          className="grid w-full items-start gap-x-10"
-                          style={{
-                            gridTemplateColumns: item.mega.featuredImage?.imageUrl
-                              ? `minmax(0, 1fr) minmax(560px, 640px)`
-                              : `minmax(0, 1fr)`,
-                          }}
-                        >
-                          <div data-mega-content className="grid max-w-[840px] grid-cols-[repeat(4,minmax(140px,max-content))] justify-start gap-x-8 gap-y-8">
-                            {item.mega.sections.map((section, idx) => (
-                              <div
-                                key={`${item.label}-${section.title}-${idx}`}
-                                className={`min-w-[150px] ${idx === 3 ? 'lg:border-l lg:border-black/15 lg:pl-10' : ''}`}
-                              >
-                                <MegaSection section={section} onNavigate={closeMegaMenu} onPreview={(imageUrl, imageAlt) => setActiveMegaPreview({ itemLabel: item.label, imageUrl, imageAlt })} />
-                              </div>
-                            ))}
-                          </div>
-                          {item.mega.featuredImage?.imageUrl ? (
-                            <div data-mega-content className="flex justify-self-end overflow-hidden bg-[#F7F8FA]">
-                              <div className="h-[430px] w-[300px] max-w-[21vw] overflow-hidden">
-                                <img src={item.mega.featuredImage.imageUrl} alt={item.mega.featuredImage.imageAlt || item.label} className="h-full w-full object-cover" />
-                              </div>
-                              <div className="h-[430px] w-[300px] max-w-[21vw] overflow-hidden border-l border-white/20">
-                                {activeMegaPreview?.itemLabel === item.label ? <img src={activeMegaPreview.imageUrl} alt={activeMegaPreview.imageAlt} className="h-full w-full object-cover" /> : null}
-                              </div>
+                      {item.label}
+                    </SmartNavLink>
+
+                    {hasMegaMenu(item) && item.mega ? (
+                      <div
+                        className="mega-drop absolute top-full min-h-[calc((100dvh-var(--hod-site-header-height,131px))*0.8)] overflow-hidden border-t border-black/10 bg-white"
+                        style={{
+                          left: '50%',
+                          width: '100vw',
+                          marginLeft: '-50vw',
+                          opacity: 0,
+                          visibility: 'hidden',
+                          pointerEvents: 'none',
+                          transform: 'translateY(6px)',
+                          transition: 'opacity .25s ease, visibility .25s, transform .25s ease',
+                          zIndex: 100,
+                        }}
+                        onMouseEnter={() => openMegaMenu(item.label)}
+                        onMouseLeave={() => queueCloseMegaMenu(item.label)}
+                        onMouseMove={(event) => {
+                          const overContent = (event.target as HTMLElement).closest('[data-mega-content], a, button');
+                          if (overContent) {
+                            openMegaMenu(item.label);
+                          } else if (!megaCloseTimeoutRef.current) {
+                            queueCloseMegaMenu(item.label);
+                          }
+                        }}
+                      >
+                        <div className="flex min-h-[calc((100dvh-var(--hod-site-header-height,131px))*0.8)] w-full px-[56px] py-[44px]">
+                          <div
+                            className="grid w-full items-start gap-x-10"
+                            style={{
+                              gridTemplateColumns: item.mega.featuredImage?.imageUrl
+                                ? `minmax(0, 1fr) minmax(560px, 640px)`
+                                : `minmax(0, 1fr)`,
+                            }}
+                          >
+                            <div data-mega-content className="grid max-w-[840px] grid-cols-[repeat(4,minmax(140px,max-content))] justify-start gap-x-8 gap-y-8">
+                              {item.mega.sections.map((section, idx) => (
+                                <div
+                                  key={`${item.label}-${section.title}-${idx}`}
+                                  className={`min-w-[150px] ${idx === 3 ? 'lg:border-l lg:border-black/15 lg:pl-10' : ''}`}
+                                >
+                                  <MegaSection section={section} onNavigate={closeMegaMenu} onPreview={(imageUrl, imageAlt) => setActiveMegaPreview({ itemLabel: item.label, imageUrl, imageAlt })} />
+                                </div>
+                              ))}
                             </div>
-                          ) : null}
+                            {item.mega.featuredImage?.imageUrl ? (
+                              <div data-mega-content className="flex justify-self-end overflow-hidden bg-[#F7F8FA]">
+                                <div className="h-[430px] w-[300px] max-w-[21vw] overflow-hidden">
+                                  <img src={item.mega.featuredImage.imageUrl} alt={item.mega.featuredImage.imageAlt || item.label} className="h-full w-full object-cover" />
+                                </div>
+                                <div className="h-[430px] w-[300px] max-w-[21vw] overflow-hidden border-l border-white/20">
+                                  {activeMegaPreview?.itemLabel === item.label ? <img src={activeMegaPreview.imageUrl} alt={activeMegaPreview.imageAlt} className="h-full w-full object-cover" /> : null}
+                                </div>
+                              </div>
+                            ) : null}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ) : null}
-                </li>
-              ))}
-            </ul>
-          </nav>
+                    ) : null}
+                  </li>
+                ))}
+              </ul>
+            </nav>
 
-          <div className="relative z-[30] flex items-center justify-end gap-2.5">
-          <div ref={searchRef} data-navbar-search-root className="relative">
-            <div
-              className="sr-only"
-              style={{
-                borderColor: desktopHeaderBorder,
-                background: desktopUtilityBg,
-              }}
-            >
+            <div className="relative z-[30] flex items-center justify-end gap-2.5">
+              <div ref={searchRef} data-navbar-search-root className="relative">
+                <div
+                  className="sr-only"
+                  style={{
+                    borderColor: desktopHeaderBorder,
+                    background: desktopUtilityBg,
+                  }}
+                >
+                  <button
+                    type="button"
+                    onClick={() => searchOpen ? closeSearch() : openSearch()}
+                    aria-label="Search"
+                    className="flex h-[34px] w-[34px] flex-shrink-0 items-center justify-center"
+                  >
+                    <img src="/Navbar svgs/search-01-stroke-rounded (1).svg" alt="" aria-hidden="true" className="h-[22px] w-[22px] object-contain opacity-75 transition-opacity group-hover:opacity-100" />
+                  </button>
+                </div>
+
+              </div>
+              <Link
+                href="/wishlist"
+                aria-label="Wishlist"
+                className="group relative flex h-[34px] w-[34px] items-center justify-center text-current transition-opacity duration-300 hover:opacity-70"
+              >
+                <img src="/Navbar svgs/heart.svg" alt="" aria-hidden="true" className="h-[22px] w-[22px] object-contain opacity-75 transition-opacity group-hover:opacity-100" />
+                {wishlistCount ? <span className="absolute -right-1 -top-1 inline-flex min-w-[18px] items-center justify-center rounded-full bg-[#0A1628] px-1 text-[10px] text-white">{wishlistCount}</span> : null}
+              </Link>
               <button
                 type="button"
-                onClick={() => searchOpen ? closeSearch() : openSearch()}
-                aria-label="Search"
-                className="flex h-[34px] w-[34px] flex-shrink-0 items-center justify-center"
+                onClick={openCart}
+                aria-label="Cart"
+                className="group relative flex h-[34px] w-[34px] items-center justify-center border-0 bg-transparent text-current transition-opacity duration-300 hover:opacity-70"
               >
-                <img src="/Navbar svgs/search-01-stroke-rounded (1).svg" alt="" aria-hidden="true" className="h-[22px] w-[22px] object-contain opacity-75 transition-opacity group-hover:opacity-100" />
+                <img src="/Navbar svgs/handbag-simple.svg" alt="" aria-hidden="true" className="h-[22px] w-[22px] object-contain opacity-75 transition-opacity group-hover:opacity-100" />
+                {cartCount ? <span className="absolute -right-1 -top-1 inline-flex min-w-[18px] items-center justify-center rounded-full bg-[#0A1628] px-1 text-[10px] text-white">{cartCount}</span> : null}
               </button>
-            </div>
 
-          </div>
-            <Link
-              href="/wishlist"
-              aria-label="Wishlist"
-              className="group relative flex h-[34px] w-[34px] items-center justify-center text-current transition-opacity duration-300 hover:opacity-70"
-            >
-              <img src="/Navbar svgs/heart.svg" alt="" aria-hidden="true" className="h-[22px] w-[22px] object-contain opacity-75 transition-opacity group-hover:opacity-100" />
-              {wishlistCount ? <span className="absolute -right-1 -top-1 inline-flex min-w-[18px] items-center justify-center rounded-full bg-[#0A1628] px-1 text-[10px] text-white">{wishlistCount}</span> : null}
-            </Link>
-            <button
-              type="button"
-              onClick={openCart}
-              aria-label="Cart"
-              className="group relative flex h-[34px] w-[34px] items-center justify-center border-0 bg-transparent text-current transition-opacity duration-300 hover:opacity-70"
-            >
-              <img src="/Navbar svgs/handbag-simple.svg" alt="" aria-hidden="true" className="h-[22px] w-[22px] object-contain opacity-75 transition-opacity group-hover:opacity-100" />
-              {cartCount ? <span className="absolute -right-1 -top-1 inline-flex min-w-[18px] items-center justify-center rounded-full bg-[#0A1628] px-1 text-[10px] text-white">{cartCount}</span> : null}
-            </button>
-
-            {authReady && authUser ? (
-              <Link
-                href="/profile"
-                aria-label="Profile"
-                title="Profile"
-                className="inline-flex h-[34px] w-[34px] items-center justify-center text-current transition-opacity duration-300 hover:opacity-70"
-                style={{ color: desktopHeaderText }}
-              >
-                <img src="/Navbar svgs/user-round-stroke-rounded.svg" alt="" aria-hidden="true" className="h-[22px] w-[22px] object-contain opacity-75 transition-opacity group-hover:opacity-100" />
-              </Link>
-            ) : (
-              <Link
-                href="/signup"
-                aria-label="Sign up"
-                title="Sign up"
-                className="inline-flex h-[34px] w-[34px] items-center justify-center text-current transition-opacity duration-300 hover:opacity-70"
-                style={{ color: desktopHeaderText }}
-              >
-                <img src="/Navbar svgs/user-round-stroke-rounded.svg" alt="" aria-hidden="true" className="h-[22px] w-[22px] object-contain opacity-75 transition-opacity group-hover:opacity-100" />
-              </Link>
-            )}
-          </div>
-        </div>
-        {searchOpen ? createPortal((
-          <>
-            <div
-              aria-hidden="true"
-              className="fixed inset-0 z-[1399] bg-black/20"
-              onClick={closeSearch}
-            />
-            <section
-            id="navbar-search-panel"
-            data-navbar-search-root
-            aria-label="Product search"
-            className="fixed inset-x-0 top-0 z-[1400] h-dvh min-h-[100svh] overflow-y-auto bg-white sm:h-[60dvh] sm:min-h-0 lg:h-[65dvh]"
-            style={{ backgroundColor: 'var(--color-brand-accent, #ffffff)', fontFamily: 'var(--font-family-secondary, Inter, sans-serif)' }}
-          >
-            <div className="mx-auto h-full min-h-0 max-w-[1800px] px-5 pb-10 pt-8 sm:px-8 lg:px-14 lg:pt-10">
-              <div className="flex items-center gap-3 sm:gap-5">
-                <div className="flex min-w-0 flex-1 items-center gap-3 rounded-none border border-black/35 bg-white px-5 focus-within:ring-1 focus-within:ring-black/45 sm:px-6" style={{ backgroundColor: 'var(--color-brand-secondary, #F9F9F9)' }}>
-                  <img src="/Navbar svgs/search-01-stroke-rounded (1).svg" alt="" aria-hidden="true" className="h-[22px] w-[22px] shrink-0 object-contain opacity-80" />
-                  <input
-                    ref={searchInputRef}
-                    autoFocus
-                    value={searchQuery}
-                    onChange={(event) => { setSearchQuery(event.target.value); setSubmittedSearchQuery(''); setActiveSearchIndex(-1); }}
-                    onKeyDown={handleSearchKeyDown}
-                    role="combobox"
-                    aria-label="Search products"
-                    aria-autocomplete="list"
-                    aria-expanded={isShowingTextSuggestions ? textSearchSuggestions.length > 0 : searchLoadState === 'ready' && filteredSearchItems.length > 0}
-                    aria-controls={isShowingTextSuggestions ? 'navbar-search-suggestions' : searchLoadState === 'ready' ? 'navbar-search-results' : undefined}
-                    aria-activedescendant={isShowingTextSuggestions && textSearchSuggestions[activeSearchIndex] ? `navbar-search-suggestion-${activeSearchIndex}` : filteredSearchItems[activeSearchIndex] ? `navbar-search-option-${activeSearchIndex}` : undefined}
-                    placeholder="Search jewellery, settings, diamonds..."
-                    className="h-12 min-w-0 flex-1 border-0 bg-transparent text-[16px] text-[var(--color-brand-primary)] outline-none placeholder:text-black/55 sm:h-14"
-                  />
-                  {searchQuery ? <button type="button" onClick={() => { setSearchQuery(''); setSubmittedSearchQuery(''); setActiveSearchIndex(-1); searchInputRef.current?.focus(); }} aria-label="Clear search" className="shrink-0 text-xl text-black/55 hover:text-black">×</button> : null}
-                </div>
-                <button
-                  type="button"
-                  onClick={closeSearch}
-                  aria-label="Back to browsing"
-                  className="inline-flex h-11 shrink-0 items-center gap-1.5 px-1 text-[12px] font-medium text-[var(--color-brand-primary)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 lg:hidden"
+              {customerAuthEnabled && authReady && authUser ? (
+                <Link
+                  href="/profile"
+                  aria-label="Profile"
+                  title="Profile"
+                  className="inline-flex h-[34px] w-[34px] items-center justify-center text-current transition-opacity duration-300 hover:opacity-70"
+                  style={{ color: desktopHeaderText }}
                 >
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                    <path d="M15 4L7 12L15 20" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
-                  <span>Back</span>
-                </button>
-                <button type="button" onClick={closeSearch} className="hidden shrink-0 text-[13px] text-[var(--color-brand-primary)] underline underline-offset-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 lg:inline-flex">Cancel</button>
-              </div>
-              <div className="mt-[var(--space-4)] flex items-center justify-between border-b border-black/10 pb-[var(--space-3)] text-[10px] font-semibold uppercase tracking-[0.18em] text-black/70 sm:text-[11px]">
-                <span>{isShowingTextSuggestions ? 'Top suggestions' : submittedSearchQuery.trim() ? 'Products' : 'Explore jewellery'}</span>
-                {isShowingTextSuggestions ? <span>{textSearchSuggestions.length} suggestions</span> : searchLoadState === 'ready' && filteredSearchItems.length ? <span>{filteredSearchItems.length} {submittedSearchQuery.trim() ? 'results' : 'suggestions'}</span> : null}
-              </div>
-              <span className="sr-only" aria-live="polite">{isShowingTextSuggestions ? `${textSearchSuggestions.length} search suggestions available.` : searchLoadState === 'loading' ? 'Loading products.' : searchLoadState === 'error' ? 'Unable to load products.' : `${filteredSearchItems.length} products shown.`}</span>
-              {isShowingTextSuggestions ? (
-                textSearchSuggestions.length ? (
-                  <div id="navbar-search-suggestions" role="listbox" aria-label="Top search suggestions" className="py-5 sm:py-6">
-                    {textSearchSuggestions.map((suggestion, index) => (
-                      <button
-                        key={suggestion}
-                        ref={(node) => { searchOptionRefs.current[index] = node; }}
-                        id={`navbar-search-suggestion-${index}`}
-                        type="button"
-                        role="option"
-                        aria-selected={activeSearchIndex === index}
-                        onMouseEnter={() => setActiveSearchIndex(index)}
-                        onClick={() => submitSearch(suggestion)}
-                        className="block w-full py-2.5 text-left text-[15px] font-medium leading-6 text-[#383846] outline-none transition-colors hover:text-[#8b6a3d] focus-visible:text-[#8b6a3d] sm:py-3 sm:text-[16px]"
-                      >
-                        {suggestion}
-                      </button>
-                    ))}
-                  </div>
-                ) : <div className="py-[var(--space-6)] text-sm text-black/70">Press Enter to search for “{searchQuery.trim()}”.</div>
-              ) : searchLoadState === 'loading' ? null : searchLoadState === 'error' ? (
-                <div className="py-[var(--space-6)] text-sm text-black/70">Product results are unavailable. Please try your search again.</div>
-              ) : filteredSearchItems.length ? (
-                <div id="navbar-search-results" role="listbox" aria-label="Product search results" className="grid grid-cols-3 gap-x-3 gap-y-[var(--space-5)] py-[var(--space-5)] sm:grid-cols-4 sm:gap-x-5 lg:grid-cols-8">
-                  {filteredSearchItems.map((item, index) => (
-                    <Link key={item.dbId || item.slug} ref={(node) => { searchOptionRefs.current[index] = node; }} id={`navbar-search-option-${index}`} role="option" aria-selected={activeSearchIndex === index} href={`/shop/${item.slug}`} onMouseEnter={() => setActiveSearchIndex(index)} onClick={closeSearch} className="group min-w-0 rounded-sm text-center outline-none focus-visible:ring-2 focus-visible:ring-black/70">
-                      <span className="relative mx-auto flex aspect-square w-full max-w-[112px] items-center justify-center overflow-hidden rounded-full border border-black/5 bg-[var(--color-brand-secondary,#F9F9F9)] text-[32px] text-black/15 transition-transform duration-200 group-hover:scale-[1.04]">◇{item.imageUrl ? <img src={item.imageUrl} alt="" loading={index < 3 ? 'eager' : 'lazy'} fetchPriority={index < 3 ? 'high' : 'auto'} decoding="async" onError={(event) => { event.currentTarget.style.display = 'none'; }} className="absolute inset-0 h-full w-full object-cover" /> : null}</span>
-                      <span className="mt-3 block truncate text-[11px] font-medium text-[var(--color-brand-primary)] sm:text-[12px]" title={item.name}>{item.name}</span>
-                    </Link>
-                  ))}
-                </div>
-              ) : searchLoadState === 'ready' ? (
-                <div id="navbar-search-results" role="listbox" aria-label="Product search results" className="py-[var(--space-6)] text-sm text-black/70">{submittedSearchQuery.trim() ? 'No products match your search. Try another term.' : 'No products are available yet.'}</div>
-              ) : null}
+                  <img src="/Navbar svgs/user-round-stroke-rounded.svg" alt="" aria-hidden="true" className="h-[22px] w-[22px] object-contain opacity-75 transition-opacity group-hover:opacity-100" />
+                </Link>
+              ) : (
+                <Link
+                  href="/signup"
+                  aria-label="Sign up"
+                  title="Sign up"
+                  className="inline-flex h-[34px] w-[34px] items-center justify-center text-current transition-opacity duration-300 hover:opacity-70"
+                  style={{ color: desktopHeaderText }}
+                >
+                  <img src="/Navbar svgs/user-round-stroke-rounded.svg" alt="" aria-hidden="true" className="h-[22px] w-[22px] object-contain opacity-75 transition-opacity group-hover:opacity-100" />
+                </Link>
+              )}
             </div>
-            </section>
-          </>
-        ), document.body) : null}
+          </div>
+          {searchOpen ? createPortal((
+            <>
+              <div
+                aria-hidden="true"
+                className="fixed inset-0 z-[1399] bg-black/20"
+                onClick={closeSearch}
+              />
+              <section
+                id="navbar-search-panel"
+                data-navbar-search-root
+                aria-label="Product search"
+                className="fixed inset-x-0 top-0 z-[1400] h-dvh min-h-[100svh] overflow-y-auto bg-white sm:h-[60dvh] sm:min-h-0 lg:h-[65dvh]"
+                style={{ backgroundColor: 'var(--color-brand-accent, #ffffff)', fontFamily: 'var(--font-family-secondary, Inter, sans-serif)' }}
+              >
+                <div className="mx-auto h-full min-h-0 max-w-[1800px] px-5 pb-10 pt-8 sm:px-8 lg:px-14 lg:pt-10">
+                  <div className="flex items-center gap-3 sm:gap-5">
+                    <div className="flex min-w-0 flex-1 items-center gap-3 rounded-none border border-black/35 bg-white px-5 focus-within:ring-1 focus-within:ring-black/45 sm:px-6" style={{ backgroundColor: 'var(--color-brand-secondary, #F9F9F9)' }}>
+                      <img src="/Navbar svgs/search-01-stroke-rounded (1).svg" alt="" aria-hidden="true" className="h-[22px] w-[22px] shrink-0 object-contain opacity-80" />
+                      <input
+                        ref={searchInputRef}
+                        autoFocus
+                        value={searchQuery}
+                        onChange={(event) => { setSearchQuery(event.target.value); setSubmittedSearchQuery(''); setActiveSearchIndex(-1); }}
+                        onKeyDown={handleSearchKeyDown}
+                        role="combobox"
+                        aria-label="Search products"
+                        aria-autocomplete="list"
+                        aria-expanded={isShowingTextSuggestions ? textSearchSuggestions.length > 0 : searchLoadState === 'ready' && filteredSearchItems.length > 0}
+                        aria-controls={isShowingTextSuggestions ? 'navbar-search-suggestions' : searchLoadState === 'ready' ? 'navbar-search-results' : undefined}
+                        aria-activedescendant={isShowingTextSuggestions && textSearchSuggestions[activeSearchIndex] ? `navbar-search-suggestion-${activeSearchIndex}` : filteredSearchItems[activeSearchIndex] ? `navbar-search-option-${activeSearchIndex}` : undefined}
+                        placeholder="Search jewellery, settings, diamonds..."
+                        className="h-12 min-w-0 flex-1 border-0 bg-transparent text-[16px] text-[var(--color-brand-primary)] outline-none placeholder:text-black/55 sm:h-14"
+                      />
+                      {searchQuery ? <button type="button" onClick={() => { setSearchQuery(''); setSubmittedSearchQuery(''); setActiveSearchIndex(-1); searchInputRef.current?.focus(); }} aria-label="Clear search" className="shrink-0 text-xl text-black/55 hover:text-black">×</button> : null}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={closeSearch}
+                      aria-label="Back to browsing"
+                      className="inline-flex h-11 shrink-0 items-center gap-1.5 px-1 text-[12px] font-medium text-[var(--color-brand-primary)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 lg:hidden"
+                    >
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                        <path d="M15 4L7 12L15 20" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                      <span>Back</span>
+                    </button>
+                    <button type="button" onClick={closeSearch} className="hidden shrink-0 text-[13px] text-[var(--color-brand-primary)] underline underline-offset-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 lg:inline-flex">Cancel</button>
+                  </div>
+                  <div className="mt-[var(--space-4)] flex items-center justify-between border-b border-black/10 pb-[var(--space-3)] text-[10px] font-semibold uppercase tracking-[0.18em] text-black/70 sm:text-[11px]">
+                    <span>{isShowingTextSuggestions ? 'Top suggestions' : submittedSearchQuery.trim() ? 'Products' : 'Explore jewellery'}</span>
+                    {isShowingTextSuggestions ? <span>{textSearchSuggestions.length} suggestions</span> : searchLoadState === 'ready' && filteredSearchItems.length ? <span>{filteredSearchItems.length} {submittedSearchQuery.trim() ? 'results' : 'suggestions'}</span> : null}
+                  </div>
+                  <span className="sr-only" aria-live="polite">{isShowingTextSuggestions ? `${textSearchSuggestions.length} search suggestions available.` : searchLoadState === 'loading' ? 'Loading products.' : searchLoadState === 'error' ? 'Unable to load products.' : `${filteredSearchItems.length} products shown.`}</span>
+                  {isShowingTextSuggestions ? (
+                    textSearchSuggestions.length ? (
+                      <div id="navbar-search-suggestions" role="listbox" aria-label="Top search suggestions" className="py-5 sm:py-6">
+                        {textSearchSuggestions.map((suggestion, index) => (
+                          <button
+                            key={suggestion}
+                            ref={(node) => { searchOptionRefs.current[index] = node; }}
+                            id={`navbar-search-suggestion-${index}`}
+                            type="button"
+                            role="option"
+                            aria-selected={activeSearchIndex === index}
+                            onMouseEnter={() => setActiveSearchIndex(index)}
+                            onClick={() => submitSearch(suggestion)}
+                            className="block w-full py-2.5 text-left text-[15px] font-medium leading-6 text-[#383846] outline-none transition-colors hover:text-[#8b6a3d] focus-visible:text-[#8b6a3d] sm:py-3 sm:text-[16px]"
+                          >
+                            {suggestion}
+                          </button>
+                        ))}
+                      </div>
+                    ) : <div className="py-[var(--space-6)] text-sm text-black/70">Press Enter to search for “{searchQuery.trim()}”.</div>
+                  ) : searchLoadState === 'loading' ? null : searchLoadState === 'error' ? (
+                    <div className="py-[var(--space-6)] text-sm text-black/70">Product results are unavailable. Please try your search again.</div>
+                  ) : filteredSearchItems.length ? (
+                    <div id="navbar-search-results" role="listbox" aria-label="Product search results" className="grid grid-cols-3 gap-x-3 gap-y-[var(--space-5)] py-[var(--space-5)] sm:grid-cols-4 sm:gap-x-5 lg:grid-cols-8">
+                      {filteredSearchItems.map((item, index) => (
+                        <Link key={item.dbId || item.slug} ref={(node) => { searchOptionRefs.current[index] = node; }} id={`navbar-search-option-${index}`} role="option" aria-selected={activeSearchIndex === index} href={`/shop/${item.slug}`} onMouseEnter={() => setActiveSearchIndex(index)} onClick={closeSearch} className="group min-w-0 rounded-sm text-center outline-none focus-visible:ring-2 focus-visible:ring-black/70">
+                          <span className="relative mx-auto flex aspect-square w-full max-w-[112px] items-center justify-center overflow-hidden rounded-full border border-black/5 bg-[var(--color-brand-secondary,#F9F9F9)] text-[32px] text-black/15 transition-transform duration-200 group-hover:scale-[1.04]">◇{item.imageUrl ? <img src={item.imageUrl} alt="" loading={index < 3 ? 'eager' : 'lazy'} fetchPriority={index < 3 ? 'high' : 'auto'} decoding="async" onError={(event) => { event.currentTarget.style.display = 'none'; }} className="absolute inset-0 h-full w-full object-cover" /> : null}</span>
+                          <span className="mt-3 block truncate text-[11px] font-medium text-[var(--color-brand-primary)] sm:text-[12px]" title={item.name}>{item.name}</span>
+                        </Link>
+                      ))}
+                    </div>
+                  ) : searchLoadState === 'ready' ? (
+                    <div id="navbar-search-results" role="listbox" aria-label="Product search results" className="py-[var(--space-6)] text-sm text-black/70">{submittedSearchQuery.trim() ? 'No products match your search. Try another term.' : 'No products are available yet.'}</div>
+                  ) : null}
+                </div>
+              </section>
+            </>
+          ), document.body) : null}
         </div>
       </header>
 
@@ -1115,7 +1116,7 @@ export default function Navbar({ navItems = [] }: { navItems?: NavbarRenderItem[
             </button>
 
             <Link
-              href={authReady && authUser ? '/profile' : '/login'}
+              href={customerAuthEnabled && authReady && authUser ? '/profile' : '/login'}
               onClick={closeMenu}
               className="flex min-h-[58px] items-center gap-3 border-b border-black/[0.06] py-4 text-[13px] font-semibold uppercase tracking-[0.16em] text-[#0A1628] no-underline"
             >
@@ -1123,7 +1124,7 @@ export default function Navbar({ navItems = [] }: { navItems?: NavbarRenderItem[
               <span>Profile</span>
             </Link>
 
-            {authReady && authUser ? (
+            {customerAuthEnabled && authReady && authUser ? (
               <button type="button" onClick={handleSignOut} className="flex min-h-[58px] w-full items-center border-b border-black/[0.06] py-4 text-left text-[12px] font-medium uppercase tracking-[0.16em] text-[#0A1628]">
                 Sign Out
               </button>

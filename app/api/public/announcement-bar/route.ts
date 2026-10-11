@@ -1,12 +1,7 @@
 import { NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
+import { findAnnouncementBarFromRds } from '@/lib/repositories/public-cms-repository'
 
 export const dynamic = 'force-dynamic'
-
-const SECTION_KEY = 'global_support_announcement_bar'
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 
 type AnnouncementItem = {
   message: string
@@ -14,64 +9,19 @@ type AnnouncementItem = {
   openInNewTab: boolean
 }
 
-type AnnouncementPayload = {
-  active: boolean
-  autoplay: boolean
-  intervalMs: number
-  items: AnnouncementItem[]
-}
+async function readPublicContent() {
+  const result = await findAnnouncementBarFromRds()
+  if (!result) return NextResponse.json({ active: false, autoplay: false, intervalMs: 3000, items: [] }, { headers: { 'Cache-Control': 'no-store' } })
+  return NextResponse.json({
+    active: Boolean(result.section.is_active), autoplay: Boolean(result.section.autoplay), intervalMs: 3000,
+    items: result.items.map((item) => ({ message: item.message, linkUrl: item.link_url ?? '', openInNewTab: Boolean(item.open_in_new_tab) })),
+  }, { headers: { 'Cache-Control': 'no-store' } })
 
-function getServerClient() {
-  const serverKey = supabaseServiceRoleKey || supabaseAnonKey
-  if (!supabaseUrl || !serverKey) return null
-
-  return createClient(supabaseUrl, serverKey, {
-    auth: { persistSession: false, autoRefreshToken: false },
-  })
 }
 
 export async function GET() {
-  const supabase = getServerClient()
-  if (!supabase) {
-    return NextResponse.json({ error: 'Missing Supabase environment variables.' }, { status: 500 })
+  try { return await readPublicContent() }
+  catch {
+    return NextResponse.json({ error: 'Unable to load content.' }, { status: 500 })
   }
-
-  const { data: section, error: sectionError } = await supabase
-    .from('support_announcement_bar')
-    .select('id, is_active, autoplay')
-    .eq('section_key', SECTION_KEY)
-    .maybeSingle()
-
-  if (sectionError) {
-    return NextResponse.json({ error: sectionError.message }, { status: 500 })
-  }
-
-  if (!section) {
-    const payload: AnnouncementPayload = { active: false, autoplay: false, intervalMs: 3000, items: [] }
-    return NextResponse.json(payload, { headers: { 'Cache-Control': 'no-store' } })
-  }
-
-  const { data: items, error: itemError } = await supabase
-    .from('support_announcement_bar_items')
-    .select('message, link_url, open_in_new_tab')
-    .eq('bar_id', section.id)
-    .eq('is_active', true)
-    .order('sort_order', { ascending: true })
-
-  if (itemError) {
-    return NextResponse.json({ error: itemError.message }, { status: 500 })
-  }
-
-  const payload: AnnouncementPayload = {
-    active: Boolean(section.is_active),
-    autoplay: Boolean(section.autoplay),
-    intervalMs: 3000,
-    items: (items ?? []).map((item) => ({
-      message: item.message,
-      linkUrl: item.link_url ?? '',
-      openInNewTab: Boolean(item.open_in_new_tab),
-    })),
-  }
-
-  return NextResponse.json(payload, { headers: { 'Cache-Control': 'no-store' } })
 }

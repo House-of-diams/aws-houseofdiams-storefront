@@ -1,10 +1,10 @@
 import { NextResponse } from 'next/server'
 import { enforceRateLimit } from '@/lib/rate-limit'
-import { createSupabaseServiceRoleClient } from '@/lib/server-supabase'
+import { insertContactSubmission } from '@/lib/repositories/public-forms-repository'
 import { isValidEmail, isValidPhone } from '@/lib/validation'
 
 export async function POST(request: Request) {
-  if (!process.env.SUPABASE_SERVICE_ROLE_KEY) return NextResponse.json({ error: 'Form submission is temporarily unavailable.' }, { status: 503 })
+  if (!process.env.DATABASE_URL?.trim()) return NextResponse.json({ error: 'Form submission is temporarily unavailable.' }, { status: 503 })
   const rateLimit = await enforceRateLimit(request, { key: 'public-contact-submit', limit: 5, windowSeconds: 60 })
   if (!rateLimit.ok && rateLimit.response) return rateLimit.response
   const body = await request.json().catch(() => null)
@@ -38,16 +38,15 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Enter a message between 10 and 5000 characters.' }, { status: 400 })
   }
 
-  const supabase = createSupabaseServiceRoleClient()
-  const { error } = await supabase.from('contact_submissions').insert({
-    full_name: fullName,
-    email,
-    phone,
-    topic,
-    message,
-  })
-  if (error) {
-    console.error('Contact submission failed:', error)
+  try {
+    await insertContactSubmission({
+      full_name: fullName,
+      email,
+      phone,
+      topic,
+      message,
+    })
+  } catch {
     return NextResponse.json({ error: 'Unable to submit the form right now.' }, { status: 500 })
   }
   return NextResponse.json({ ok: true })

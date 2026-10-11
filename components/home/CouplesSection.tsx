@@ -6,6 +6,7 @@ import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 import { cinzelFont } from '@/app/fonts';
 import type { HomeCoupleItem } from '@/lib/home-data';
+import { mediaUrl } from '@/lib/media-url';
 
 type CoupleItem = {
   names: string;
@@ -17,15 +18,8 @@ type CoupleItem = {
   image_path: string;
 };
 
-const COUPLES_BUCKET = process.env.NEXT_PUBLIC_SUPABASE_COLLECTION_BUCKET ?? 'hod';
-const COUPLES_BUCKET_URL = process.env.NEXT_PUBLIC_SUPABASE_URL
-  ? `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/${COUPLES_BUCKET}`
-  : '';
-
 function buildImageUrl(path: string) {
-  if (!path) return '';
-  if (path.startsWith('http://') || path.startsWith('https://')) return path;
-  return COUPLES_BUCKET_URL ? `${COUPLES_BUCKET_URL}/${path}` : path;
+  return mediaUrl(path);
 }
 
 function StarRating() {

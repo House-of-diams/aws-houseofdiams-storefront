@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useMobileSnapCarousel } from "../home/useMobileSnapCarousel";
+import { mediaUrl } from '@/lib/media-url';
 
 /**
  * @typedef {Object} ValueItem
@@ -10,15 +11,11 @@ import { useMobileSnapCarousel } from "../home/useMobileSnapCarousel";
  * @property {string | null | undefined} [icon_path]
  * @property {string | null | undefined} [image_path]
  * @property {string | null | undefined} [image_alt]
- * @property {string} title
- * @property {string} description
+ * @property {string} [title]
+ * @property {string} [description]
  */
 function publicMediaUrl(path) {
-  if (!path) return "";
-  if (/^https?:\/\//i.test(path)) return path;
-  const base = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const bucket = process.env.NEXT_PUBLIC_SUPABASE_COLLECTION_BUCKET || "hod";
-  return base ? `${base}/storage/v1/object/public/${bucket}/${path}` : "";
+  return mediaUrl(path);
 }
 
 function ValueCard({ item }) {

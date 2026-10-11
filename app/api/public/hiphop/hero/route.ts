@@ -1,36 +1,23 @@
 import { NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
+import { findHipHopHeroFromRds, loadHipHopHeroSlidesFromRds } from '@/lib/repositories/legacy-cms-repository'
 
 export const dynamic = 'force-static'
 export const revalidate = 300
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-const sectionKey = 'hiphop_hero'
+async function readPublicContent() {
+  try {
+    const section = await findHipHopHeroFromRds()
+    if (!section) return NextResponse.json({ item: null, items: [] })
+    const items = await loadHipHopHeroSlidesFromRds(section.id)
+    return NextResponse.json({ item: section, items })
+  } catch {
+    return NextResponse.json({ error: 'Unable to load Hip Hop hero.' }, { status: 500 })
+  }
+}
 
 export async function GET() {
-  if (!supabaseUrl || !supabaseAnonKey) {
-    return NextResponse.json({ error: 'Missing Supabase env vars.' }, { status: 500 })
+  try { return await readPublicContent() }
+  catch {
+    return NextResponse.json({ error: 'Unable to load content.' }, { status: 500 })
   }
-
-  const supabase = createClient(supabaseUrl, supabaseAnonKey)
-  const { data: section, error } = await supabase
-    .from('hiphop_hero_content')
-    .select('*')
-    .eq('section_key', sectionKey)
-    .eq('is_active', true)
-    .maybeSingle()
-
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-  if (!section) return NextResponse.json({ item: null, items: [] })
-
-  const { data: items, error: itemsError } = await supabase
-    .from('hiphop_hero_slider_items')
-    .select('id, sort_order, image_path, mobile_image_path, button_text, button_link')
-    .eq('hero_id', section.id)
-    .order('sort_order', { ascending: true })
-
-  if (itemsError) return NextResponse.json({ error: itemsError.message }, { status: 500 })
-
-  return NextResponse.json({ item: section, items: items ?? [] })
 }

@@ -1,82 +1,10 @@
+import { isF7ReadPreviewEnabled } from '@/lib/f7-read-preview'
+import { handleF7ProfileOrders } from '@/lib/f7-result-handlers'
 import { NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+export const runtime = 'nodejs'
 
 export async function GET(request: Request) {
-  if (!supabaseUrl || !supabaseAnonKey || !supabaseServiceRoleKey) {
-    return NextResponse.json({ error: 'Missing Supabase environment variables.' }, { status: 500 })
-  }
-
-  const authHeader = request.headers.get('authorization')
-  if (!authHeader?.startsWith('Bearer ')) {
-    return NextResponse.json({ error: 'Missing authorization token.' }, { status: 401 })
-  }
-
-  const accessToken = authHeader.slice('Bearer '.length)
-  const authClient = createClient(supabaseUrl, supabaseAnonKey, {
-    global: { headers: { Authorization: `Bearer ${accessToken}` } },
-  })
-  const adminClient = createClient(supabaseUrl, supabaseServiceRoleKey)
-
-  const { data: userData, error: userError } = await authClient.auth.getUser()
-  if (userError || !userData.user) {
-    return NextResponse.json({ error: 'Unauthorized.' }, { status: 401 })
-  }
-
-  const { searchParams } = new URL(request.url)
-  const page = Math.max(1, Number(searchParams.get('page') || 1))
-  const pageSize = Math.min(10, Math.max(1, Number(searchParams.get('pageSize') || 5)))
-  const from = (page - 1) * pageSize
-  const to = from + pageSize - 1
-
-  const { data: orders, error: ordersError, count } = await adminClient
-    .from('orders')
-    .select(
-      'id, order_number, status, payment_status, subtotal_amount, gst_amount, shipping_amount, total_amount, customer_email, customer_first_name, customer_last_name, customer_phone, customer_birth_date, customer_anniversary_date, shipping_country, shipping_state, shipping_district, shipping_city, shipping_postal_code, shipping_address_line_1, shipping_address_line_2, payment_gateway, razorpay_payment_method, created_at',
-      { count: 'exact' }
-    )
-    .eq('user_id', userData.user.id)
-    .order('created_at', { ascending: false })
-    .range(from, to)
-
-  if (ordersError) {
-    return NextResponse.json({ error: ordersError.message }, { status: 500 })
-  }
-
-  const orderIds = (orders ?? []).map((order) => order.id)
-  let itemMap = new Map<string, Array<Record<string, unknown>>>()
-
-  if (orderIds.length > 0) {
-    const { data: items, error: itemsError } = await adminClient
-      .from('order_items')
-      .select('order_id, product_name, quantity, unit_price, line_total, image_url, selected_metal, selected_purity, selected_size_or_fit, selected_gemstone, selected_carat, item_type')
-      .in('order_id', orderIds)
-
-    if (itemsError) {
-      return NextResponse.json({ error: itemsError.message }, { status: 500 })
-    }
-
-    itemMap = (items ?? []).reduce((map, item) => {
-      const bucket = map.get(String(item.order_id)) ?? []
-      bucket.push(item)
-      map.set(String(item.order_id), bucket)
-      return map
-    }, new Map<string, Array<Record<string, unknown>>>())
-  }
-
-  return NextResponse.json({
-    orders: (orders ?? []).map((order) => ({
-      ...order,
-      items: itemMap.get(String(order.id)) ?? [],
-    })),
-    pagination: {
-      page,
-      pageSize,
-      total: count ?? 0,
-      totalPages: Math.max(1, Math.ceil((count ?? 0) / pageSize)),
-    },
-  })
+  if (!isF7ReadPreviewEnabled()) return NextResponse.json({ error: 'Checkout is temporarily unavailable.' }, { status: 503, headers: { 'cache-control': 'no-store' } })
+  return handleF7ProfileOrders(request)
 }

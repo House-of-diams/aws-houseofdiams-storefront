@@ -1,3 +1,5 @@
+import { mediaUrl } from '@/lib/media-url'
+
 export interface BlogPost {
   id: number;
   slug?: string;
@@ -144,11 +146,8 @@ export const posts: BlogPost[] = [
 
 export function getStorageImageUrl(path?: string) {
   if (!path) return ''
-  if (path.startsWith('http://') || path.startsWith('https://')) return path
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? ''
-  const bucket = process.env.NEXT_PUBLIC_SUPABASE_COLLECTION_BUCKET ?? 'hod'
-  if (!supabaseUrl) return ''
-  return `${supabaseUrl}/storage/v1/object/public/${bucket}/${path}`
+
+  return mediaUrl(path)
 }
 
 export function mapBlogPostRecord(record: {

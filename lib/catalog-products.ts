@@ -1,10 +1,19 @@
 import type { Product } from '@/lib/data/products'
+import { mediaUrl } from '@/lib/media-url'
 import { cache } from 'react'
 import { unstable_cache } from 'next/cache'
-import { createSupabaseServerClient } from '@/lib/server-supabase'
-
-const collectionBucket = process.env.NEXT_PUBLIC_SUPABASE_COLLECTION_BUCKET || 'hod'
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
+import {
+  loadActiveProductRowsFromRds,
+  loadProductCustomDropdownOptionsFromRds,
+  loadProductDiscoveryRowsFromRds,
+  loadProductFilterGroupsFromRds,
+  loadProductHydrationRowsFromRds,
+  loadProductPageIndexFromRds,
+  loadProductPageReferencesFromRds,
+  loadProductSearchCandidatesFromRds,
+  loadProductSearchReferencesFromRds,
+  loadSearchProductsFromRds,
+} from '@/lib/repositories/product-repository'
 
 type ProductKeyValue = {
   key: string
@@ -483,8 +492,7 @@ export function toStorefrontProductCard(product: StorefrontProduct): StorefrontP
 
 function toPublicUrl(path: string | null | undefined) {
   if (!path) return undefined
-  if (path.startsWith('http://') || path.startsWith('https://')) return path
-  return `${supabaseUrl}/storage/v1/object/public/${collectionBucket}/${path}`
+  return mediaUrl(path)
 }
 
 function normalizeType(value: string | null | undefined) {
@@ -562,138 +570,21 @@ function resolveMetalMediaDefaults(
 
   const source = fallbackMedia
     ? {
-        image_1_path: fallbackMedia.image_1_path ?? null,
-        image_2_path: fallbackMedia.image_2_path ?? null,
-        image_3_path: fallbackMedia.image_3_path ?? null,
-        image_4_path: fallbackMedia.image_4_path ?? null,
-        video_path: fallbackMedia.video_path ?? null,
-      }
+      image_1_path: fallbackMedia.image_1_path ?? null,
+      image_2_path: fallbackMedia.image_2_path ?? null,
+      image_3_path: fallbackMedia.image_3_path ?? null,
+      image_4_path: fallbackMedia.image_4_path ?? null,
+      video_path: fallbackMedia.video_path ?? null,
+    }
     : {
-        image_1_path: product.image_1_path,
-        image_2_path: product.image_2_path,
-        image_3_path: product.image_3_path,
-        image_4_path: product.image_4_path,
-        video_path: product.video_path,
-      }
+      image_1_path: product.image_1_path,
+      image_2_path: product.image_2_path,
+      image_3_path: product.image_3_path,
+      image_4_path: product.image_4_path,
+      video_path: product.video_path,
+    }
 
   return { fallbackMedia, source }
-}
-
-async function fetchAllProductVariantMediaItems(
-  supabase: ReturnType<typeof createSupabaseServerClient>,
-  productIds?: string[]
-) {
-  const pageSize = 1000
-  const rows: ProductVariantMediaItemRow[] = []
-
-  if (productIds && productIds.length < 1) return { data: rows, error: null }
-
-  for (let from = 0; ; from += pageSize) {
-    let query = supabase
-      .from('product_variant_media_items')
-      .select('*')
-
-    if (productIds) query = query.in('product_id', productIds)
-
-    const result = await query
-      .order('sort_order', { ascending: true })
-      .order('id', { ascending: true })
-      .range(from, from + pageSize - 1)
-
-    if (result.error) return result
-
-    const page = (result.data || []) as ProductVariantMediaItemRow[]
-    rows.push(...page)
-    if (page.length < pageSize) {
-      return { data: rows, error: null }
-    }
-  }
-}
-
-async function fetchAllProductMetalSelections(
-  supabase: ReturnType<typeof createSupabaseServerClient>,
-  productIds?: string[]
-) {
-  const pageSize = 1000
-  const rows: ProductMetalSelectionRow[] = []
-
-  if (productIds && productIds.length < 1) return { data: rows, error: null }
-
-  for (let from = 0; ; from += pageSize) {
-    let query = supabase
-      .from('product_metal_selections')
-      .select('product_id, metal_id, sort_order')
-
-    if (productIds) query = query.in('product_id', productIds)
-
-    const result = await query
-      .order('sort_order', { ascending: true })
-      .order('id', { ascending: true })
-      .range(from, from + pageSize - 1)
-
-    if (result.error) return result
-
-    const page = (result.data || []) as ProductMetalSelectionRow[]
-    rows.push(...page)
-    if (page.length < pageSize) return { data: rows, error: null }
-  }
-}
-
-async function fetchAllProductMetalVariants(
-  supabase: ReturnType<typeof createSupabaseServerClient>,
-  productIds?: string[]
-) {
-  const pageSize = 1000
-  const rows: ProductMetalVariantRow[] = []
-
-  if (productIds && productIds.length < 1) return { data: rows, error: null }
-
-  for (let from = 0; ; from += pageSize) {
-    let query = supabase
-      .from('product_metal_variants')
-      .select('*')
-
-    if (productIds) query = query.in('product_id', productIds)
-
-    const result = await query
-      .order('sort_order', { ascending: true })
-      .order('id', { ascending: true })
-      .range(from, from + pageSize - 1)
-
-    if (result.error) return result
-
-    const page = (result.data || []) as ProductMetalVariantRow[]
-    rows.push(...page)
-    if (page.length < pageSize) return { data: rows, error: null }
-  }
-}
-
-async function fetchAllProductMetalMedia(
-  supabase: ReturnType<typeof createSupabaseServerClient>,
-  productIds?: string[]
-) {
-  const pageSize = 1000
-  const rows: ProductMetalMediaRow[] = []
-
-  if (productIds && productIds.length < 1) return { data: rows, error: null }
-
-  for (let from = 0; ; from += pageSize) {
-    let query = supabase
-      .from('product_metal_media')
-      .select('*')
-
-    if (productIds) query = query.in('product_id', productIds)
-
-    const result = await query
-      .order('id', { ascending: true })
-      .range(from, from + pageSize - 1)
-
-    if (result.error) return result
-
-    const page = (result.data || []) as ProductMetalMediaRow[]
-    rows.push(...page)
-    if (page.length < pageSize) return { data: rows, error: null }
-  }
 }
 
 export type StorefrontProductLane = 'standard' | 'hiphop' | 'collection'
@@ -738,71 +629,17 @@ const fetchStorefrontProducts = async (
   productLane?: StorefrontProductLane,
   scope?: StorefrontProductFetchScope
 ) => {
-  const supabase = createSupabaseServerClient()
-  let productsQuery = supabase.from('products').select('*').eq('status', 'active')
-  if (productLane) productsQuery = productsQuery.eq('product_lane', productLane)
-  if (scope?.slug) productsQuery = productsQuery.eq('slug', scope.slug)
-  if (scope?.slugs) productsQuery = productsQuery.in('slug', scope.slugs)
-  if (scope?.productIds) productsQuery = productsQuery.in('id', scope.productIds)
-  if (scope?.mainCategoryId) productsQuery = productsQuery.eq('main_category_id', scope.mainCategoryId)
-  if (scope?.mainCategoryIds) productsQuery = productsQuery.in('main_category_id', scope.mainCategoryIds)
-  if (scope?.excludeProductId) productsQuery = productsQuery.neq('id', scope.excludeProductId)
-  if (scope?.excludeProductIds) {
-    productsQuery = productsQuery.not('id', 'in', `(${scope.excludeProductIds.join(',')})`)
-  }
-  for (const token of scope?.searchTokens ?? []) {
-    productsQuery = productsQuery.or(`name.ilike.%${token}%,slug.ilike.%${token}%`)
-  }
-  if (scope?.limit) productsQuery = productsQuery.limit(scope.limit)
 
-  const productsResult = await productsQuery.order('created_at', { ascending: false })
+  const productsResult = { data: await loadActiveProductRowsFromRds(productLane, scope), error: null as { code?: string; message: string } | null }
   if (productsResult.error) throw new Error(productsResult.error.message)
 
-  const productIds = (productsResult.data || []).map((product) => product.id)
-  // Supabase query builders retain table-specific result generics. This helper
-  // only applies the shared product_id boundary without changing their payload.
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const scopedProductRows = (query: any) => {
-    if (!scope) return query
-    return productIds.length > 0 ? query.in('product_id', productIds) : query.limit(0)
-  }
+  const productIds = (productsResult.data || []).map((product) => product.id as string)
 
   const [categoriesResult, subcategoriesResult, optionsResult, metalsResult, materialValuesResult, certificatesResult, stylesResult, ringCategoriesResult, ringCategorySizesResult, productContentRulesResult, metalSelectionsResult, materialValueSelectionsResult, shapeSelectionsResult, gstSlabsResult, purityPricesResult, metalMediaResult, metalCompositionPartsResult, subcategoryLinksResult, optionLinksResult, metalVariantsResult, variantMediaItemsResult, productFaqResult, customDropdownResult] =
-    await Promise.all([
-      supabase.from('catalog_categories').select('id, code, name, slug, category_lane'),
-      supabase.from('catalog_subcategories').select('id, category_id, name, slug'),
-      supabase.from('catalog_options').select('id, subcategory_id, name, slug'),
-      supabase.from('catalog_metals').select('id, name, slug, color_hex, composition_description, purity_label, base_metal_name, display_label, is_combined_option'),
-      supabase.from('catalog_material_values').select('id, name, slug, cta_mode, cta_label').eq('status', 'active').order('display_order', { ascending: true }),
-      supabase.from('catalog_certificates').select('id, name, code'),
-      supabase.from('catalog_styles').select('id, name, slug').eq('status', 'active').order('display_order', { ascending: true }),
-      supabase.from('catalog_ring_categories').select('id, name, slug, description').eq('status', 'active').order('display_order', { ascending: true }),
-      supabase.from('catalog_ring_category_sizes').select('id, ring_category_id, size_label, size_value').eq('status', 'active').order('display_order', { ascending: true }),
-      supabase.from('product_content_rules').select('id, kind, name, slug, title, body').eq('status', 'active'),
-      fetchAllProductMetalSelections(supabase, scope ? productIds : undefined),
-      scopedProductRows(supabase.from('product_material_value_selections').select('product_id, material_value_id, sort_order')).order('sort_order', { ascending: true }),
-      scopedProductRows(supabase.from('product_stone_shapes').select('product_id, shape_id, shape:catalog_stone_shapes(id, name, slug, svg_asset_url)')),
-      supabase.from('catalog_gst_slabs').select('id, name, code, percentage').neq('status', 'hidden'),
-      scopedProductRows(supabase.from('product_purity_prices').select('*')).order('sort_order', { ascending: true }),
-      fetchAllProductMetalMedia(supabase, scope ? productIds : undefined),
-      supabase.from('metal_composition_parts').select('*').order('sort_order', { ascending: true }),
-      scopedProductRows(supabase.from('product_subcategory_links').select('product_id, subcategory_id, is_primary, sort_order')).order('sort_order', { ascending: true }),
-      scopedProductRows(supabase.from('product_option_links').select('product_id, option_id, is_primary, sort_order')).order('sort_order', { ascending: true }),
-      fetchAllProductMetalVariants(supabase, scope ? productIds : undefined),
-      fetchAllProductVariantMediaItems(supabase, scope ? productIds : undefined),
-      scopedProductRows(supabase.from('product_faq_items').select('id, product_id, question, answer, sort_order, is_active')).eq('is_active', true).order('sort_order', { ascending: true }),
-      scopedProductRows(supabase.from('product_custom_dropdowns').select('id, product_id, name, label, is_required, display_order')).eq('is_enabled', true).order('display_order', { ascending: true }),
-    ])
+    (await loadProductHydrationRowsFromRds(scope ? productIds : null))
 
   const customDropdownIds = ((customDropdownResult.data || []) as ProductCustomDropdownRow[]).map((entry) => entry.id)
-  const customDropdownOptionResult = customDropdownIds.length > 0
-    ? await supabase
-        .from('product_custom_dropdown_options')
-        .select('id, dropdown_id, label, value, display_order')
-        .in('dropdown_id', customDropdownIds)
-        .eq('is_enabled', true)
-        .order('display_order', { ascending: true })
-    : { data: [], error: null }
+  const customDropdownOptionResult = await loadProductCustomDropdownOptionsFromRds(customDropdownIds)
 
   const error =
     productsResult.error ||
@@ -970,55 +807,55 @@ const fetchStorefrontProducts = async (
       combinedVariants.length > 0
         ? []
         : selectedMetals.flatMap((metal) => {
-            const metalSpecificMedia = productMetalMediaRows.find((entry) => entry.metal_id === metal.id) || fallbackMedia
-            const mediaItems = [
-              { id: `${product.id}-${metal.id}-legacy-image-1`, type: 'image' as const, url: metalSpecificMedia?.image_1_path || '', altText: product.image_1_alt ?? null },
-              { id: `${product.id}-${metal.id}-legacy-image-2`, type: 'image' as const, url: metalSpecificMedia?.image_2_path || '', altText: product.image_2_alt ?? null },
-              { id: `${product.id}-${metal.id}-legacy-image-3`, type: 'image' as const, url: metalSpecificMedia?.image_3_path || '', altText: product.image_3_alt ?? null },
-              { id: `${product.id}-${metal.id}-legacy-image-4`, type: 'image' as const, url: metalSpecificMedia?.image_4_path || '', altText: product.image_4_alt ?? null },
-              { id: `${product.id}-${metal.id}-legacy-video`, type: 'video' as const, url: metalSpecificMedia?.video_path || '' },
-            ]
-              .filter((entry) => Boolean(entry.url))
-              .map((entry, index) => ({ ...entry, sortOrder: index + 1 }))
+          const metalSpecificMedia = productMetalMediaRows.find((entry) => entry.metal_id === metal.id) || fallbackMedia
+          const mediaItems = [
+            { id: `${product.id}-${metal.id}-legacy-image-1`, type: 'image' as const, url: metalSpecificMedia?.image_1_path || '', altText: product.image_1_alt ?? null },
+            { id: `${product.id}-${metal.id}-legacy-image-2`, type: 'image' as const, url: metalSpecificMedia?.image_2_path || '', altText: product.image_2_alt ?? null },
+            { id: `${product.id}-${metal.id}-legacy-image-3`, type: 'image' as const, url: metalSpecificMedia?.image_3_path || '', altText: product.image_3_alt ?? null },
+            { id: `${product.id}-${metal.id}-legacy-image-4`, type: 'image' as const, url: metalSpecificMedia?.image_4_path || '', altText: product.image_4_alt ?? null },
+            { id: `${product.id}-${metal.id}-legacy-video`, type: 'video' as const, url: metalSpecificMedia?.video_path || '' },
+          ]
+            .filter((entry) => Boolean(entry.url))
+            .map((entry, index) => ({ ...entry, sortOrder: index + 1 }))
 
-            const sourcePurityRows =
-              productPurityPrices.length > 0
-                ? productPurityPrices
-                : [
-                    {
-                      id: `${product.id}-${metal.id}-fallback-price`,
-                      purity_label: metal.purity_label ?? '',
-                      price: Number(product.base_price ?? 0),
-                      sort_order: 1,
-                    },
-                  ]
+          const sourcePurityRows =
+            productPurityPrices.length > 0
+              ? productPurityPrices
+              : [
+                {
+                  id: `${product.id}-${metal.id}-fallback-price`,
+                  purity_label: metal.purity_label ?? '',
+                  price: Number(product.base_price ?? 0),
+                  sort_order: 1,
+                },
+              ]
 
-            return sourcePurityRows
-              .filter((entry) => Number(entry.price ?? 0) > 0 || selectedMetals.length === 1)
-              .map((entry, purityIndex) => {
-                const purityLabel = entry.purity_label?.trim() || metal.purity_label?.trim() || ''
-                const label = buildCombinedMetalLabel({
-                  displayLabel: purityLabel ? null : metal.display_label,
-                  purityLabel,
-                  baseMetalName: metal.base_metal_name ?? metal.name,
-                  name: metal.name,
-                })
-
-                return {
-                  id: `legacy-${product.id}-${metal.id}-${entry.id || purityIndex + 1}`,
-                  metalId: metal.id,
-                  metalSlug: metal.slug,
-                  label,
-                  purityLabel: purityLabel || null,
-                  baseMetalName: metal.base_metal_name ?? metal.name,
-                  price: Number(entry.price ?? product.base_price ?? 0),
-                  isDefault:
-                    metal.id === fallbackMetalId &&
-                    (productPurityPrices.length < 1 || entry.id === defaultPurityPrice?.id || purityIndex === 0),
-                  mediaItems,
-                }
+          return sourcePurityRows
+            .filter((entry) => Number(entry.price ?? 0) > 0 || selectedMetals.length === 1)
+            .map((entry, purityIndex) => {
+              const purityLabel = entry.purity_label?.trim() || metal.purity_label?.trim() || ''
+              const label = buildCombinedMetalLabel({
+                displayLabel: purityLabel ? null : metal.display_label,
+                purityLabel,
+                baseMetalName: metal.base_metal_name ?? metal.name,
+                name: metal.name,
               })
-          })
+
+              return {
+                id: `legacy-${product.id}-${metal.id}-${entry.id || purityIndex + 1}`,
+                metalId: metal.id,
+                metalSlug: metal.slug,
+                label,
+                purityLabel: purityLabel || null,
+                baseMetalName: metal.base_metal_name ?? metal.name,
+                price: Number(entry.price ?? product.base_price ?? 0),
+                isDefault:
+                  metal.id === fallbackMetalId &&
+                  (productPurityPrices.length < 1 || entry.id === defaultPurityPrice?.id || purityIndex === 0),
+                mediaItems,
+              }
+            })
+        })
     const effectiveCombinedVariants =
       combinedVariants.length > 0
         ? combinedVariants
@@ -1168,15 +1005,15 @@ const fetchStorefrontProducts = async (
       shippingContent: product.shipping_enabled === false
         ? null
         : {
-            title: product.shipping_override_enabled ? product.shipping_title_override || shippingRule?.title || 'Shipping' : shippingRule?.title || 'Shipping',
-            body: product.shipping_override_enabled ? product.shipping_body_override || shippingRule?.body || '' : shippingRule?.body || '',
-          },
+          title: product.shipping_override_enabled ? product.shipping_title_override || shippingRule?.title || 'Shipping' : shippingRule?.title || 'Shipping',
+          body: product.shipping_override_enabled ? product.shipping_body_override || shippingRule?.body || '' : shippingRule?.body || '',
+        },
       careWarrantyContent: product.care_warranty_enabled === false
         ? null
         : {
-            title: product.care_warranty_override_enabled ? product.care_warranty_title_override || careWarrantyRule?.title || 'Care & Warranty' : careWarrantyRule?.title || 'Care & Warranty',
-            body: product.care_warranty_override_enabled ? product.care_warranty_body_override || careWarrantyRule?.body || '' : careWarrantyRule?.body || '',
-          },
+          title: product.care_warranty_override_enabled ? product.care_warranty_title_override || careWarrantyRule?.title || 'Care & Warranty' : careWarrantyRule?.title || 'Care & Warranty',
+          body: product.care_warranty_override_enabled ? product.care_warranty_body_override || careWarrantyRule?.body || '' : careWarrantyRule?.body || '',
+        },
       faqItems: (faqItemsByProduct.get(product.id) || [])
         .filter((item) => item.question?.trim() && item.answer?.trim())
         .map((item) => ({
@@ -1225,7 +1062,8 @@ export async function getStorefrontProducts(productLane?: StorefrontProductLane)
 }
 
 const getCachedStorefrontProductCards = unstable_cache(
-  async (productLane?: StorefrontProductLane) => {
+  async (productLane?: StorefrontProductLane, _source?: 'rds') => {
+    void _source // The backend label is part of unstable_cache's argument key.
     const products = await fetchStorefrontProducts(productLane)
     return products.map(toStorefrontProductCard)
   },
@@ -1234,7 +1072,7 @@ const getCachedStorefrontProductCards = unstable_cache(
 )
 
 export async function getStorefrontProductCards(productLane?: StorefrontProductLane) {
-  return getCachedStorefrontProductCards(productLane)
+  return getCachedStorefrontProductCards(productLane, 'rds')
 }
 
 const getRequestStorefrontProductBySlug = cache(async (slug: string) => {
@@ -1327,29 +1165,8 @@ export async function getStorefrontProductsByIds(ids: string[]) {
 }
 
 export async function getStorefrontProductDiscoveryRows() {
-  const supabase = createSupabaseServerClient()
-  const rows: Array<{
-    slug: string
-    name: string
-    description: string | null
-    tag_line: string | null
-    updated_at: string | null
-  }> = []
-  const pageSize = 1000
+  return loadProductDiscoveryRowsFromRds()
 
-  for (let from = 0; ; from += pageSize) {
-    const result = await supabase
-      .from('products')
-      .select('slug, name, description, tag_line, updated_at')
-      .eq('status', 'active')
-      .order('created_at', { ascending: false })
-      .range(from, from + pageSize - 1)
-
-    if (result.error) throw new Error(result.error.message)
-    const page = result.data ?? []
-    rows.push(...page)
-    if (page.length < pageSize) return rows
-  }
 }
 
 function normalizeSlug(value: string) {
@@ -1369,19 +1186,11 @@ export async function getStorefrontProductCardPage({
   page?: number
   pageSize?: number
 }) {
-  const supabase = createSupabaseServerClient()
+
   const safePage = Math.max(1, Math.floor(page))
   const safePageSize = Math.max(1, Math.min(48, Math.floor(pageSize)))
 
-  const [categoriesResult, subcategoriesResult, optionsResult, shapesResult, metalsResult, stylesResult, certificatesResult] = await Promise.all([
-    supabase.from('catalog_categories').select('id, slug').eq('status', 'active'),
-    supabase.from('catalog_subcategories').select('id, category_id, slug').eq('status', 'active'),
-    supabase.from('catalog_options').select('id, subcategory_id, slug').eq('status', 'active'),
-    supabase.from('catalog_stone_shapes').select('id, slug').eq('status', 'active'),
-    supabase.from('catalog_metals').select('id, slug').eq('status', 'active'),
-    supabase.from('catalog_styles').select('id, slug').eq('status', 'active'),
-    supabase.from('catalog_certificates').select('id, name, code'),
-  ])
+  const [categoriesResult, subcategoriesResult, optionsResult, shapesResult, metalsResult, stylesResult, certificatesResult] = await loadProductPageReferencesFromRds()
 
   const category = categoriesResult.data?.find((entry) => entry.slug === filters.categorySlug)
   const categorySubcategoryIds = new Set(
@@ -1390,18 +1199,18 @@ export async function getStorefrontProductCardPage({
       .map((entry) => entry.id)
   )
   const subcategory = subcategoriesResult.data?.find((entry) =>
-    entry.slug === filters.subcategorySlug && categorySubcategoryIds.has(entry.id)
+    entry.slug === filters.subcategorySlug && categorySubcategoryIds.has(entry.id ?? '')
   )
   const option = optionsResult.data?.find((entry) =>
     entry.slug === filters.optionSlug &&
     (!subcategory || entry.subcategory_id === subcategory.id) &&
-    categorySubcategoryIds.has(entry.subcategory_id)
+    categorySubcategoryIds.has(entry.subcategory_id ?? '')
   )
   const shape = shapesResult.data?.find((entry) => entry.slug === filters.shapeSlug)
   const metal = metalsResult.data?.find((entry) => entry.slug === filters.metalSlug)
   const style = stylesResult.data?.find((entry) => entry.slug === filters.styleSlug)
   const certificate = certificatesResult.data?.find((entry) =>
-    normalizeSlug(entry.name) === normalizeSlug(filters.certificate ?? '') ||
+    normalizeSlug(entry.name ?? '') === normalizeSlug(filters.certificate ?? '') ||
     normalizeSlug(entry.code ?? '') === normalizeSlug(filters.certificate ?? '')
   )
 
@@ -1416,34 +1225,16 @@ export async function getStorefrontProductCardPage({
   )
   if (missingRequestedFilter) return { products: [] as StorefrontProductCard[], totalCount: 0, page: safePage, pageSize: safePageSize }
 
-  const joins = [
-    'id',
-    ...(subcategory ? ['subcategory_match:product_subcategory_links!inner(subcategory_id)'] : []),
-    ...(option ? ['option_match:product_option_links!inner(option_id)'] : []),
-    ...(shape ? ['shape_match:product_stone_shapes!inner(shape_id)'] : []),
-    ...(metal ? ['metal_match:product_metal_selections!inner(metal_id)'] : []),
-  ].join(', ')
-
-  let indexQuery = supabase
-    .from('products')
-    .select(joins, { count: 'exact' })
-    .eq('status', 'active')
-  if (productLane) indexQuery = indexQuery.eq('product_lane', productLane)
-  if (category) indexQuery = indexQuery.eq('main_category_id', category.id)
-  if (subcategory) indexQuery = indexQuery.eq('subcategory_match.subcategory_id', subcategory.id)
-  if (option) indexQuery = indexQuery.eq('option_match.option_id', option.id)
-  if (shape) indexQuery = indexQuery.eq('shape_match.shape_id', shape.id)
-  if (metal) indexQuery = indexQuery.eq('metal_match.metal_id', metal.id)
-  if (style) indexQuery = indexQuery.eq('style_id', style.id)
-  if (certificate) indexQuery = indexQuery.contains('certificate_ids', [certificate.id])
-
-  if (sort === 'price-low') indexQuery = indexQuery.order('base_price', { ascending: true })
-  else if (sort === 'price-high') indexQuery = indexQuery.order('base_price', { ascending: false })
-  else if (sort === 'best-sellers') indexQuery = indexQuery.order('featured', { ascending: false }).order('created_at', { ascending: false })
-  else indexQuery = indexQuery.order('created_at', { ascending: false })
-
   const from = (safePage - 1) * safePageSize
-  const indexResult = await indexQuery.range(from, from + safePageSize - 1)
+  const indexResult = await (async () => {
+    const page = await loadProductPageIndexFromRds({
+      productLane, categoryId: category?.id, subcategoryId: subcategory?.id,
+      optionId: option?.id, shapeId: shape?.id, metalId: metal?.id,
+      styleId: style?.id, certificateId: certificate?.id,
+      sort, offset: from, pageSize: safePageSize,
+    })
+    return { data: page.ids.map((id) => ({ id })), count: page.count, error: null as { code?: string; message: string } | null }
+  })()
   if (indexResult.error) throw new Error(indexResult.error.message)
 
   const orderedIds = ((indexResult.data ?? []) as unknown as Array<{ id: string }>).map((entry) => entry.id)
@@ -1461,16 +1252,8 @@ export async function getStorefrontProductCardPage({
 }
 
 export async function getStorefrontFilterGroups(productLane?: StorefrontProductLane, categoryId?: string) {
-  const supabase = createSupabaseServerClient()
-  const [categories, subcategories, options, shapes, metals, styles, certificates] = await Promise.all([
-    supabase.from('catalog_categories').select('id, name, slug, category_lane').eq('status', 'active').order('display_order'),
-    supabase.from('catalog_subcategories').select('id, category_id, name, slug').eq('status', 'active').order('display_order'),
-    supabase.from('catalog_options').select('id, subcategory_id, name, slug').eq('status', 'active').order('display_order'),
-    supabase.from('catalog_stone_shapes').select('name, slug, svg_asset_url, display_order').eq('status', 'active').order('display_order'),
-    supabase.from('catalog_metals').select('name, slug, display_label, color_hex').eq('status', 'active').order('display_order'),
-    supabase.from('catalog_styles').select('name, slug').eq('status', 'active').order('display_order'),
-    supabase.from('catalog_certificates').select('name').order('display_order'),
-  ])
+
+  const [categories, subcategories, options, shapes, metals, styles, certificates] = await loadProductFilterGroupsFromRds()
   const visibleCategories = (categories.data ?? []).filter((entry) => !productLane || entry.category_lane === productLane)
   const visibleCategoryIds = new Set(categoryId ? [categoryId] : visibleCategories.map((entry) => entry.id))
   const visibleSubcategories = (subcategories.data ?? []).filter((entry) => visibleCategoryIds.has(entry.category_id))
@@ -1498,27 +1281,10 @@ function normalizeSearchTokens(query: string) {
 }
 
 const getCachedProductSearchReferences = unstable_cache(
-  async () => {
-    const supabase = createSupabaseServerClient()
-    const [categories, subcategories, options, metals, shapes, styles, certificates] = await Promise.all([
-      supabase.from('catalog_categories').select('id, name, slug').eq('status', 'active'),
-      supabase.from('catalog_subcategories').select('id, name, slug').eq('status', 'active'),
-      supabase.from('catalog_options').select('id, name, slug').eq('status', 'active'),
-      supabase.from('catalog_metals').select('id, name, slug, display_label, purity_label, base_metal_name').eq('status', 'active'),
-      supabase.from('catalog_stone_shapes').select('id, name, slug').eq('status', 'active'),
-      supabase.from('catalog_styles').select('id, name, slug').eq('status', 'active'),
-      supabase.from('catalog_certificates').select('id, name, code'),
-    ])
+  async (_source?: 'rds') => {
+    void _source
+    return loadProductSearchReferencesFromRds()
 
-    return {
-      categories: categories.data ?? [],
-      subcategories: subcategories.data ?? [],
-      options: options.data ?? [],
-      metals: metals.data ?? [],
-      shapes: shapes.data ?? [],
-      styles: styles.data ?? [],
-      certificates: certificates.data ?? [],
-    }
   },
   ['storefront-product-search-references-v1'],
   { revalidate: 300, tags: ['storefront-products'] }
@@ -1556,20 +1322,14 @@ async function getCanonicalSearchImageUrls(productIds: string[]) {
 async function getStorefrontProductSearchItemsUncached(query: string, limit = 12) {
   const safeLimit = Math.max(1, Math.min(24, Math.floor(limit)))
   const tokens = normalizeSearchTokens(query)
-  const supabase = createSupabaseServerClient()
-  const productSelect = 'id, slug, name, base_price, image_1_path, show_image_1, main_category_id, subcategory_id, option_id, style_id, certificate_ids'
+
+  const source = 'rds'
 
   if (!tokens.length) {
-    const result = await supabase
-      .from('products')
-      .select(productSelect)
-      .eq('status', 'active')
-      .order('featured', { ascending: false })
-      .order('created_at', { ascending: false })
-      .limit(safeLimit)
+    const result = { data: await loadSearchProductsFromRds(null, safeLimit), error: null as { code?: string; message: string } | null }
     if (result.error) throw new Error(result.error.message)
 
-    const references = await getCachedProductSearchReferences()
+    const references = await getCachedProductSearchReferences(source)
     const imageUrls = await getCanonicalSearchImageUrls((result.data ?? []).map((product) => product.id))
     return (result.data ?? []).map((product) => {
       const category = references.categories.find((entry) => entry.id === product.main_category_id)
@@ -1587,7 +1347,7 @@ async function getStorefrontProductSearchItemsUncached(query: string, limit = 12
     })
   }
 
-  const references = await getCachedProductSearchReferences()
+  const references = await getCachedProductSearchReferences(source)
   const referenceMatches = <T extends { id: string }>(entries: T[], getValues: (entry: T) => Array<string | null | undefined>) =>
     entries
       .map((entry) => ({ entry, tokens: searchTokensForValue(tokens, getValues(entry)) }))
@@ -1605,36 +1365,14 @@ async function getStorefrontProductSearchItemsUncached(query: string, limit = 12
     [...categoryMatches, ...subcategoryMatches, ...optionMatches, ...metalMatches, ...shapeMatches, ...styleMatches, ...certificateMatches]
       .map((match) => [match.entry.id, match.tokens] as const)
   )
-  const emptyResult = Promise.resolve({ data: [] as Array<Record<string, string>>, error: null })
-  const nameConditions = tokens.flatMap((token) => [`name.ilike.%${token}%`, `slug.ilike.%${token}%`])
-  const directConditions = [
-    ids(categoryMatches).length ? `main_category_id.in.(${ids(categoryMatches).join(',')})` : '',
-    ids(subcategoryMatches).length ? `subcategory_id.in.(${ids(subcategoryMatches).join(',')})` : '',
-    ids(optionMatches).length ? `option_id.in.(${ids(optionMatches).join(',')})` : '',
-    ids(styleMatches).length ? `style_id.in.(${ids(styleMatches).join(',')})` : '',
-  ].filter(Boolean)
 
-  const [nameResult, directResult, certificateResult, metalResult, shapeResult, subcategoryLinkResult, optionLinkResult] = await Promise.all([
-    supabase.from('products').select('id, name, slug').eq('status', 'active').or(nameConditions.join(',')).limit(80),
-    directConditions.length
-      ? supabase.from('products').select('id, main_category_id, subcategory_id, option_id, style_id').eq('status', 'active').or(directConditions.join(',')).limit(80)
-      : emptyResult,
-    ids(certificateMatches).length
-      ? supabase.from('products').select('id, certificate_ids').eq('status', 'active').overlaps('certificate_ids', ids(certificateMatches)).limit(80)
-      : emptyResult,
-    ids(metalMatches).length
-      ? supabase.from('product_metal_selections').select('product_id, metal_id').in('metal_id', ids(metalMatches)).limit(80)
-      : emptyResult,
-    ids(shapeMatches).length
-      ? supabase.from('product_stone_shapes').select('product_id, shape_id').in('shape_id', ids(shapeMatches)).limit(80)
-      : emptyResult,
-    ids(subcategoryMatches).length
-      ? supabase.from('product_subcategory_links').select('product_id, subcategory_id').in('subcategory_id', ids(subcategoryMatches)).limit(80)
-      : emptyResult,
-    ids(optionMatches).length
-      ? supabase.from('product_option_links').select('product_id, option_id').in('option_id', ids(optionMatches)).limit(80)
-      : emptyResult,
-  ])
+  const [nameResult, directResult, certificateResult, metalResult, shapeResult, subcategoryLinkResult, optionLinkResult] = await loadProductSearchCandidatesFromRds({
+    tokens,
+    categoryIds: ids(categoryMatches), subcategoryIds: ids(subcategoryMatches),
+    optionIds: ids(optionMatches), styleIds: ids(styleMatches),
+    certificateIds: ids(certificateMatches), metalIds: ids(metalMatches),
+    shapeIds: ids(shapeMatches),
+  })
 
   const firstError = [nameResult, directResult, certificateResult, metalResult, shapeResult, subcategoryLinkResult, optionLinkResult].find((result) => result.error)?.error
   if (firstError) throw new Error(firstError.message)
@@ -1652,7 +1390,7 @@ async function getStorefrontProductSearchItemsUncached(query: string, limit = 12
       .forEach((referenceId) => addTokens(product.id, matchTokensByReferenceId.get(referenceId) ?? []))
   }
   for (const product of (certificateResult.data ?? []) as Array<{ id: string; certificate_ids: string[] | null }>) {
-    ;(product.certificate_ids ?? []).forEach((referenceId: string) => addTokens(product.id, matchTokensByReferenceId.get(referenceId) ?? []))
+    ; (product.certificate_ids ?? []).forEach((referenceId: string) => addTokens(product.id, matchTokensByReferenceId.get(referenceId) ?? []))
   }
   for (const row of (metalResult.data ?? []) as Array<{ product_id: string; metal_id: string }>) addTokens(row.product_id, matchTokensByReferenceId.get(row.metal_id) ?? [])
   for (const row of (shapeResult.data ?? []) as Array<{ product_id: string; shape_id: string }>) addTokens(row.product_id, matchTokensByReferenceId.get(row.shape_id) ?? [])
@@ -1665,14 +1403,7 @@ async function getStorefrontProductSearchItemsUncached(query: string, limit = 12
     .slice(0, 120)
   if (!matchingProductIds.length) return []
 
-  const productsResult = await supabase
-    .from('products')
-    .select(productSelect)
-    .in('id', matchingProductIds)
-    .eq('status', 'active')
-    .order('featured', { ascending: false })
-    .order('created_at', { ascending: false })
-    .limit(safeLimit)
+  const productsResult = { data: await loadSearchProductsFromRds(matchingProductIds, safeLimit), error: null as { code?: string; message: string } | null }
   if (productsResult.error) throw new Error(productsResult.error.message)
 
   const imageUrls = await getCanonicalSearchImageUrls((productsResult.data ?? []).map((product) => product.id))
@@ -1694,7 +1425,10 @@ async function getStorefrontProductSearchItemsUncached(query: string, limit = 12
 }
 
 const getCachedDefaultProductSearchItems = unstable_cache(
-  () => getStorefrontProductSearchItemsUncached('', 16),
+  (_source?: 'rds') => {
+    void _source
+    return getStorefrontProductSearchItemsUncached('', 16)
+  },
   ['storefront-default-product-search-items-v2'],
   { revalidate: 300, tags: ['storefront-products'] }
 )
@@ -1703,7 +1437,7 @@ export async function getStorefrontProductSearchItems(query: string, limit = 12)
   const safeQuery = query.trim()
   const safeLimit = Math.max(1, Math.min(24, Math.floor(limit)))
   return !safeQuery && safeLimit === 16
-    ? getCachedDefaultProductSearchItems()
+    ? getCachedDefaultProductSearchItems('rds')
     : getStorefrontProductSearchItemsUncached(safeQuery, safeLimit)
 }
 

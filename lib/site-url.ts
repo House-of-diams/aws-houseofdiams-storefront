@@ -4,7 +4,6 @@ export function getSiteUrl() {
   const configuredUrl =
     process.env.NEXT_PUBLIC_SITE_URL ||
     process.env.SITE_URL ||
-    process.env.VERCEL_PROJECT_PRODUCTION_URL ||
     DEFAULT_SITE_URL
 
   const normalizedUrl = configuredUrl.startsWith('http')

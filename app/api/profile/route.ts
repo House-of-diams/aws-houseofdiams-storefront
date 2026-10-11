@@ -1,22 +1,18 @@
 import { NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
+import { getCustomerAuthConfig } from '@/lib/customer-auth/config'
+import { resolveF7CheckoutOwner } from '@/lib/f7-checkout-owner'
+import { isSameOriginMutation, readBoundedJson } from '@/lib/customer-auth/security'
+import { loadCheckoutCustomerProfile, saveCustomerProfile } from '@/lib/repositories/checkout-profile-repository'
+import { enforceRateLimit } from '@/lib/rate-limit'
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
-
-const PROFILE_FIELDS = 'email, first_name, last_name, phone, birth_date, anniversary_date, country, state, district, city, postal_code, address_line_1, address_line_2'
 const NAME_PATTERN = /^[\p{L}][\p{L}\p{M}' -]{0,79}$/u
 const PHONE_PATTERN = /^\+?[0-9(). -]{7,24}$/
 
 async function getAuthenticatedClients(request: Request) {
-  if (!supabaseUrl || !supabaseAnonKey || !supabaseServiceRoleKey) return { error: 'Missing Supabase environment variables.', status: 500 as const }
-  const authHeader = request.headers.get('authorization')
-  if (!authHeader?.startsWith('Bearer ')) return { error: 'Missing authorization token.', status: 401 as const }
-  const authClient = createClient(supabaseUrl, supabaseAnonKey, { global: { headers: { Authorization: authHeader } } })
-  const { data, error } = await authClient.auth.getUser()
-  if (error || !data.user) return { error: 'Unauthorized.', status: 401 as const }
-  return { user: data.user, adminClient: createClient(supabaseUrl, supabaseServiceRoleKey) }
+  if (!getCustomerAuthConfig()) return { error: 'Customer authentication is disabled.', status: 404 as const }
+  const identity = await resolveF7CheckoutOwner(request)
+  if (identity?.kind !== 'customer') return { error: 'Unauthorized.', status: 401 as const }
+  return { user: identity }
 }
 
 function optionalText(value: unknown, label: string, maxLength: number) {
@@ -50,30 +46,31 @@ function optionalDate(value: unknown, label: string) {
   return { value }
 }
 
-export async function GET(request: Request) {
+async function getProfile(request: Request) {
   const access = await getAuthenticatedClients(request)
   if ('error' in access) return NextResponse.json({ error: access.error }, { status: access.status })
-  const { data, error } = await access.adminClient.from('profiles').select(PROFILE_FIELDS).eq('id', access.user.id).maybeSingle()
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-  const metadata = access.user.user_metadata || {}
-  const metadataFullName = typeof metadata.full_name === 'string' ? metadata.full_name.trim() : ''
-  const metadataFirstName = typeof metadata.first_name === 'string' ? metadata.first_name.trim() : metadataFullName.split(' ')[0] || ''
-  const metadataLastName = typeof metadata.last_name === 'string' ? metadata.last_name.trim() : metadataFullName.split(' ').slice(1).join(' ')
+  const data = await loadCheckoutCustomerProfile(access.user.id)
   return NextResponse.json({
     profile: {
       ...data,
       email: data?.email || access.user.email || '',
-      first_name: data?.first_name || metadataFirstName,
-      last_name: data?.last_name || metadataLastName,
-      phone: data?.phone || (typeof metadata.phone === 'string' ? metadata.phone.trim() : ''),
+      first_name: data?.first_name || '',
+      last_name: data?.last_name || '',
+      phone: data?.phone || '',
     },
   })
 }
 
-export async function PATCH(request: Request) {
+async function patchProfile(request: Request) {
   const access = await getAuthenticatedClients(request)
   if ('error' in access) return NextResponse.json({ error: access.error }, { status: access.status })
-  const body = await request.json().catch(() => null)
+  const config = getCustomerAuthConfig()!
+  if (!isSameOriginMutation(request, config.baseUrl)) return NextResponse.json({ error: 'Invalid request origin.' }, { status: 403 })
+  const limit = await enforceRateLimit(request, { key: 'customer-profile-write', limit: 20, windowSeconds: 60 })
+  if (!limit.ok && limit.response) return limit.response
+  const parsed = await readBoundedJson(request, 8192)
+  if (!parsed.ok) return NextResponse.json({ error: 'Invalid profile payload.' }, { status: parsed.status })
+  const body = parsed.value as Record<string, unknown> | null
   if (!body || typeof body !== 'object' || Array.isArray(body)) return NextResponse.json({ error: 'Invalid profile payload.' }, { status: 400 })
 
   const firstName = requiredName(body.first_name, 'First name')
@@ -105,11 +102,25 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ error: 'Anniversary date cannot be in the future.' }, { status: 400 })
   }
 
-  const { data, error } = await access.adminClient
-    .from('profiles')
-    .upsert({ id: access.user.id, email: access.user.email || null, ...update, updated_at: new Date().toISOString() }, { onConflict: 'id' })
-    .select(PROFILE_FIELDS)
-    .single()
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  const profile = await saveCustomerProfile(access.user.id, update)
+  const data = { ...profile, email: access.user.email }
   return NextResponse.json({ profile: data })
+}
+
+export async function GET(request: Request) {
+  try {
+    const response = await getProfile(request)
+    response.headers.set('cache-control', 'no-store')
+    return response
+  }
+  catch { return NextResponse.json({ error: 'Unable to load your profile.' }, { status: 503 }) }
+}
+
+export async function PATCH(request: Request) {
+  try {
+    const response = await patchProfile(request)
+    response.headers.set('cache-control', 'no-store')
+    return response
+  }
+  catch { return NextResponse.json({ error: 'Unable to save your profile.' }, { status: 503 }) }
 }

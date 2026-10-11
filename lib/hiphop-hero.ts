@@ -1,4 +1,5 @@
-import { createSupabaseServerClient } from '@/lib/server-supabase'
+import { findHipHopHeroFromRds, loadHipHopHeroSlidesFromRds } from '@/lib/repositories/legacy-cms-repository'
+import { findHipHopShowcaseFromRds } from '@/lib/repositories/public-cms-repository'
 import { resolveLegacyHipHopHref } from '@/lib/legacy-hiphop'
 
 export type HipHopHeroSlide = {
@@ -24,22 +25,12 @@ export const fallbackHipHopHeroContent: HipHopHeroContent = {
 }
 
 export async function getHipHopHeroData() {
-  const supabase = createSupabaseServerClient()
 
   try {
-    const { data: section } = await supabase
-      .from('hiphop_hero_content')
-      .select('*')
-      .eq('section_key', 'hiphop_hero')
-      .eq('is_active', true)
-      .maybeSingle()
+    const section = await findHipHopHeroFromRds()
 
     if (section) {
-      const { data: items } = await supabase
-        .from('hiphop_hero_slider_items')
-        .select('id, sort_order, image_path, mobile_image_path, button_text, button_link')
-        .eq('hero_id', section.id)
-        .order('sort_order', { ascending: true })
+      const items = await loadHipHopHeroSlidesFromRds(section.id)
 
       const nextSlides = (items ?? []).filter((item) => item.image_path?.trim())
       const hasBanner = Boolean(section.slider_enabled) && nextSlides.length > 0
@@ -67,11 +58,10 @@ export async function getHipHopHeroData() {
       }
     }
 
-    const { data: legacySection } = await supabase
-      .from('hiphop_showcase_section')
-      .select('eyebrow, heading_line_1, heading_line_2, heading_emphasis, cta_label, cta_link, image_path')
-      .eq('section_key', 'home_hiphop_showcase')
-      .maybeSingle()
+    const legacySection = await findHipHopShowcaseFromRds() as {
+      eyebrow: string | null; heading_line_1: string | null; heading_line_2: string | null; heading_emphasis: string | null
+      cta_label: string | null; cta_link: string | null; image_path: string | null
+    } | null
 
     if (legacySection?.image_path) {
       const legacyHeadline = [
@@ -100,7 +90,7 @@ export async function getHipHopHeroData() {
         ] satisfies HipHopHeroSlide[],
       }
     }
-  } catch {}
+  } catch { }
 
   return {
     content: fallbackHipHopHeroContent,

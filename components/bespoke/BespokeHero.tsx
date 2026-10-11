@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { supabase } from '@/lib/supabase';
+import { mediaUrl } from '@/lib/media-url';
 
 function RevealDiv({
   children,
@@ -116,10 +116,7 @@ export default function BespokeHero({ onEnquireClick, initialHero = null, initia
 
   const getPublicImageUrl = (path: string) => {
     if (!path) return '';
-    if (path.startsWith('http://') || path.startsWith('https://')) return path;
-    const bucket = process.env.NEXT_PUBLIC_SUPABASE_COLLECTION_BUCKET ?? 'hod';
-    const { data } = supabase.storage.from(bucket).getPublicUrl(path);
-    return data.publicUrl;
+    return mediaUrl(path);
   };
 
   useEffect(() => {

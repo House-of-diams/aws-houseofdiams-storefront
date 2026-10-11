@@ -5,7 +5,7 @@ import JsonLd from '@/components/seo/JsonLd'
 import { createFaqSchema } from '@/lib/structured-data'
 import { createPageMetadata } from '@/lib/seo'
 import { getDocsPageContent } from '@/lib/docs-pages'
-import { createSupabaseServerClient } from '@/lib/server-supabase'
+import { loadContactInfoFromRds } from '@/lib/repositories/support-repository'
 
 export const metadata: Metadata = createPageMetadata({
   title: 'Returns',
@@ -21,11 +21,8 @@ const fallbackContactRows: ReturnsContactRow[] = [
 
 async function getContactRows(): Promise<ReturnsContactRow[]> {
   try {
-    const supabase = createSupabaseServerClient()
-    const { data, error } = await supabase
-      .from('contact_info')
-      .select('id, sort_order, label, value, note, href, icon_path')
-      .order('sort_order', { ascending: true })
+
+    const { data, error } = { data: await loadContactInfoFromRds(), error: null as { code?: string; message: string } | null }
 
     if (error) return fallbackContactRows
 

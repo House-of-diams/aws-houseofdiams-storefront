@@ -1,6 +1,10 @@
 import { mapBlogPostRecord, posts as fallbackPosts, type BlogPost } from '@/lib/data/blog-posts'
-import { createSupabaseServerClient } from '@/lib/server-supabase'
 import { getStorefrontProductsByIds } from '@/lib/catalog-products'
+import {
+  findEditorialHeroFromRds,
+  loadLiveBlogCategoriesFromRds,
+  loadPublishedBlogRowsFromRds,
+} from '@/lib/repositories/editorial-repository'
 
 type BlogTagRow = { tag: string; sort_order: number | null }
 type BlogContentBlockRow = {
@@ -42,73 +46,9 @@ type BlogPostRow = {
   blog_post_products: { product_id: string; sort_order: number | null }[] | null
 }
 
-const blogPostSelect =
-  'id, slug, category, author, date_label, read_time, bg_key, bg_color, title, title_html, subtitle, body_html, hero_image_path, card_title, card_image_path, hero_image_alt, is_published, sort_order, created_at, updated_at, catalog_category_id, blog_post_tags(tag, sort_order), blog_post_content_blocks(id, block_type, sort_order, heading, body_html, image_path, image_alt, image_caption, is_enabled), blog_post_products(product_id, sort_order)'
-
-const legacyBlogPostSelect =
-  'id, slug, category, author, date_label, read_time, bg_key, bg_color, title, title_html, subtitle, body_html, hero_image_path, is_published, sort_order, created_at, updated_at, catalog_category_id, blog_post_tags(tag, sort_order), blog_post_content_blocks(id, block_type, sort_order, heading, body_html, image_path, image_alt, image_caption, is_enabled), blog_post_products(product_id, sort_order)'
-
-function isMissingHeroAltColumn(error: { code?: string; message?: string } | null) {
-  if (!error) return false
-  const message = String(error.message ?? '')
-  return error.code === 'PGRST204' || error.code === '42703' || message.includes('blog_posts.hero_image_alt') || message.includes('hero_image_alt') || message.includes('card_title') || message.includes('card_image_path')
-}
-
-async function hydrateBlogCategories(
-  rows: Omit<BlogPostRow, 'catalog_category'>[] | null,
-  supabase: ReturnType<typeof createSupabaseServerClient>,
-): Promise<BlogPostRow[] | null> {
-  if (!rows?.length) return rows as BlogPostRow[] | null
-
-  const categoryIds = [...new Set(rows.map((row) => row.catalog_category_id).filter((id): id is string => Boolean(id)))]
-  if (!categoryIds.length) return rows.map((row) => ({ ...row, catalog_category: null }))
-
-  const { data: categories } = await supabase
-    .from('catalog_categories')
-    .select('id, name, slug')
-    .in('id', categoryIds)
-
-  const categoryMap = new Map((categories ?? []).map((category) => [category.id, category]))
-  return rows.map((row) => ({
-    ...row,
-    catalog_category: row.catalog_category_id ? categoryMap.get(row.catalog_category_id) ?? null : null,
-  }))
-}
-
 async function loadPublishedBlogRows() {
-  const supabase = createSupabaseServerClient()
-  const currentResult = await supabase
-    .from('blog_posts')
-    .select(blogPostSelect)
-    .eq('is_published', true)
-    .order('sort_order', { ascending: true })
+  return loadPublishedBlogRowsFromRds() as unknown as BlogPostRow[]
 
-  if (!isMissingHeroAltColumn(currentResult.error)) {
-    return hydrateBlogCategories(currentResult.data as Omit<BlogPostRow, 'catalog_category'>[] | null, supabase)
-  }
-
-  if (currentResult.error?.message?.includes('catalog_category_id')) {
-    const categoryCompatibleResult = await supabase
-      .from('blog_posts')
-      .select(blogPostSelect.replace(', catalog_category_id', ''))
-      .eq('is_published', true)
-      .order('sort_order', { ascending: true })
-
-    if (!categoryCompatibleResult.error) {
-      return hydrateBlogCategories(
-        categoryCompatibleResult.data as unknown as Omit<BlogPostRow, 'catalog_category'>[] | null,
-        supabase,
-      )
-    }
-  }
-
-  const legacyResult = await supabase
-    .from('blog_posts')
-    .select(legacyBlogPostSelect)
-    .eq('is_published', true)
-    .order('sort_order', { ascending: true })
-
-  return hydrateBlogCategories(legacyResult.data as Omit<BlogPostRow, 'catalog_category'>[] | null, supabase)
 }
 
 function mapRows(rows: BlogPostRow[] | null): BlogPost[] {
@@ -171,12 +111,8 @@ export type BlogPageHero = {
 }
 
 export async function getBlogPageHero(): Promise<BlogPageHero | null> {
-  const supabase = createSupabaseServerClient()
-  const { data, error } = await supabase
-    .from('blog_page_hero')
-    .select('is_enabled, heading, paragraph, button_label, button_link, desktop_image_path, desktop_image_alt, mobile_image_path, mobile_image_alt')
-    .eq('id', 1)
-    .maybeSingle()
+
+  const { data, error } = { data: await findEditorialHeroFromRds('blog'), error: null as { code?: string; message: string } | null }
 
   if (error || !data || data.is_enabled === false) return null
   const { getStorageImageUrl } = await import('@/lib/data/blog-posts')
@@ -193,19 +129,10 @@ export async function getBlogPageHero(): Promise<BlogPageHero | null> {
   }
 }
 
-
-
 export type BlogFilterCategory = { id: string; name: string; slug: string }
 
 export async function getLiveBlogCategories(): Promise<BlogFilterCategory[]> {
-  const supabase = createSupabaseServerClient()
-  const { data, error } = await supabase
-    .from('catalog_categories')
-    .select('id, name, slug')
-    .eq('status', 'active')
-    .neq('slug', 'hiphop')
-    .order('display_order', { ascending: true })
+  const data = await loadLiveBlogCategoriesFromRds() as unknown as BlogFilterCategory[]
+  return data.filter((category) => category.id && category.name && category.slug)
 
-  if (error) return []
-  return (data ?? []).filter((category) => category.id && category.name && category.slug)
 }

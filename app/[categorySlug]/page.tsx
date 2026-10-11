@@ -3,30 +3,19 @@ import type { Metadata } from 'next'
 export const dynamic = 'force-dynamic'
 
 import { createPageMetadata } from '@/lib/seo'
+import { mediaUrl } from '@/lib/media-url'
 import { buildCategoryPath } from '@/lib/catalog-paths'
-import { createSupabaseServerClient } from '@/lib/server-supabase'
+import { findActiveCatalogCategoryPageBySlug } from '@/lib/repositories/catalog-repository'
 import { getCatalogCanonicalPath, hasCatalogFilterQuery } from '@/lib/catalog-metadata'
 import { CategoryCollectionPageContent } from './CategoryCollectionPageContent'
 
 function toPublicUrl(path: string | null | undefined) {
-  if (!path) return null
-  if (/^https?:\/\//i.test(path)) return path
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-  if (!supabaseUrl) return path
-  const bucket = process.env.NEXT_PUBLIC_SUPABASE_COLLECTION_BUCKET || 'hod'
-  return `${supabaseUrl}/storage/v1/object/public/${bucket}/${path}`
+  return path ? mediaUrl(path) : null
 }
 
 async function getCategoryBySlug(slug: string) {
-  const supabase = createSupabaseServerClient()
-  const { data } = await supabase
-    .from('catalog_categories')
-    .select('id, name, slug, banner_desktop_image_path, banner_subtitle')
-    .eq('slug', slug)
-    .eq('status', 'active')
-    .maybeSingle()
+  return findActiveCatalogCategoryPageBySlug(slug)
 
-  return data
 }
 
 export async function generateMetadata({

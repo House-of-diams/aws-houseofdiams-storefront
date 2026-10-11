@@ -1,14 +1,11 @@
 import { NextResponse } from 'next/server'
-import { createSupabaseServiceRoleClient } from '@/lib/server-supabase'
+import { getPostgresErrorCode } from '@/lib/db/errors'
+import { insertNewsletterSubmission } from '@/lib/repositories/public-forms-repository'
 import { enforceRateLimit } from '@/lib/rate-limit'
 import { isValidEmail } from '@/lib/validation'
 
-function isMissingRelationError(error: { code?: string; message?: string } | null) {
-  return error?.code === 'PGRST205' || error?.message?.includes('schema cache') || error?.message?.includes('does not exist')
-}
-
 export async function POST(request: Request) {
-  if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+  if (!process.env.DATABASE_URL?.trim()) {
     return NextResponse.json({ error: 'Newsletter signup is temporarily unavailable.' }, { status: 503 })
   }
 
@@ -25,18 +22,12 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Enter a valid email address.' }, { status: 400 })
   }
 
-  const supabase = createSupabaseServiceRoleClient()
-  const { error } = await supabase.from('newsletter_submissions').insert({
-    email,
-    source: 'homepage_newsletter',
-    status: 'new',
-  })
-
-  if (error) {
-    if (isMissingRelationError(error)) {
+  try {
+    await insertNewsletterSubmission(email)
+  } catch (error) {
+    if (getPostgresErrorCode(error) === '42P01') {
       return NextResponse.json({ error: 'Newsletter storage is not enabled yet.' }, { status: 503 })
     }
-    console.error('Newsletter submission failed:', error)
     return NextResponse.json({ error: 'Unable to subscribe right now.' }, { status: 500 })
   }
 

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient, type RedisClientType } from 'redis'
+import { getTrustedClientIp } from '@/lib/trusted-proxy'
 
 type RateLimitConfig = {
   key: string
@@ -21,11 +22,6 @@ type MemoryEntry = {
 }
 
 const RATE_LIMIT_ERROR_MESSAGE = 'Too many requests. Please wait a bit and try again.'
-function trustedIpHeaders() {
-  if (process.env.VERCEL) return ['x-vercel-forwarded-for']
-  if (process.env.CF_PAGES || process.env.CLOUDFLARE_ENV) return ['cf-connecting-ip']
-  return ['x-forwarded-for', 'x-real-ip']
-}
 
 const memoryStore = globalThis as typeof globalThis & {
   __hodRateLimitMemory?: Map<string, MemoryEntry>
@@ -39,17 +35,6 @@ function getMemoryStore() {
     memoryStore.__hodRateLimitMemory = new Map<string, MemoryEntry>()
   }
   return memoryStore.__hodRateLimitMemory
-}
-
-function getClientIp(request: Request) {
-  for (const headerName of trustedIpHeaders()) {
-    const value = request.headers.get(headerName)
-    if (!value) continue
-    const first = value.split(',')[0]?.trim()
-    if (first) return first
-  }
-
-  return 'unknown'
 }
 
 function createRateLimitHeaders(result: Pick<RateLimitResult, 'limit' | 'remaining' | 'resetAt'>) {
@@ -180,7 +165,7 @@ function consumeMemoryLimit(key: string, limit: number, windowSeconds: number): 
 }
 
 export async function enforceRateLimit(request: Request, config: RateLimitConfig) {
-  const clientIp = getClientIp(request)
+  const clientIp = getTrustedClientIp(request.headers) ?? 'unknown'
   const key = `rate_limit:${config.key}:${clientIp}`
 
   try {

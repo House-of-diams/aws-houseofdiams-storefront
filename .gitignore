@@ -34,6 +34,28 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+*.env
+*.env.*
+
+# Private credentials and local DevOps handoffs
+*.key
+*.p12
+*.pfx
+/.aws/
+/private-devops-handoff/
+
+# Local database exports and backups; keep source SQL migrations versioned
+*.dump
+*.sql.gz
+*.bak
+/backups/
+/dumps/
+
+# Generated test reports and tool caches
+/test-results/
+/playwright-report/
+/.cache/
+/.idea/
 
 # vercel
 .vercel
@@ -47,3 +69,8 @@ next-env.d.ts
 /supabase/.branches/
 /supabase/.temp/
 /supabase/functions/.env
+
+# Local diagnostic captures; keep them out of the public AWS repository.
+/.codex-temp/
+/.codex-*
+/.codex/

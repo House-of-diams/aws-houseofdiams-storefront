@@ -19,7 +19,7 @@ const PromotionPopup = dynamic(() => import('@/components/layout/PromotionPopup'
 
 const AUTH_ROUTES = new Set(['/login', '/signup']);
 
-export default function SiteChrome({ children, initialNavItems }: { children: ReactNode; initialNavItems: NavbarRenderItem[] }) {
+export default function SiteChrome({ children, initialNavItems, customerAuthEnabled = false }: { children: ReactNode; initialNavItems: NavbarRenderItem[]; customerAuthEnabled?: boolean }) {
   const pathname = usePathname();
   const navItems = initialNavItems;
   const [showNonCriticalChrome, setShowNonCriticalChrome] = useState(false);
@@ -60,7 +60,7 @@ export default function SiteChrome({ children, initialNavItems }: { children: Re
       ) : (
         <>
           <div id="site-navbar-shell">
-            <Navbar navItems={navItems} />
+            <Navbar navItems={navItems} customerAuthEnabled={customerAuthEnabled} />
           </div>
           <CartDrawer />
           <ContactDrawer />

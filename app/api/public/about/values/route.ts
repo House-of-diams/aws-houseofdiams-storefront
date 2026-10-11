@@ -1,24 +1,21 @@
 import { NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
+import { loadAboutValuesFromRds } from '@/lib/repositories/about-repository'
 
 export const dynamic = 'force-static'
 export const revalidate = 300
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+async function readPublicContent() {
 
-export async function GET() {
-  if (!supabaseUrl || !supabaseAnonKey) {
-    return NextResponse.json({ error: 'Missing Supabase env vars.' }, { status: 500 })
-  }
-
-  const supabase = createClient(supabaseUrl, supabaseAnonKey)
-  const { data, error } = await supabase
-    .from('about_values')
-    .select('id, sort_order, icon_path, image_path, image_alt, title, description')
-    .order('sort_order', { ascending: true })
+  const { data, error } = { data: await loadAboutValuesFromRds(), error: null as { code?: string; message: string } | null }
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json({ items: data ?? [] })
 }
 
+
+export async function GET() {
+  try { return await readPublicContent() }
+  catch {
+    return NextResponse.json({ error: 'Unable to load content.' }, { status: 500 })
+  }
+}

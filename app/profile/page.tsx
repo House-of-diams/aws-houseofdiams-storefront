@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { Plus_Jakarta_Sans } from 'next/font/google';
-import ProfileClient from '@/components/auth/ProfileClient';
+import CustomerAccount from '@/components/auth/CustomerAccount';
+import { isF7ReadPreviewEnabled } from '@/lib/f7-read-preview';
 
 const plusJakartaSans = Plus_Jakarta_Sans({
   subsets: ['latin'],
@@ -16,7 +17,7 @@ export const metadata: Metadata = {
 export default function ProfilePage() {
   return (
     <div className={plusJakartaSans.className}>
-      <ProfileClient />
+      {process.env.HOD_CUSTOMER_AUTH_ENABLED === 'true' ? <CustomerAccount ordersEnabled={isF7ReadPreviewEnabled()} /> : <p>Customer accounts are temporarily unavailable. Please return later.</p>}
     </div>
   );
 }

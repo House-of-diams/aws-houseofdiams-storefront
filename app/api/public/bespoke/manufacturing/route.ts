@@ -1,24 +1,16 @@
 import { NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
+import { loadBespokeProcessStepsFromRds } from '@/lib/repositories/bespoke-repository'
+import { mediaUrl } from '@/lib/media-url'
 
 export const dynamic = 'force-static'
 export const revalidate = 300
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+async function readPublicContent() {
 
-export async function GET() {
-  if (!supabaseUrl || !supabaseAnonKey) return NextResponse.json({ error: 'Missing Supabase env vars.' }, { status: 500 })
-  const supabase = createClient(supabaseUrl, supabaseAnonKey)
-  const { data, error } = await supabase.from('bespoke_process_steps').select('id, sort_order, step, eyebrow, title, description, image_path, media_type, media_path').order('sort_order', { ascending: true })
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-  const bucket = process.env.NEXT_PUBLIC_SUPABASE_COLLECTION_BUCKET ?? 'hod'
-  const toPublicUrl = (path?: string | null) => {
-    if (!path) return ''
-    if (/^https?:\/\//i.test(path)) return path
-    return `${supabaseUrl}/storage/v1/object/public/${bucket}/${path}`
-  }
-  const items = (data ?? []).map((item) => ({
+  const data: Array<{ id: number; sort_order: number; step: string | null; eyebrow: string | null; title: string | null; description: string | null; image_path: string | null; media_type: string | null; media_path: string | null }> = await loadBespokeProcessStepsFromRds()
+
+  const toPublicUrl = mediaUrl
+  const items = data.map((item) => ({
     ...item,
     media_type: item.media_type === 'video' ? 'video' : 'image',
     media_path: item.media_path || item.image_path || '',
@@ -26,4 +18,11 @@ export async function GET() {
     image_url: toPublicUrl(item.image_path),
   }))
   return NextResponse.json({ items })
+}
+
+export async function GET() {
+  try { return await readPublicContent() }
+  catch {
+    return NextResponse.json({ error: 'Unable to load content.' }, { status: 500 })
+  }
 }

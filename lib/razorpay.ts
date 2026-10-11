@@ -27,7 +27,10 @@ export async function ensureRazorpayPaymentCaptured(input: {
   const razorpay = getRazorpayClient()
   let payment = await razorpay.payments.fetch(input.paymentId)
   const expectedCurrency = input.currency.toUpperCase()
-  const matches = () => payment.order_id === input.orderId && Number(payment.amount) === input.amountInSubunits && String(payment.currency || '').toUpperCase() === expectedCurrency
+  const matches = () => payment.id === input.paymentId && payment.order_id === input.orderId
+    && Number(payment.amount) === input.amountInSubunits
+    && Number(payment.amount_refunded || 0) === 0
+    && String(payment.currency || '').toUpperCase() === expectedCurrency
 
   if (!matches()) throw new Error('Razorpay payment does not match the expected order, amount, or currency.')
   if (payment.status === 'captured') return payment

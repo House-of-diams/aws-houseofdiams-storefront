@@ -77,7 +77,7 @@ export default async function RootLayout({
     cookies(),
   ])
   const detectedCountry = normalizeCountryCode(
-    requestHeaders.get('x-vercel-ip-country') || requestCookies.get('detected_country')?.value
+    requestHeaders.get('cloudfront-viewer-country') || requestCookies.get('detected_country')?.value
   )
   const initialDetectedCurrency = detectedCountry
     ? currencyForCountry(detectedCountry)
@@ -103,7 +103,7 @@ export default async function RootLayout({
               <ContactDrawerProvider>
                 <CartProvider>
                   <ToastProvider>
-                    <SiteChrome initialNavItems={navItems}>{children}</SiteChrome>
+                    <SiteChrome initialNavItems={navItems} customerAuthEnabled={process.env.HOD_CUSTOMER_AUTH_ENABLED === 'true'}>{children}</SiteChrome>
                   </ToastProvider>
                 </CartProvider>
               </ContactDrawerProvider>

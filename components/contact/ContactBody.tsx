@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Select } from '@/components/ui/select';
 import { cinzelFont } from '@/app/fonts';
 import { getSafeContactHref } from '@/lib/contact-links';
+import { mediaUrl } from '@/lib/media-url';
 
 function RevealDiv({ children, className = '', delay = 0 }: { children: React.ReactNode; className?: string; delay?: number }) {
   const ref = useRef<HTMLDivElement>(null);
@@ -80,7 +81,7 @@ export default function ContactBody({ onSuccess }: ContactBodyProps) {
             <div className="w-11 h-11 flex-shrink-0 border border-[rgba(10,22,40,0.25)] rounded-none bg-white flex items-center justify-center">
               {row.icon_path ? (
                 <img
-                  src={`${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/${process.env.NEXT_PUBLIC_SUPABASE_COLLECTION_BUCKET || 'hod'}/${row.icon_path}`}
+                  src={mediaUrl(row.icon_path)}
                   alt={row.label}
                   className="h-4 w-4 object-contain"
                 />

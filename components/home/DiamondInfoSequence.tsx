@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { cinzelFont } from '@/app/fonts';
 import type { HomeDiamondInfoConfig, HomeDiamondInfoItem } from '@/lib/home-data';
 import { sanitizeInlineSvg } from '@/lib/sanitize-html';
+import { mediaUrl } from '@/lib/media-url';
 
 const FALLBACK_FEATURES: HomeDiamondInfoItem[] = [
   {
@@ -78,10 +79,8 @@ function isSvgMarkup(value?: string | null) {
 function resolveIconSource(value?: string | null) {
   if (!value) return '';
   if (isSvgMarkup(value)) return '';
-  if (value.startsWith('http://') || value.startsWith('https://')) return value;
-  const bucket = process.env.NEXT_PUBLIC_SUPABASE_COLLECTION_BUCKET || 'hod';
-  const projectUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  return projectUrl ? `${projectUrl}/storage/v1/object/public/${bucket}/${value}` : value;
+
+  return mediaUrl(value);
 }
 
 export default function DiamondInfoSequence({

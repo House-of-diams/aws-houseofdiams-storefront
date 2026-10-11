@@ -3,9 +3,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
-import { supabase } from '@/lib/supabase'
 import type { HipHopHeroContent, HipHopHeroSlide } from '@/lib/hiphop-hero'
 import { resolveLegacyHipHopHref } from '@/lib/legacy-hiphop'
+import { mediaUrl } from '@/lib/media-url'
+
+const getPublicImageUrl = mediaUrl
 
 const fallbackContent: HipHopHeroContent = {
   eyebrow: 'Hip Hop',
@@ -28,83 +30,75 @@ export default function HipHopHero({
   const [activeSlide, setActiveSlide] = useState(0)
   const readyReportedRef = useRef(false)
 
-  const getPublicImageUrl = (path: string) => {
-    if (!path) return ''
-    if (path.startsWith('http://') || path.startsWith('https://')) return path
-    const bucket = process.env.NEXT_PUBLIC_SUPABASE_COLLECTION_BUCKET ?? 'hod'
-    const { data } = supabase.storage.from(bucket).getPublicUrl(path)
-    return data.publicUrl
-  }
-
   useEffect(() => {
     if ((initialSlides?.length ?? 0) > 0 || initialContent) {
       return
     }
 
     let active = true
-    ;(async () => {
-      try {
-        const response = await fetch('/api/public/hiphop/hero')
-        const payload = await response.json().catch(() => null)
-        if (!active) return
+      ; (async () => {
+        try {
+          const response = await fetch('/api/public/hiphop/hero')
+          const payload = await response.json().catch(() => null)
+          if (!active) return
 
-        const newSlides = Array.isArray(payload?.items) ? payload.items : []
-        const hasNewBanner = Boolean(payload?.item && Boolean(payload.item.slider_enabled) && newSlides.some((item: HipHopHeroSlide) => item.image_path?.trim()))
+          const newSlides = Array.isArray(payload?.items) ? payload.items : []
+          const hasNewBanner = Boolean(payload?.item && Boolean(payload.item.slider_enabled) && newSlides.some((item: HipHopHeroSlide) => item.image_path?.trim()))
 
-        if (hasNewBanner) {
-          setContent({
-            eyebrow: payload.item.eyebrow ?? fallbackContent.eyebrow,
-            headline: payload.item.headline ?? fallbackContent.headline,
-            subtitle: payload.item.subtitle ?? fallbackContent.subtitle,
-            slider_enabled: true,
-          })
-          setSlides(newSlides)
-          return
+          if (hasNewBanner) {
+            setContent({
+              eyebrow: payload.item.eyebrow ?? fallbackContent.eyebrow,
+              headline: payload.item.headline ?? fallbackContent.headline,
+              subtitle: payload.item.subtitle ?? fallbackContent.subtitle,
+              slider_enabled: true,
+            })
+            setSlides(newSlides)
+            return
+          }
+
+          const legacyResponse = await fetch('/api/public/hiphop-showcase')
+          const legacyPayload = await legacyResponse.json().catch(() => null)
+          const legacySection = legacyPayload?.section
+
+          if (legacySection?.image_path) {
+            const legacyHeadline = [legacySection.heading_line_1, legacySection.heading_line_2, legacySection.heading_emphasis]
+              .filter((part: string | null | undefined) => typeof part === 'string' && part.trim().length > 0)
+              .join(' ')
+
+            setContent({
+              eyebrow: legacySection.eyebrow ?? fallbackContent.eyebrow,
+              headline: legacyHeadline || fallbackContent.headline,
+              subtitle: fallbackContent.subtitle,
+              slider_enabled: true,
+            })
+            setSlides([
+              {
+                sort_order: 1,
+                image_path: legacySection.image_path,
+                mobile_image_path: legacySection.image_path,
+                button_text: legacySection.cta_label ?? 'Explore',
+                button_link: resolveLegacyHipHopHref(legacySection.cta_link),
+              },
+            ])
+            return
+          }
+
+          if (payload?.item) {
+            setContent({
+              eyebrow: payload.item.eyebrow ?? fallbackContent.eyebrow,
+              headline: payload.item.headline ?? fallbackContent.headline,
+              subtitle: payload.item.subtitle ?? fallbackContent.subtitle,
+              slider_enabled: Boolean(payload.item.slider_enabled),
+            })
+            setSlides(newSlides)
+          }
+        } catch {
+          if (active) {
+            setContent(fallbackContent)
+            setSlides([])
+          }
         }
-
-        const legacyResponse = await fetch('/api/public/hiphop-showcase')
-        const legacyPayload = await legacyResponse.json().catch(() => null)
-        const legacySection = legacyPayload?.section
-
-        if (legacySection?.image_path) {
-          const legacyHeadline = [legacySection.heading_line_1, legacySection.heading_line_2, legacySection.heading_emphasis]
-            .filter((part: string | null | undefined) => typeof part === 'string' && part.trim().length > 0)
-            .join(' ')
-
-          setContent({
-            eyebrow: legacySection.eyebrow ?? fallbackContent.eyebrow,
-            headline: legacyHeadline || fallbackContent.headline,
-            subtitle: fallbackContent.subtitle,
-            slider_enabled: true,
-          })
-          setSlides([
-            {
-              sort_order: 1,
-              image_path: legacySection.image_path,
-              mobile_image_path: legacySection.image_path,
-              button_text: legacySection.cta_label ?? 'Explore',
-              button_link: resolveLegacyHipHopHref(legacySection.cta_link),
-            },
-          ])
-          return
-        }
-
-        if (payload?.item) {
-          setContent({
-            eyebrow: payload.item.eyebrow ?? fallbackContent.eyebrow,
-            headline: payload.item.headline ?? fallbackContent.headline,
-            subtitle: payload.item.subtitle ?? fallbackContent.subtitle,
-            slider_enabled: Boolean(payload.item.slider_enabled),
-          })
-          setSlides(newSlides)
-        }
-      } catch {
-        if (active) {
-          setContent(fallbackContent)
-          setSlides([])
-        }
-      }
-    })()
+      })()
     return () => {
       active = false
     }

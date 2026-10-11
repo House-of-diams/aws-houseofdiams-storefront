@@ -1,22 +1,16 @@
 import { unstable_cache } from 'next/cache';
-import { createClient } from '@supabase/supabase-js';
 import { formatUsd } from '@/lib/money';
+import { mediaUrl } from '@/lib/media-url';
 import { buildOptionPath, buildSubcategoryPath } from '@/lib/catalog-paths';
 import { resolveLegacyHipHopHref } from '@/lib/legacy-hiphop';
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-function createHomeSupabaseClient() {
-  if (!supabaseUrl || (!supabaseServiceRoleKey && !supabaseAnonKey)) {
-    throw new Error('Missing Supabase environment variables for home data.');
-  }
-
-  return createClient(supabaseUrl, supabaseServiceRoleKey || supabaseAnonKey!, {
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
-}
+import {
+  findActiveHomeHeroRowFromRds,
+  loadHomeBestSellerRowsFromRds,
+  loadHomeCmsRowsFromRds,
+  loadHomeHeroSliderRowsFromRds,
+  loadHomeInstagramRowsFromRds,
+  loadHomeTestimonialsRowsFromRds,
+} from '@/lib/repositories/cms-repository';
 
 export type HomeHeroContent = {
   eyebrow: string;
@@ -315,8 +309,7 @@ type DiscoverStyleRow = {
 
 function toPublicUrl(path: string | null | undefined) {
   if (!path) return undefined;
-  if (path.startsWith('http://') || path.startsWith('https://')) return path;
-  return `${supabaseUrl}/storage/v1/object/public/${process.env.NEXT_PUBLIC_SUPABASE_COLLECTION_BUCKET || 'hod'}/${path}`;
+  return mediaUrl(path);
 }
 
 function readRelationName(
@@ -573,9 +566,34 @@ function buildBestSellerMetaFromMaterialValue(
   return [primaryLabel, materialLabel, purityLabel].filter(Boolean).join(' · ');
 }
 
+type ReadResult<T> = { data: T; error: { code?: string; message: string } | null };
+type HeroRow = HomeHeroContent & { id: number; seo_title?: string | null; seo_description?: string | null };
+type CollectionConfigRow = {
+  page_enabled: boolean; show_in_footer: boolean; show_home_showcase: boolean;
+  showcase_heading: string; showcase_subtitle: string; showcase_cta_label: string; showcase_cta_href: string;
+  showcase_image_path: string | null; showcase_mobile_image_path: string | null;
+};
+type BespokeShowcaseRow = {
+  is_enabled: boolean; eyebrow: string; heading: string; subtitle: string; cta_label: string;
+  image_path: string | null; mobile_image_path: string | null; image_alt: string;
+};
+type HomeRows = [
+  ReadResult<HeroRow | null>, ReadResult<Record<string, unknown>[]>, ReadResult<HomeCollectionItem[]>,
+  ReadResult<(HomeDiscoverItem & { shape_id: string })[]>, ReadResult<DiscoverStoneShapeRow[]>,
+  ReadResult<HomeHipHopSection | null>, ReadResult<CollectionConfigRow | null>, ReadResult<BespokeShowcaseRow | null>,
+  ReadResult<{ id: number; eyebrow: string; heading: string } | null>,
+  ReadResult<(HomeBestSellerSection & { id: string }) | null>, ReadResult<BestSellerProductSelectionRow[]>,
+];
+type BestSellerRows = [
+  ReadResult<BestSellerProductRow[]>, ReadResult<BestSellerMetalSelectionRow[]>, ReadResult<BestSellerMetalRow[]>,
+  ReadResult<BestSellerMetalMediaRow[]>, ReadResult<BestSellerMaterialValueSelectionRow[]>,
+  ReadResult<BestSellerMaterialValueRow[]>, ReadResult<BestSellerMetalVariantRow[]>, ReadResult<BestSellerVariantMediaRow[]>,
+];
+type HeroSlides = NonNullable<HomeHeroContent['slider_items']>;
+
 const loadHomePageData = unstable_cache(
-  async () => {
-    const supabase = createHomeSupabaseClient();
+  async (_source?: 'rds') => {
+    void _source;
 
     const [
       heroResult,
@@ -589,81 +607,18 @@ const loadHomePageData = unstable_cache(
       testimonialsSectionResult,
       bestSellerSectionResult,
       bestSellerProductSelectionsResult,
-    ] = await Promise.all([
-      supabase
-        .from('homepage_hero')
-        .select('id, eyebrow, headline, subtitle, slider_enabled')
-        .eq('section_key', 'home_hero')
-        .eq('is_active', true)
-        .maybeSingle(),
-      supabase
-        .from('blog_posts')
-        .select('id, slug, category, author, date_label, read_time, bg_key, bg_color, title, title_html, card_title, subtitle, body_html, hero_image_path, card_image_path, is_published, sort_order, blog_post_tags(tag, sort_order)')
-        .eq('is_published', true)
-        .order('sort_order', { ascending: true }),
-      supabase
-        .from('collection_items')
-        .select('sort_order, label, title, description, image_path, link')
-        .order('sort_order', { ascending: true }),
-      supabase
-        .from('discover_shapes_items')
-        .select('*')
-        .eq('status', 'active')
-        .order('sort_order', { ascending: true }),
-      supabase
-        .from('catalog_stone_shapes')
-        .select('id, name, slug')
-        .eq('status', 'active')
-        .order('display_order', { ascending: true }),
-      supabase
-        .from('hiphop_showcase_section')
-        .select('*')
-        .eq('section_key', 'home_hiphop_showcase')
-        .maybeSingle(),
-      supabase
-        .from('collection_page_config')
-        .select('page_enabled, show_in_footer, show_home_showcase, showcase_heading, showcase_subtitle, showcase_cta_label, showcase_cta_href, showcase_image_path, showcase_mobile_image_path')
-        .eq('section_key', 'main_collection_page')
-        .maybeSingle(),
-      supabase
-        .from('home_bespoke_showcase_section')
-        .select('is_enabled, eyebrow, heading, subtitle, cta_label, image_path, mobile_image_path, image_alt')
-        .eq('section_key', 'home_bespoke_showcase')
-        .maybeSingle(),
-      supabase
-        .from('testimonials_section')
-        .select('id, eyebrow, heading')
-        .eq('section_key', 'home_testimonials')
-        .maybeSingle(),
-      supabase
-        .from('cms_home_bestsellers')
-        .select('id, eyebrow, heading, cta_label, cta_href')
-        .eq('status', 'active')
-        .maybeSingle(),
-      supabase
-        .from('cms_home_bestseller_products')
-        .select('section_id, product_id, display_order, display_title, display_image_path')
-        .order('display_order', { ascending: true }),
-    ]);
+    ] = await loadHomeCmsRowsFromRds() as unknown as HomeRows;
 
     const heroData = heroResult.data;
     let sliderItems: HomeHeroContent['slider_items'] = [];
     if (heroData?.id && heroData.slider_enabled) {
-        const { data: itemsData } = await supabase
-          .from('homepage_hero_slider_items')
-          .select('sort_order, image_path, mobile_image_path, headline, subtitle, button_text, button_link')
-          .eq('hero_id', heroData.id)
-          .order('sort_order', { ascending: true });
+      const { data: itemsData } = await loadHomeHeroSliderRowsFromRds(heroData.id) as unknown as ReadResult<HeroSlides>;
       sliderItems = (itemsData ?? []).map((item) => ({ ...item, headline: item.headline ?? '', subtitle: item.subtitle ?? '' }));
     }
 
     let testimonialsItems: HomeTestimonialsData['items'] = [];
     if (testimonialsSectionResult.data?.id) {
-      const { data } = await supabase
-        .from('testimonials_items')
-        .select('sort_order, quote, author, origin, rating')
-        .eq('section_id', testimonialsSectionResult.data.id)
-        .order('sort_order', { ascending: true });
+      const { data } = await loadHomeTestimonialsRowsFromRds(testimonialsSectionResult.data.id) as unknown as ReadResult<HomeTestimonialsData['items']>;
       testimonialsItems = data ?? [];
     }
 
@@ -686,60 +641,7 @@ const loadHomePageData = unstable_cache(
           { data: materialValueCatalog },
           { data: metalVariants },
           { data: variantMediaItems },
-        ] = await Promise.all([
-          supabase
-            .from('products')
-            .select(`
-              id,
-              slug,
-              name,
-              base_price,
-              detail_template,
-              featured,
-              image_1_path,
-              gemstone_label,
-              purity_values,
-              subcategory:catalog_subcategories(name),
-              option:catalog_options(name),
-              category:catalog_categories(name)
-            `)
-            .in('id', productIds)
-            .eq('status', 'active'),
-          supabase
-            .from('product_metal_selections')
-            .select('product_id, metal_id, sort_order')
-            .in('product_id', productIds)
-            .order('sort_order', { ascending: true }),
-          supabase
-            .from('catalog_metals')
-            .select('id, name, slug, color_hex')
-            .eq('status', 'active')
-            .order('display_order', { ascending: true }),
-          supabase
-            .from('product_metal_media')
-            .select('product_id, metal_id, image_1_path, is_default_fallback')
-            .in('product_id', productIds),
-          supabase
-            .from('product_material_value_selections')
-            .select('product_id, material_value_id, sort_order')
-            .in('product_id', productIds)
-            .order('sort_order', { ascending: true }),
-          supabase
-            .from('catalog_material_values')
-            .select('id, name')
-            .eq('status', 'active')
-            .order('display_order', { ascending: true }),
-          supabase
-            .from('product_metal_variants')
-            .select('id, product_id, metal_id, is_default, sort_order')
-            .in('product_id', productIds)
-            .order('sort_order', { ascending: true }),
-          supabase
-            .from('product_variant_media_items')
-            .select('id, product_id, variant_id, media_type, media_path, sort_order, is_default_fallback')
-            .in('product_id', productIds)
-            .order('sort_order', { ascending: true }),
-        ]);
+        ] = await loadHomeBestSellerRowsFromRds(productIds) as unknown as BestSellerRows;
 
         const productMap = new Map((data ?? []).map((item) => [item.id, item as BestSellerProductRow]));
         const metalsById = new Map((metalCatalog ?? []).map((item) => {
@@ -920,13 +822,12 @@ const loadHomePageData = unstable_cache(
 );
 
 async function getFreshInstagramReelsData(): Promise<HomeInstagramReelsData> {
-  const supabase = createHomeSupabaseClient();
-  const sectionPromise = supabase.from('home_instagram_reels_section').select('heading, subtitle, is_enabled, marquee_duration_seconds, pause_on_hover').eq('section_key', 'home_instagram_reels').maybeSingle();
-  const itemsWithCoverPromise = supabase.from('home_instagram_reels').select('id, instagram_url, title, cover_image_url, display_order').eq('section_key', 'home_instagram_reels').eq('is_enabled', true).order('display_order', { ascending: true }).limit(30);
-  const [sectionResult, initialItemsResult] = await Promise.all([sectionPromise, itemsWithCoverPromise]);
-  const itemsResult = initialItemsResult.error?.message?.includes('cover_image_url')
-    ? await supabase.from('home_instagram_reels').select('id, instagram_url, title, display_order').eq('section_key', 'home_instagram_reels').eq('is_enabled', true).order('display_order', { ascending: true }).limit(30)
-    : initialItemsResult;
+
+  const [sectionResult, initialItemsResult] = await loadHomeInstagramRowsFromRds() as unknown as [
+    ReadResult<{ heading: string; subtitle: string; is_enabled: boolean; marquee_duration_seconds: number; pause_on_hover: boolean } | null>,
+    ReadResult<{ id: string; instagram_url: string; title: string | null; cover_image_url: string | null }[]>,
+  ];
+  const itemsResult = initialItemsResult;
   const missingTable = [sectionResult.error, itemsResult.error].some((error) => error?.code === 'PGRST205' || error?.message?.includes('home_instagram_reels'));
   if (missingTable) return { heading: '', subtitle: '', isEnabled: false, marqueeDurationSeconds: 40, pauseOnHover: true, items: [] };
   if (sectionResult.error) throw sectionResult.error;
@@ -946,7 +847,7 @@ async function getFreshInstagramReelsData(): Promise<HomeInstagramReelsData> {
 
 export async function getHomePageData() {
   const [data, instagramReels] = await Promise.all([
-    loadHomePageData(),
+    loadHomePageData('rds'),
     getFreshInstagramReelsData().catch(() => ({ heading: '', subtitle: '', isEnabled: false, marqueeDurationSeconds: 40, pauseOnHover: true, items: [] })),
   ]);
   return { ...data, instagramReels };
@@ -958,24 +859,15 @@ export async function getHomePageData() {
  * for the five-minute homepage cache to expire.
  */
 export async function getFreshHomeHeroContent(): Promise<HomeHeroContent | undefined> {
-  const supabase = createHomeSupabaseClient();
-  const { data: hero, error: heroError } = await supabase
-    .from('homepage_hero')
-    .select('id, eyebrow, headline, subtitle, slider_enabled')
-    .eq('section_key', 'home_hero')
-    .eq('is_active', true)
-    .maybeSingle();
+
+  const { data: hero, error: heroError } = await findActiveHomeHeroRowFromRds() as unknown as ReadResult<HeroRow | null>;
 
   if (heroError) throw heroError;
   if (!hero) return undefined;
 
   let sliderItems: HomeHeroContent['slider_items'] = [];
   if (hero.slider_enabled) {
-    const { data: items, error: itemsError } = await supabase
-      .from('homepage_hero_slider_items')
-      .select('sort_order, image_path, mobile_image_path, headline, subtitle, button_text, button_link')
-      .eq('hero_id', hero.id)
-      .order('sort_order', { ascending: true });
+    const { data: items, error: itemsError } = await loadHomeHeroSliderRowsFromRds(hero.id) as unknown as ReadResult<HeroSlides>;
 
     if (itemsError) throw itemsError;
     sliderItems = (items ?? []).map((item) => ({ ...item, headline: item.headline ?? '', subtitle: item.subtitle ?? '' }));
@@ -991,14 +883,10 @@ export async function getFreshHomeHeroContent(): Promise<HomeHeroContent | undef
 }
 
 const loadHomeSeoData = unstable_cache(
-  async (): Promise<HomeSeoData> => {
-    const supabase = createHomeSupabaseClient();
-    const { data, error } = await supabase
-      .from('homepage_hero')
-      .select('seo_title, seo_description')
-      .eq('section_key', 'home_hero')
-      .eq('is_active', true)
-      .maybeSingle();
+  async (_source?: 'rds'): Promise<HomeSeoData> => {
+    void _source;
+
+    const { data, error } = await findActiveHomeHeroRowFromRds() as unknown as ReadResult<HeroRow | null>;
 
     if (error) throw error;
 
@@ -1012,5 +900,5 @@ const loadHomeSeoData = unstable_cache(
 );
 
 export async function getHomeSeoData() {
-  return loadHomeSeoData();
+  return loadHomeSeoData('rds');
 }

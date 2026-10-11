@@ -1,30 +1,27 @@
 import { NextResponse } from 'next/server'
-import { createSupabaseServerClient } from '@/lib/server-supabase'
+import { loadActiveCouponBannerRowsFromRds } from '@/lib/repositories/public-cms-repository'
+import { mediaUrl } from '@/lib/media-url'
+import { isF7ReadPreviewEnabled } from '@/lib/f7-read-preview'
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
-const collectionBucket = process.env.NEXT_PUBLIC_SUPABASE_COLLECTION_BUCKET || 'hod'
-const publicImageUrl = (path: unknown) => typeof path === 'string' && path ? (/^https?:\/\//.test(path) ? path : `${supabaseUrl}/storage/v1/object/public/${collectionBucket}/${path}`) : ''
+const publicImageUrl = mediaUrl
+type PublicCoupon = {
+  id: string | number; code: string; title: string; reward_type: string; discount_value: number | string | null;
+  minimum_order_amount: number | string | null; gift_variant_data: unknown; gift_banner_image_url: string | null;
+  banner_title: string | null; banner_description: string | null; ends_at: string | null;
+  usage_limit: number | null; usage_count: number | null;
+  gift_product: { name: string; slug: string; sku: string | null; status: string; stock_quantity: number | null; image_1_path: string | null } | null;
+}
 
 export const dynamic = 'force-static'
 export const revalidate = 300
 
-export async function GET() {
-  const adminClient = createSupabaseServerClient()
+async function readPublicContent() {
   const now = new Date().toISOString()
-  const { data, error } = await adminClient
-    .from('coupons')
-    .select('id, code, title, reward_type, discount_value, minimum_order_amount, gift_product_id, gift_variant_data, gift_banner_image_url, banner_title, banner_description, starts_at, ends_at, featured_priority, usage_limit, usage_count, gift_product:products!coupons_gift_product_id_fkey(id, name, slug, sku, status, stock_quantity, image_1_path)')
-    .eq('is_active', true)
-    .eq('banner_enabled', true)
-    .or(`starts_at.is.null,starts_at.lte.${now}`)
-    .or(`ends_at.is.null,ends_at.gt.${now}`)
-    .order('featured_priority', { ascending: false })
-    .order('created_at', { ascending: false })
 
-  if (error) return NextResponse.json({ error: 'Unable to load active offers.' }, { status: 500 })
+  const data = await loadActiveCouponBannerRowsFromRds(now) as unknown as PublicCoupon[]
   const items = (data ?? []).filter((coupon) => coupon.usage_limit == null || Number(coupon.usage_count ?? 0) < Number(coupon.usage_limit)).flatMap((coupon) => {
     const product = Array.isArray(coupon.gift_product) ? coupon.gift_product[0] : coupon.gift_product
-    if (coupon.reward_type === 'free_gift' && (!product || product.status !== 'active' || Number(product.stock_quantity ?? 0) < 1)) return []
+    if (coupon.reward_type === 'free_gift' && (!product || product.status !== 'active' || (!isF7ReadPreviewEnabled() && Number(product.stock_quantity ?? 0) < 1))) return []
     const variant = coupon.gift_variant_data && typeof coupon.gift_variant_data === 'object' ? coupon.gift_variant_data as Record<string, unknown> : {}
     return [{
       id: coupon.id,
@@ -41,4 +38,11 @@ export async function GET() {
     }]
   })
   return NextResponse.json({ items })
+}
+
+export async function GET() {
+  try { return await readPublicContent() }
+  catch {
+    return NextResponse.json({ error: 'Unable to load content.' }, { status: 500 })
+  }
 }

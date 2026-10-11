@@ -1,67 +1,41 @@
 import { NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+import { loadDiamondInfoFeaturesFromRds, findDiamondInfoConfigFromRds } from '@/lib/repositories/legacy-cms-repository'
+import { DatabaseError } from '@/lib/db/errors'
+import { mediaUrl } from '@/lib/media-url'
 
 export const dynamic = 'force-static'
 export const revalidate = 300
 
 function toPublicUrl(path?: string | null) {
   if (!path) return ''
-  if (path.startsWith('http://') || path.startsWith('https://')) return path
-  const bucket = process.env.NEXT_PUBLIC_SUPABASE_COLLECTION_BUCKET || 'hod'
-  return `${supabaseUrl}/storage/v1/object/public/${bucket}/${path}`
+  return mediaUrl(path)
 }
 
-export async function GET() {
-  if (!supabaseUrl || !supabaseAnonKey) {
-    return NextResponse.json({ error: 'Missing Supabase env vars.' }, { status: 500 })
+async function readPublicContent() {
+  const read = async <T,>(operation: () => Promise<T>) => {
+    try { return { data: await operation(), missing: false } }
+    catch (error) {
+      if (error instanceof DatabaseError && error.code === '42P01') return { data: null, missing: true }
+      throw error
+    }
   }
-
-  const supabase = createClient(supabaseUrl, supabaseAnonKey)
-
-  const [{ data: features, error: featuresError }, { data: config, error: configError }] = await Promise.all([
-    supabase
-      .from('diamond_info_feature_items')
-      .select('id, sort_order, icon_svg, title, description, is_active')
-      .eq('section_key', 'home_diamond_info')
-      .eq('is_active', true)
-      .order('sort_order', { ascending: true }),
-    supabase
-      .from('diamond_info_config')
-      .select('video_enabled, video_path, video_poster_path, layout_mode, eyebrow, section_heading, section_subtext, cta_label, cta_link')
-      .eq('section_key', 'home_diamond_info')
-      .maybeSingle(),
-  ])
-
-  const isMissingConfigTable =
-    configError?.code === 'PGRST205' ||
-    configError?.message?.includes("Could not find the table 'public.diamond_info_config'")
-
-  const isMissingFeatureTable =
-    featuresError?.code === 'PGRST205' ||
-    featuresError?.message?.includes("Could not find the table 'public.diamond_info_feature_items'")
-
-  if (featuresError && !isMissingFeatureTable) {
-    return NextResponse.json({ error: featuresError.message }, { status: 500 })
-  }
-
-  if (configError && !isMissingConfigTable) {
-    return NextResponse.json({ error: configError.message }, { status: 500 })
-  }
+  const [featureResult, configResult] = await Promise.all([read(loadDiamondInfoFeaturesFromRds), read(findDiamondInfoConfigFromRds)])
+  const features = featureResult.data
+  const config = configResult.data
+  const isMissingFeatureTable = featureResult.missing
+  const isMissingConfigTable = configResult.missing
 
   return NextResponse.json({
     items: isMissingFeatureTable
       ? []
       : (features ?? []).map((item) => ({
-          id: item.id,
-          sort_order: item.sort_order,
-          iconSvg: item.icon_svg ?? '',
-          title: item.title ?? '',
-          description: item.description ?? '',
-          is_active: item.is_active ?? true,
-        })),
+        id: item.id,
+        sort_order: item.sort_order,
+        iconSvg: item.icon_svg ?? '',
+        title: item.title ?? '',
+        description: item.description ?? '',
+        is_active: item.is_active ?? true,
+      })),
     config: {
       videoEnabled: isMissingConfigTable ? false : (config?.video_enabled ?? false),
       videoUrl: isMissingConfigTable ? '' : toPublicUrl(config?.video_path),
@@ -74,4 +48,11 @@ export async function GET() {
       ctaLink: isMissingConfigTable ? '' : (config?.cta_link ?? ''),
     },
   })
+}
+
+export async function GET() {
+  try { return await readPublicContent() }
+  catch {
+    return NextResponse.json({ error: 'Unable to load content.' }, { status: 500 })
+  }
 }

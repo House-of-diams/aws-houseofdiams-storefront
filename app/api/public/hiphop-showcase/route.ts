@@ -1,38 +1,32 @@
 import { NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
 import { resolveLegacyHipHopHref } from '@/lib/legacy-hiphop'
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+import { findHipHopShowcaseFromRds } from '@/lib/repositories/public-cms-repository'
 
 export const dynamic = 'force-static'
 export const revalidate = 300
 
-export async function GET() {
-  if (!supabaseUrl || !supabaseAnonKey) {
-    return NextResponse.json({ error: 'Missing Supabase env vars.' }, { status: 500 })
-  }
+async function readPublicContent() {
 
-  const supabase = createClient(supabaseUrl, supabaseAnonKey)
-  const { data, error } = await supabase
-    .from('hiphop_showcase_section')
-    .select('*')
-    .eq('section_key', 'home_hiphop_showcase')
-    .maybeSingle()
-
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-
+  const data = await findHipHopShowcaseFromRds()
   return NextResponse.json({
     section: {
-      is_enabled: data?.is_enabled ?? true,
-      eyebrow: data?.eyebrow ?? 'Hip Hop Collection · House of Diams',
-      heading_line_1: data?.heading_line_1 ?? 'Ice That',
-      heading_line_2: data?.heading_line_2 ?? 'Speaks',
-      heading_emphasis: data?.heading_emphasis ?? 'Louder.',
-      cta_label: data?.cta_label ?? 'Shop Iced Pieces',
-      cta_link: resolveLegacyHipHopHref(data?.cta_link),
-      image_path: data?.image_path ?? '',
-      image_alt: data?.image_alt ?? 'House of Diams Hip Hop Collection',
-    },
+      is_enabled: (data?.is_enabled as boolean | null) ?? true,
+      eyebrow: (data?.eyebrow as string | null) ?? 'Hip Hop Collection · House of Diams',
+      heading_line_1: (data?.heading_line_1 as string | null) ?? 'Ice That',
+      heading_line_2: (data?.heading_line_2 as string | null) ?? 'Speaks',
+      heading_emphasis: (data?.heading_emphasis as string | null) ?? 'Louder.',
+      cta_label: (data?.cta_label as string | null) ?? 'Shop Iced Pieces',
+      cta_link: resolveLegacyHipHopHref(data?.cta_link as string | null),
+      image_path: (data?.image_path as string | null) ?? '',
+      image_alt: (data?.image_alt as string | null) ?? 'House of Diams Hip Hop Collection',
+    }
   })
+
+}
+
+export async function GET() {
+  try { return await readPublicContent() }
+  catch {
+    return NextResponse.json({ error: 'Unable to load content.' }, { status: 500 })
+  }
 }

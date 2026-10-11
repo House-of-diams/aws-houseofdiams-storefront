@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { getStorefrontProductCardPage, type StorefrontProductPageFilters, type StorefrontProductSort } from '@/lib/catalog-products'
-import { createSupabaseServerClient } from '@/lib/server-supabase'
+import { findActiveCatalogCategoryPageBySlug } from '@/lib/repositories/catalog-repository'
 
 const validSlug = /^[a-z0-9]+(?:-[a-z0-9]+)*$/
 const validSorts = new Set<StorefrontProductSort>(['best-matches', 'price-low', 'price-high', 'best-sellers'])
@@ -10,7 +10,7 @@ function optionalSlug(params: URLSearchParams, key: string) {
   return value && validSlug.test(value) ? value : null
 }
 
-export async function GET(request: Request) {
+async function readPublicContent(request: Request) {
   try {
     const params = new URL(request.url).searchParams
     const categorySlug = optionalSlug(params, 'category')
@@ -21,15 +21,8 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'Invalid category page request.' }, { status: 400 })
     }
 
-    const supabase = createSupabaseServerClient()
-    const categoryResult = await supabase
-      .from('catalog_categories')
-      .select('category_lane')
-      .eq('slug', categorySlug)
-      .eq('status', 'active')
-      .maybeSingle()
-    if (categoryResult.error) throw new Error(categoryResult.error.message)
-    if (!categoryResult.data) return NextResponse.json({ error: 'Category not found.' }, { status: 404 })
+    const category = await findActiveCatalogCategoryPageBySlug(categorySlug)
+    if (!category) return NextResponse.json({ error: 'Category not found.' }, { status: 404 })
 
     const certificate = params.get('certificate')?.trim().slice(0, 100) || null
     const filters: StorefrontProductPageFilters = {
@@ -43,7 +36,7 @@ export async function GET(request: Request) {
     }
     const requestedSort = params.get('sort') as StorefrontProductSort | null
     const productPage = await getStorefrontProductCardPage({
-      productLane: categoryResult.data.category_lane ?? 'standard',
+      productLane: (category.category_lane ?? 'standard') as 'standard' | 'hiphop' | 'collection',
       filters,
       sort: requestedSort && validSorts.has(requestedSort) ? requestedSort : 'best-matches',
       page,
@@ -56,5 +49,12 @@ export async function GET(request: Request) {
       { error: error instanceof Error ? error.message : 'Unable to load category products.' },
       { status: 500 }
     )
+  }
+}
+
+export async function GET(request: Request) {
+  try { return await readPublicContent(request) }
+  catch {
+    return NextResponse.json({ error: 'Unable to load content.' }, { status: 500 })
   }
 }

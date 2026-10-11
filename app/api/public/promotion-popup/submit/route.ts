@@ -1,5 +1,8 @@
 import { NextResponse } from 'next/server'
-import { createSupabaseServiceRoleClient } from '@/lib/server-supabase'
+import {
+  findSubmissionPromotion, loadSubmissionQuestions, findSubmissionCoupon,
+  insertPromotionResponse, insertPromotionSubmission, type PromotionQuestionRow,
+} from '@/lib/repositories/promotion-submissions-repository'
 import { enforceRateLimit } from '@/lib/rate-limit'
 import { isValidEmail } from '@/lib/validation'
 
@@ -55,18 +58,17 @@ function validateAnswer(question: Question, rawValue: unknown): { value: Answer 
 export async function POST(request: Request) {
   const rateLimit = await enforceRateLimit(request, { key: 'promotion-popup-submit', limit: 5, windowSeconds: 60 })
   if (!rateLimit.ok && rateLimit.response) return rateLimit.response
-  if (!process.env.SUPABASE_SERVICE_ROLE_KEY) return NextResponse.json({ error: 'Promotion response collection is not configured.' }, { status: 503 })
+  if (!process.env.DATABASE_URL?.trim()) return NextResponse.json({ error: 'Promotion response collection is not configured.' }, { status: 503 })
 
   const body = await request.json().catch(() => null)
   const submittedAnswers = body?.answers && typeof body.answers === 'object' && !Array.isArray(body.answers) ? body.answers as Record<string, unknown> : {}
   if (typeof body?.email === 'string' && !submittedAnswers.email) submittedAnswers.email = body.email
 
-  const supabase = createSupabaseServiceRoleClient()
-  const { data: promotion, error: promotionError } = await supabase.from('promotion_popup').select('id, cta_action, cta_link, selected_coupon_id, is_active').eq('section_key', 'global_promotion_popup').maybeSingle()
-  if (promotionError || !promotion?.is_active) return NextResponse.json({ error: 'This promotion is no longer available.' }, { status: 410 })
+  const promotion = await findSubmissionPromotion().catch(() => null)
+  if (!promotion?.is_active) return NextResponse.json({ error: 'This promotion is no longer available.' }, { status: 410 })
 
-  const { data: questionRows, error: questionsError } = await supabase.from('promotion_popup_questions').select('field_key, question, input_type, options, allow_multiple, validation_pattern, validation_message, is_required').eq('promotion_id', promotion.id).eq('is_active', true).order('sort_order')
-  const questions: Question[] = questionsError || !questionRows?.length
+  const questionRows: PromotionQuestionRow[] = await loadSubmissionQuestions(promotion.id).catch(() => [])
+  const questions: Question[] = !questionRows.length
     ? [{ field_key: 'email', question: 'Email address', input_type: 'email', options: [], allow_multiple: false, validation_pattern: null, validation_message: 'Enter a valid email address.', is_required: true }]
     : questionRows.map((question) => ({
       field_key: question.field_key,
@@ -90,17 +92,21 @@ export async function POST(request: Request) {
   let coupon: { id: number; code: string; title: string | null } | null = null
   if (actionType === 'reveal_coupon') {
     if (promotion.selected_coupon_id == null) return NextResponse.json({ error: 'This coupon is no longer available.' }, { status: 410 })
-    const { data, error } = await supabase.from('coupons').select('id, code, title, usage_limit, usage_count, is_active, starts_at, ends_at').eq('id', promotion.selected_coupon_id).maybeSingle()
+    const data = await findSubmissionCoupon(promotion.selected_coupon_id).catch(() => null)
     const now = Date.now()
-    if (error || !data?.is_active || (data.starts_at && Date.parse(data.starts_at) > now) || (data.ends_at && Date.parse(data.ends_at) <= now) || (data.usage_limit != null && Number(data.usage_count ?? 0) >= Number(data.usage_limit))) return NextResponse.json({ error: 'This coupon is no longer available.' }, { status: 410 })
+    if (!data?.is_active || (data.starts_at && Date.parse(data.starts_at) > now) || (data.ends_at && Date.parse(data.ends_at) <= now) || (data.usage_limit != null && Number(data.usage_count ?? 0) >= Number(data.usage_limit))) return NextResponse.json({ error: 'This coupon is no longer available.' }, { status: 410 })
     coupon = { id: Number(data.id), code: data.code, title: data.title }
   }
 
   const email = typeof answers.email === 'string' ? answers.email.toLowerCase() : null
-  const { error: responseError } = await supabase.from('promotion_popup_responses').insert({ promotion_id: promotion.id, email, answers, coupon_revealed: actionType === 'reveal_coupon', revealed_at: actionType === 'reveal_coupon' ? new Date().toISOString() : null })
-  if (responseError) return NextResponse.json({ error: 'Unable to save your answers. Please try again.' }, { status: 500 })
+  try {
+    await insertPromotionResponse({ promotion_id: promotion.id, email, answers, coupon_revealed: actionType === 'reveal_coupon', revealed_at: actionType === 'reveal_coupon' ? new Date().toISOString() : null })
+  } catch {
+    return NextResponse.json({ error: 'Unable to save your answers. Please try again.' }, { status: 500 })
+  }
 
-  if (email) await supabase.from('promotion_popup_submissions').insert({ email, action_type: actionType, coupon_id: coupon?.id ?? null })
+  // This secondary email record remains best-effort, as in the existing flow.
+  if (email) await insertPromotionSubmission({ email, action_type: actionType, coupon_id: coupon?.id ?? null }).catch(() => undefined)
   if (actionType === 'reveal_coupon' && coupon) return NextResponse.json({ ok: true, action: actionType, coupon: { code: coupon.code, title: coupon.title } })
   return NextResponse.json({ ok: true, action: 'redirect', redirectUrl: promotion.cta_link || '/' })
 }

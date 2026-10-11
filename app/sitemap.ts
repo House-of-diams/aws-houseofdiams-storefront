@@ -2,10 +2,10 @@ import type { MetadataRoute } from 'next'
 import { getPublishedBlogPosts } from '@/lib/blog'
 import { getPublishedEducationPosts } from '@/lib/education'
 import { getStorefrontProductDiscoveryRows } from '@/lib/catalog-products'
-import { createSupabaseServerClient } from '@/lib/server-supabase'
 import { getCanonicalUrl } from '@/lib/site-url'
 import { buildCategoryPath, buildOptionPath, buildSubcategoryPath } from '@/lib/catalog-paths'
 import { isPublicCatalogTaxonomy } from '@/lib/catalog-publication'
+import { loadActiveCatalogTaxonomy } from '@/lib/repositories/catalog-repository'
 
 export const dynamic = 'force-dynamic'
 
@@ -25,29 +25,15 @@ const staticRoutes = [
 ]
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const supabase = createSupabaseServerClient()
 
-  const [products, categoriesResult, subcategoriesResult, optionsResult, blogPosts, educationPosts] = await Promise.all([
+  const taxonomy = loadActiveCatalogTaxonomy()
+
+  const [products, { categories, subcategories, options }, blogPosts, educationPosts] = await Promise.all([
     getStorefrontProductDiscoveryRows(),
-    supabase
-      .from('catalog_categories')
-      .select('*')
-      .eq('status', 'active'),
-    supabase
-      .from('catalog_subcategories')
-      .select('*')
-      .eq('status', 'active'),
-    supabase
-      .from('catalog_options')
-      .select('*')
-      .eq('status', 'active'),
+    taxonomy,
     getPublishedBlogPosts(),
     getPublishedEducationPosts(),
   ])
-
-  const categories = categoriesResult.data ?? []
-  const subcategories = subcategoriesResult.data ?? []
-  const options = optionsResult.data ?? []
 
   const staticEntries = staticRoutes.map((route) => ({
     url: getCanonicalUrl(route).toString(),

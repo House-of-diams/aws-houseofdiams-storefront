@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { CirclePlay, Gift, PackageCheck, RefreshCcw, X } from 'lucide-react'
-import { supabase } from '@/lib/supabase'
 
 type SummaryPointer = {
   id: string
@@ -58,10 +57,9 @@ export default function AdditionalSummaryDetails() {
   useEffect(() => {
     let cancelled = false
     void (async () => {
-      const { data: section, error } = await supabase.from('cms_summary_sections').select('id, heading').eq('section_key', 'additional_summary_details').eq('is_enabled', true).maybeSingle()
-      if (cancelled || error || !section) return
-      const { data, error: pointerError } = await supabase.from('cms_summary_pointers').select('id, icon_url, pointer_text, video_url, video_link_text').eq('section_id', section.id).order('sort_order').order('created_at')
-      if (!cancelled && !pointerError && data?.length) setSummary({ heading: section.heading, pointers: data as SummaryPointer[] })
+      const response = await fetch('/api/public/additional-summary-details')
+      const payload = await response.json().catch(() => null)
+      if (!cancelled && response.ok && payload?.summary?.pointers?.length) setSummary(payload.summary as { heading: string; pointers: SummaryPointer[] })
     })()
     return () => { cancelled = true }
   }, [])

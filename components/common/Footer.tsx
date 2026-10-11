@@ -6,7 +6,6 @@ import * as SelectPrimitive from '@radix-ui/react-select';
 import { Check, ChevronDown, ChevronUp } from 'lucide-react';
 import ReactCountryFlag from 'react-country-flag';
 import { useCurrency } from '@/context/CurrencyContext';
-import { supabase } from '@/lib/supabase';
 import type { NavbarRenderItem } from '@/lib/navbar';
 import { getSafeContactHref } from '@/lib/contact-links';
 
@@ -211,23 +210,19 @@ export default function Footer({ navItems = [] }: { navItems?: NavbarRenderItem[
     let ignore = false;
 
     const loadCategories = async () => {
-      const [{ data, error }, { data: configData }, contactResponse] = await Promise.all([
-        supabase
-          .from('catalog_categories')
-          .select('id, name, slug')
-          .eq('status', 'active')
-          .order('display_order', { ascending: true }),
-        supabase
-          .from('collection_page_config')
-          .select('page_enabled, show_in_footer, showcase_cta_href, showcase_cta_label')
-          .eq('section_key', 'main_collection_page')
-          .maybeSingle(),
+      const [footerResponse, contactResponse] = await Promise.all([
+        fetch('/api/public/footer-content').catch(() => null),
         fetch('/api/public/contact/info').catch(() => null),
       ]);
 
       if (ignore) return;
-      if (!error && data) setServiceCategories(data);
-      setCollectionConfig(configData ?? null);
+      if (footerResponse?.ok) {
+        const payload = await footerResponse.json().catch(() => null);
+        if (!ignore) {
+          if (Array.isArray(payload?.categories)) setServiceCategories(payload.categories);
+          setCollectionConfig(payload?.collectionConfig ?? null);
+        }
+      }
 
       if (contactResponse?.ok) {
         const payload = await contactResponse.json().catch(() => null);

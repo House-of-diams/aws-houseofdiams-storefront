@@ -15,7 +15,6 @@ import type { StorefrontPromotion } from '@/components/commerce/PromotionBanner'
 import type { CheckoutChargeQuote, CheckoutDisplayItem, CheckoutPostalAreaOption, CheckoutPostalLookupState, CheckoutProfileForm } from '@/components/checkout/types';
 import { useCurrency } from '@/context/CurrencyContext';
 import { getCollectionHref } from '@/lib/browse-context';
-import { supabase } from '@/lib/supabase';
 import { useCart } from '@/lib/hooks/useCart';
 import { getProductKey, type CartProductSnapshot } from '@/lib/product-keys';
 import type { StorefrontProduct } from '@/lib/catalog-products';
@@ -191,7 +190,7 @@ const EMPTY_PROFILE_FORM: CheckoutProfileForm = {
   address_line_2: '',
 };
 
-export default function CheckoutPageClient() {
+export default function CheckoutPageClient({ customerAuthEnabled = false }: { customerAuthEnabled?: boolean }) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { items: cartItems, clearCart, isHydrated: isCartHydrated } = useCart();
@@ -254,7 +253,7 @@ export default function CheckoutPageClient() {
   const postalLookupAbortRef = useRef<AbortController | null>(null)
   const checkoutAttemptKeyRef = useRef<string | null>(null)
   const paymentSessionPromiseRef = useRef<Promise<PendingPaymentSession | null> | null>(null)
-  const paymentAccessTokenRef = useRef<string | null>(null)
+  const paymentCustomerSessionRef = useRef(false)
   const paymentGuestTokenRef = useRef<string | null>(null)
   const lastPostalLookupKeyRef = useRef<string>('')
   const requestedCouponAttemptRef = useRef<string | null>(null)
@@ -280,7 +279,7 @@ export default function CheckoutPageClient() {
       }
       const requested = localStorage.getItem(REQUESTED_COUPON_KEY)?.trim().toUpperCase()
       if (requested) setRequestedCouponCode(requested)
-    } catch {}
+    } catch { }
   }, [cartMode])
 
   useEffect(() => {
@@ -292,7 +291,7 @@ export default function CheckoutPageClient() {
       if (requested) {
         setRequestedPromotion(requested)
       }
-    }).catch(() => {})
+    }).catch(() => { })
   }, [])
 
   const singleItem = useMemo<CheckoutDisplayItem>(() => ({
@@ -385,12 +384,12 @@ export default function CheckoutPageClient() {
         ? cartCheckoutItems
         : singleItem.slug
           ? [
-              {
-                ...singleItem,
-                gstLabel: taxInfo?.gstLabel ?? singleItem.gstLabel ?? 'Taxes',
-                gstPercentage: taxInfo?.gstPercentage ?? singleItem.gstPercentage ?? 0,
-              },
-            ]
+            {
+              ...singleItem,
+              gstLabel: taxInfo?.gstLabel ?? singleItem.gstLabel ?? 'Taxes',
+              gstPercentage: taxInfo?.gstPercentage ?? singleItem.gstPercentage ?? 0,
+            },
+          ]
           : [],
     [cartMode, cartCheckoutItems, singleItem, taxInfo]
   );
@@ -527,61 +526,61 @@ export default function CheckoutPageClient() {
     const requestTimer = window.setTimeout(() => {
       setQuoteError('')
       void (async () => {
-      try {
-        const response = await fetch('/api/checkout/quote', {
-          method: 'POST',
-          headers: { 'content-type': 'application/json' },
-          body: JSON.stringify(requestBody),
-          signal: controller.signal,
-        })
-        const payload = await response.json().catch(() => null)
-        window.clearTimeout(loadingNoticeTimer)
-        setQuoteLoadingNotice(false)
-        if (!ignore && response.ok) {
-          setChargeQuote(payload?.quote ?? null)
-          setAuthoritativePricing(payload?.pricing ?? null)
-          setQuoteStatus(payload?.quote && payload?.pricing ? 'ready' : 'error')
-          setQuoteError(payload?.quote && payload?.pricing ? '' : 'We could not confirm the latest checkout total.')
-          if (payload?.quote && payload?.pricing) {
-            quoteCacheRef.current.set(requestKey, { expiresAt: Date.now() + 15_000, quote: payload.quote, pricing: payload.pricing })
-          }
-        } else if (!ignore) {
-          setChargeQuote(null)
-          setAuthoritativePricing(null)
-          setQuoteStatus('error')
-          setQuoteError(response.status >= 500 ? 'We could not confirm pricing right now. Please try again shortly.' : payload?.error || 'One or more products need your attention before checkout.')
-          if (appliedCoupon && response.status < 500) {
-            const minimumOrderAmount = Number(appliedCoupon.minimumOrderAmount ?? 0)
-            setAppliedCoupon(null)
-            if (cartMode && minimumOrderAmount > 0 && isExplicitMinimumOrderCouponError(payload?.error)) {
-              setRequestedCouponCode(appliedCoupon.code)
-              localStorage.setItem(REQUESTED_COUPON_KEY, appliedCoupon.code)
-              localStorage.removeItem(APPLIED_COUPON_KEY)
-              setCouponCodeInput('')
-              setErrorMessage('')
-            } else {
-              setCouponCodeInput('')
-              if (cartMode) {
+        try {
+          const response = await fetch('/api/checkout/quote', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify(requestBody),
+            signal: controller.signal,
+          })
+          const payload = await response.json().catch(() => null)
+          window.clearTimeout(loadingNoticeTimer)
+          setQuoteLoadingNotice(false)
+          if (!ignore && response.ok) {
+            setChargeQuote(payload?.quote ?? null)
+            setAuthoritativePricing(payload?.pricing ?? null)
+            setQuoteStatus(payload?.quote && payload?.pricing ? 'ready' : 'error')
+            setQuoteError(payload?.quote && payload?.pricing ? '' : 'We could not confirm the latest checkout total.')
+            if (payload?.quote && payload?.pricing) {
+              quoteCacheRef.current.set(requestKey, { expiresAt: Date.now() + 15_000, quote: payload.quote, pricing: payload.pricing })
+            }
+          } else if (!ignore) {
+            setChargeQuote(null)
+            setAuthoritativePricing(null)
+            setQuoteStatus('error')
+            setQuoteError(response.status >= 500 ? 'We could not confirm pricing right now. Please try again shortly.' : payload?.error || 'One or more products need your attention before checkout.')
+            if (appliedCoupon && response.status < 500) {
+              const minimumOrderAmount = Number(appliedCoupon.minimumOrderAmount ?? 0)
+              setAppliedCoupon(null)
+              if (cartMode && minimumOrderAmount > 0 && isExplicitMinimumOrderCouponError(payload?.error)) {
+                setRequestedCouponCode(appliedCoupon.code)
+                localStorage.setItem(REQUESTED_COUPON_KEY, appliedCoupon.code)
                 localStorage.removeItem(APPLIED_COUPON_KEY)
-                localStorage.removeItem(REQUESTED_COUPON_KEY)
-                setRequestedCouponCode('')
-                setRequestedPromotion(null)
+                setCouponCodeInput('')
+                setErrorMessage('')
+              } else {
+                setCouponCodeInput('')
+                if (cartMode) {
+                  localStorage.removeItem(APPLIED_COUPON_KEY)
+                  localStorage.removeItem(REQUESTED_COUPON_KEY)
+                  setRequestedCouponCode('')
+                  setRequestedPromotion(null)
+                }
+                setErrorMessage(payload?.error || 'This coupon is not valid for the current checkout.')
               }
-              setErrorMessage(payload?.error || 'This coupon is not valid for the current checkout.')
             }
           }
+        } catch {
+          if (controller.signal.aborted) return
+          window.clearTimeout(loadingNoticeTimer)
+          setQuoteLoadingNotice(false)
+          if (!ignore) {
+            setChargeQuote(null)
+            setAuthoritativePricing(null)
+            setQuoteStatus('error')
+            setQuoteError('We could not confirm pricing right now. Check your connection and try again.')
+          }
         }
-      } catch {
-        if (controller.signal.aborted) return
-        window.clearTimeout(loadingNoticeTimer)
-        setQuoteLoadingNotice(false)
-        if (!ignore) {
-          setChargeQuote(null)
-          setAuthoritativePricing(null)
-          setQuoteStatus('error')
-          setQuoteError('We could not confirm pricing right now. Check your connection and try again.')
-        }
-      }
       })()
     }, 180)
 
@@ -847,15 +846,17 @@ export default function CheckoutPageClient() {
 
   useEffect(() => {
     void (async () => {
-      const { data } = await supabase.auth.getSession();
-      const accessToken = data.session?.access_token;
-      if (!accessToken) {
+      const customerSession = customerAuthEnabled
+        ? await fetch('/api/customer-auth/session', { cache: 'no-store' }).then((response) => response.ok ? response.json() : null).catch(() => null)
+        : null;
+      const hasCustomerSession = customerSession?.authenticated === true && customerSession?.identity?.emailVerified === true;
+      if (!hasCustomerSession) {
         setSessionReady(false);
         setSessionLoading(false);
         return;
       }
 
-      const sessionUser = data.session?.user;
+      const sessionUser = customerSession?.identity;
       setCustomerForm((current) => ({
         ...current,
         email: current.email || sessionUser?.email || '',
@@ -865,9 +866,7 @@ export default function CheckoutPageClient() {
 
       try {
         const response = await fetch('/api/checkout/profile', {
-          headers: {
-            authorization: `Bearer ${accessToken}`,
-          },
+          cache: 'no-store',
         });
         const payload = await response.json().catch(() => null);
 
@@ -897,7 +896,7 @@ export default function CheckoutPageClient() {
         setErrorMessage('Profile could not be prefilled, but you can enter checkout details manually.');
       }
     })();
-  }, []);
+  }, [customerAuthEnabled]);
   const isFirstStep = currentStep === 0;
   const isLastStep = currentStep === CHECKOUT_STEPS.length - 1;
   const continueHref = getCollectionHref(searchParams.get('category'));
@@ -1015,14 +1014,16 @@ export default function CheckoutPageClient() {
     if (paymentSessionPromiseRef.current) return paymentSessionPromiseRef.current
 
     const request = (async () => {
-      const { data } = await supabase.auth.getSession()
-      const accessToken = data.session?.access_token || null
-      const guestToken = accessToken ? null : (guestCheckout ? getOrCreateGuestCheckoutToken() : null)
-      if (!accessToken && !guestToken) {
+      const session = customerAuthEnabled
+        ? await fetch('/api/customer-auth/session', { cache: 'no-store' }).then((response) => response.ok ? response.json() : null).catch(() => null)
+        : null
+      const hasCustomerSession = session?.authenticated === true && session?.identity?.emailVerified === true
+      const guestToken = hasCustomerSession ? null : (guestCheckout ? getOrCreateGuestCheckoutToken() : null)
+      if (!hasCustomerSession && !guestToken) {
         if (showErrors) setErrorMessage('Choose Express Checkout or sign in to continue.')
         return null
       }
-      paymentAccessTokenRef.current = accessToken
+      paymentCustomerSessionRef.current = hasCustomerSession
       paymentGuestTokenRef.current = guestToken
 
       const idempotencyKey = checkoutAttemptKeyRef.current || window.crypto.randomUUID()
@@ -1031,7 +1032,7 @@ export default function CheckoutPageClient() {
         method: 'POST',
         headers: {
           'content-type': 'application/json',
-          ...(accessToken ? { authorization: `Bearer ${accessToken}` } : { 'x-guest-checkout-token': guestToken! }),
+          ...(guestToken ? { 'x-guest-checkout-token': guestToken } : {}),
         },
         body: JSON.stringify({
           idempotencyKey,
@@ -1042,9 +1043,9 @@ export default function CheckoutPageClient() {
           currencyCode,
           coupon: appliedCoupon
             ? {
-                id: appliedCoupon.id,
-                code: appliedCoupon.code,
-              }
+              id: appliedCoupon.id,
+              code: appliedCoupon.code,
+            }
             : null,
         }),
       })
@@ -1098,17 +1099,16 @@ export default function CheckoutPageClient() {
     let popupOpened = false
     try {
       const paymentSession = await preparePaymentSession(true)
-      const accessToken = paymentAccessTokenRef.current
       const guestToken = paymentGuestTokenRef.current
 
-      if ((!accessToken && !guestToken) || !paymentSession) {
+      if ((!guestToken && !paymentCustomerSessionRef.current) || !paymentSession) {
         setPaymentUiStage('idle')
         setProcessingPayment(false)
         return
       }
 
-        let paymentHandlerStarted = false
-        const razorpayInstance = new window.Razorpay({
+      let paymentHandlerStarted = false
+      const razorpayInstance = new window.Razorpay({
         key: paymentSession.razorpay.keyId,
         order_id: paymentSession.razorpay.orderId,
         amount: paymentSession.razorpay.amount,
@@ -1118,54 +1118,54 @@ export default function CheckoutPageClient() {
         prefill: paymentSession.razorpay.prefill,
         theme: {
           color: '#101828',
-          },
-          modal: {
-            ondismiss: async () => {
-              // Give Razorpay's success callback a brief chance to win the modal-close race.
-              await new Promise((resolve) => window.setTimeout(resolve, 750))
-              if (paymentHandlerStarted) return
+        },
+        modal: {
+          ondismiss: async () => {
+            // Give Razorpay's success callback a brief chance to win the modal-close race.
+            await new Promise((resolve) => window.setTimeout(resolve, 750))
+            if (paymentHandlerStarted) return
 
-              const cancellationResponse = await fetch('/api/checkout/cancel', {
-                method: 'POST',
-                headers: {
-                  'content-type': 'application/json',
-                  ...(accessToken ? { authorization: `Bearer ${accessToken}` } : { 'x-guest-checkout-token': guestToken! }),
-                },
-                body: JSON.stringify({ orderId: paymentSession.orderId }),
-                keepalive: true,
-              }).catch(() => null)
-              const cancellationPayload = cancellationResponse
-                ? await cancellationResponse.json().catch(() => null)
-                : null
-
-              if (paymentHandlerStarted) return
-
-              setPendingPaymentSession(null)
-              paymentSessionPromiseRef.current = null
-              setPaymentUiStage('idle')
-              setProcessingPayment(false)
-              if (
-                !cancellationResponse?.ok ||
-                cancellationPayload?.releaseDenied === true ||
-                cancellationPayload?.released !== true
-              ) {
-                setErrorMessage("We're confirming your payment status — please check your orders page before trying again.")
-                return
-              }
-
-              checkoutAttemptKeyRef.current = null
-              setErrorMessage('Payment popup closed. Reserved stock has been released and you can try again.')
-            },
-          },
-          handler: async (paymentResponse) => {
-            paymentHandlerStarted = true
-            setProcessingPayment(true)
-            setPaymentUiStage('confirming')
-            const verifyResponse = await fetch('/api/payments/verify', {
+            const cancellationResponse = await fetch('/api/checkout/cancel', {
               method: 'POST',
               headers: {
+                'content-type': 'application/json',
+                ...(guestToken ? { 'x-guest-checkout-token': guestToken } : {}),
+              },
+              body: JSON.stringify({ orderId: paymentSession.orderId }),
+              keepalive: true,
+            }).catch(() => null)
+            const cancellationPayload = cancellationResponse
+              ? await cancellationResponse.json().catch(() => null)
+              : null
+
+            if (paymentHandlerStarted) return
+
+            setPendingPaymentSession(null)
+            paymentSessionPromiseRef.current = null
+            setPaymentUiStage('idle')
+            setProcessingPayment(false)
+            if (
+              !cancellationResponse?.ok ||
+              cancellationPayload?.releaseDenied === true ||
+              cancellationPayload?.released !== true
+            ) {
+              setErrorMessage("We're confirming your payment status — please check your orders page before trying again.")
+              return
+            }
+
+            checkoutAttemptKeyRef.current = null
+            setErrorMessage('Payment popup closed. You can try again.')
+          },
+        },
+        handler: async (paymentResponse) => {
+          paymentHandlerStarted = true
+          setProcessingPayment(true)
+          setPaymentUiStage('confirming')
+          const verifyResponse = await fetch('/api/payments/verify', {
+            method: 'POST',
+            headers: {
               'content-type': 'application/json',
-              ...(accessToken ? { authorization: `Bearer ${accessToken}` } : { 'x-guest-checkout-token': guestToken! }),
+              ...(guestToken ? { 'x-guest-checkout-token': guestToken } : {}),
             },
             body: JSON.stringify({
               orderId: paymentSession.orderId,
@@ -1176,44 +1176,44 @@ export default function CheckoutPageClient() {
             }),
           })
 
-            const verifyPayload = await verifyResponse.json().catch(() => null)
-            if (!verifyResponse.ok) {
-              setPaymentUiStage('idle')
-              setProcessingPayment(false)
-              setErrorMessage(verifyPayload?.error ?? 'Payment verification failed. Please contact support if the amount was deducted.')
-              return
-            }
+          const verifyPayload = await verifyResponse.json().catch(() => null)
+          if (!verifyResponse.ok) {
+            setPaymentUiStage('idle')
+            setProcessingPayment(false)
+            setErrorMessage(verifyPayload?.error ?? 'Payment verification failed. Please contact support if the amount was deducted.')
+            return
+          }
 
           if (cartMode) {
             clearCart()
-            }
-            setPendingPaymentSession(null)
-            clearLoveLetterDraft()
-            router.replace(`/checkout/success?order=${encodeURIComponent(verifyPayload.orderNumber || paymentSession.orderNumber)}`)
-          },
-        })
+          }
+          setPendingPaymentSession(null)
+          clearLoveLetterDraft()
+          router.replace(`/checkout/success?order=${encodeURIComponent(verifyPayload.orderNumber || paymentSession.orderNumber)}`)
+        },
+      })
 
-        razorpayInstance.on('payment.failed', (failure) => {
+      razorpayInstance.on('payment.failed', (failure) => {
         setPaymentUiStage('idle')
         setProcessingPayment(false)
         setErrorMessage(failure.error?.description || 'Payment failed. You can try again from this checkout.')
-        })
+      })
 
       popupOpened = true
       razorpayInstance.open()
       setPaymentUiStage('idle')
       setProcessingPayment(false)
-      } catch (error) {
-        console.error('Unable to start Razorpay checkout:', error)
+    } catch (error) {
+      console.error('Unable to start Razorpay checkout:', error)
+      setPaymentUiStage('idle')
+      setErrorMessage('Unable to open Razorpay checkout right now. Please try again.')
+    } finally {
+      if (!popupOpened) {
         setPaymentUiStage('idle')
-        setErrorMessage('Unable to open Razorpay checkout right now. Please try again.')
-      } finally {
-        if (!popupOpened) {
-        setPaymentUiStage('idle')
-          setProcessingPayment(false)
-        }
+        setProcessingPayment(false)
       }
-    };
+    }
+  };
 
   const handleApplyCoupon = async (requestedCode?: string, options: { allowGiftOffer?: boolean } = {}) => {
     const normalizedCode = (requestedCode ?? couponCodeInput).trim().toUpperCase()

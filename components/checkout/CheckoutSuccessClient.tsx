@@ -5,7 +5,6 @@ import { getSafeContactHref } from '@/lib/contact-links'
 import { useSearchParams } from 'next/navigation'
 import { CalendarDays, CreditCard, MapPin } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import { supabase } from '@/lib/supabase'
 import { formatMoney } from '@/lib/currency'
 
 const GUEST_CHECKOUT_TOKEN_KEY = 'hod_guest_checkout_token'
@@ -90,7 +89,7 @@ function OrderProgress({ order, events = [] }: { order: Order; events?: StatusEv
   </section>
 }
 
-export default function CheckoutSuccessClient() {
+export default function CheckoutSuccessClient({ customerAuthEnabled = false }: { customerAuthEnabled?: boolean }) {
   const searchParams = useSearchParams()
   const requestedOrder = searchParams.get('order')?.trim() || ''
   const [payload, setPayload] = useState<Payload | null>(() => readOrderPreview(requestedOrder))
@@ -107,7 +106,7 @@ export default function CheckoutSuccessClient() {
           setEstimatedDeliveryText(result.item.estimated_delivery_text.trim())
         }
       })
-      .catch(() => {})
+      .catch(() => { })
     return () => { active = false }
   }, [])
 
@@ -117,23 +116,25 @@ export default function CheckoutSuccessClient() {
     let attempts = 0
     async function load() {
       if (!requestedOrder) { setState('error'); return }
-      const { data } = await supabase.auth.getSession()
-      const token = data.session?.access_token
-      const guestToken = token ? null : sessionStorage.getItem(GUEST_CHECKOUT_TOKEN_KEY)
-      if (!token && !guestToken) { setState('error'); return }
+      const session = customerAuthEnabled
+        ? await fetch('/api/customer-auth/session', { cache: 'no-store' }).then((response) => response.ok ? response.json() : null).catch(() => null)
+        : null
+      const hasCustomerSession = session?.authenticated === true && session?.identity?.emailVerified === true
+      const guestToken = hasCustomerSession ? null : sessionStorage.getItem(GUEST_CHECKOUT_TOKEN_KEY)
+      if (!hasCustomerSession && !guestToken) { setState('error'); return }
       try {
-        const response = await fetch(`/api/checkout/success?order=${encodeURIComponent(requestedOrder)}`, { cache: 'no-store', headers: token ? { authorization: `Bearer ${token}` } : { 'x-guest-checkout-token': guestToken! } })
+        const response = await fetch(`/api/checkout/success?order=${encodeURIComponent(requestedOrder)}`, { cache: 'no-store', headers: guestToken ? { 'x-guest-checkout-token': guestToken } : {} })
         const result = await response.json().catch(() => null) as Payload | null
         if (!active) return
         if (!response.ok || !result?.order) { setState(response.status >= 500 ? 'error' : 'failed'); return }
-        setPayload(result); setState(result.state); setGuestOrder(!token)
+        setPayload(result); setState(result.state); setGuestOrder(!hasCustomerSession)
         attempts += 1
         if (result.state === 'pending' && attempts < 20) timer = window.setTimeout(() => void load(), 3000)
       } catch { if (active) setState('error') }
     }
     void load()
     return () => { active = false; if (timer) window.clearTimeout(timer) }
-  }, [requestedOrder])
+  }, [requestedOrder, customerAuthEnabled])
 
   if (state === 'loading') return <div className="flex min-h-[60vh] items-center justify-center bg-white font-[family-name:var(--font-family-secondary)] text-sm uppercase tracking-[0.18em] text-neutral-600">Confirming your order...</div>
 
@@ -162,15 +163,15 @@ export default function CheckoutSuccessClient() {
       <article className="border border-black/15 p-6 sm:p-8">
         <h2 className="font-[family-name:var(--font-family-secondary)] text-sm uppercase tracking-[0.16em]">Order details</h2>
         <div className="mt-6 grid gap-6 sm:grid-cols-3">
-          <div><CalendarDays size={19}/><p className="mt-3 text-[10px] uppercase tracking-[0.14em] text-neutral-500">Estimated delivery</p><p className="mt-1 text-sm">{estimatedDeliveryText}</p></div>
-          <div><MapPin size={19}/><p className="mt-3 text-[10px] uppercase tracking-[0.14em] text-neutral-500">Shipping to</p><p className="mt-1 text-sm leading-6">{[order.customer_first_name, order.customer_last_name].filter(Boolean).join(' ')}<br/>{address}</p></div>
-          <div><CreditCard size={19}/><p className="mt-3 text-[10px] uppercase tracking-[0.14em] text-neutral-500">Payment method</p><p className="mt-1 text-sm capitalize">{order.razorpay_payment_method || order.payment_gateway || 'Online payment'}</p></div>
-          {order.customer_birth_date || order.customer_anniversary_date ? <div><CalendarDays size={19}/><p className="mt-3 text-[10px] uppercase tracking-[0.14em] text-neutral-500">Customer dates</p><p className="mt-1 text-sm leading-6">{order.customer_birth_date ? <>Birth date: {date(order.customer_birth_date)}<br/></> : null}{order.customer_anniversary_date ? <>Anniversary: {date(order.customer_anniversary_date)}</> : null}</p></div> : null}
+          <div><CalendarDays size={19} /><p className="mt-3 text-[10px] uppercase tracking-[0.14em] text-neutral-500">Estimated delivery</p><p className="mt-1 text-sm">{estimatedDeliveryText}</p></div>
+          <div><MapPin size={19} /><p className="mt-3 text-[10px] uppercase tracking-[0.14em] text-neutral-500">Shipping to</p><p className="mt-1 text-sm leading-6">{[order.customer_first_name, order.customer_last_name].filter(Boolean).join(' ')}<br />{address}</p></div>
+          <div><CreditCard size={19} /><p className="mt-3 text-[10px] uppercase tracking-[0.14em] text-neutral-500">Payment method</p><p className="mt-1 text-sm capitalize">{order.razorpay_payment_method || order.payment_gateway || 'Online payment'}</p></div>
+          {order.customer_birth_date || order.customer_anniversary_date ? <div><CalendarDays size={19} /><p className="mt-3 text-[10px] uppercase tracking-[0.14em] text-neutral-500">Customer dates</p><p className="mt-1 text-sm leading-6">{order.customer_birth_date ? <>Birth date: {date(order.customer_birth_date)}<br /></> : null}{order.customer_anniversary_date ? <>Anniversary: {date(order.customer_anniversary_date)}</> : null}</p></div> : null}
         </div>
       </article>
       <article className="border border-black/15 p-6 sm:p-8">
         <div className="flex items-center justify-between"><h2 className="font-[family-name:var(--font-family-secondary)] text-sm uppercase tracking-[0.16em]">Your order</h2>{!guestOrder ? <Link href="/profile?tab=orders" className="text-xs underline underline-offset-4">View order details</Link> : null}</div>
-        <div className="mt-5 divide-y divide-black/10">{order.items.map((item, index) => <div key={`${item.product_name}-${index}`} className="grid grid-cols-[78px_1fr_auto] gap-4 py-4 first:pt-0"><div className="aspect-square bg-[#f5f5f5]">{item.image_url ? <img src={item.image_url} alt="" className="h-full w-full object-contain"/> : null}</div><div><p className="text-sm font-medium">{item.product_name}</p><p className="mt-1 text-xs leading-5 text-neutral-500">{[item.selected_metal, item.selected_purity, item.selected_size_or_fit, item.selected_gemstone, item.selected_carat].filter(Boolean).join(', ')}</p><p className="mt-2 text-xs text-neutral-500">Qty {item.quantity}{item.item_type === 'free_gift' ? ' - Complimentary gift' : ''}</p></div><p className="text-sm font-medium">{item.item_type === 'free_gift' ? 'Free' : money(item.line_total, order.payment_currency)}</p></div>)}</div>
+        <div className="mt-5 divide-y divide-black/10">{order.items.map((item, index) => <div key={`${item.product_name}-${index}`} className="grid grid-cols-[78px_1fr_auto] gap-4 py-4 first:pt-0"><div className="aspect-square bg-[#f5f5f5]">{item.image_url ? <img src={item.image_url} alt="" className="h-full w-full object-contain" /> : null}</div><div><p className="text-sm font-medium">{item.product_name}</p><p className="mt-1 text-xs leading-5 text-neutral-500">{[item.selected_metal, item.selected_purity, item.selected_size_or_fit, item.selected_gemstone, item.selected_carat].filter(Boolean).join(', ')}</p><p className="mt-2 text-xs text-neutral-500">Qty {item.quantity}{item.item_type === 'free_gift' ? ' - Complimentary gift' : ''}</p></div><p className="text-sm font-medium">{item.item_type === 'free_gift' ? 'Free' : money(item.line_total, order.payment_currency)}</p></div>)}</div>
         <div className="ml-auto mt-5 max-w-xs space-y-2 border-t border-black/10 pt-4 text-sm"><div className="flex justify-between"><span>Subtotal</span><span>{money(order.subtotal_amount, order.payment_currency)}</span></div><div className="flex justify-between"><span>Shipping</span><span>{Number(order.shipping_amount) ? money(order.shipping_amount, order.payment_currency) : 'Complimentary'}</span></div><div className="flex justify-between"><span>GST</span><span>{money(order.gst_amount, order.payment_currency)}</span></div><div className="flex justify-between border-t border-black/10 pt-3 text-base font-semibold"><span>Paid</span><span>{money(paidAmount, order.payment_currency)}</span></div></div>
       </article>
     </section> : null}
@@ -179,6 +180,6 @@ export default function CheckoutSuccessClient() {
 
     <section className="relative flex min-h-[260px] items-center bg-neutral-900 px-6 py-12 text-white sm:px-10 lg:px-[8vw]" style={{ backgroundImage: `linear-gradient(90deg, rgba(0,0,0,.05), rgba(0,0,0,.05)), url('${secondaryImage}')`, backgroundSize: 'cover', backgroundPosition: 'center' }}><div className="max-w-xl"><p className="text-[10px] uppercase tracking-[0.2em]">{page?.secondary_eyebrow || 'Made with intention'}</p><h2 className="mt-3 font-[family-name:var(--font-family-primary)] text-4xl">{page?.secondary_heading || 'Every piece tells a story.'}</h2><p className="mt-3 text-sm leading-7 text-white/85">{page?.secondary_paragraph || 'Your jewellery is prepared and inspected with care before it begins its journey to you.'}</p></div></section>
 
-    <section className="mx-auto grid max-w-[1440px] gap-10 px-5 py-12 sm:px-8 lg:grid-cols-[1fr_1.35fr] lg:px-12"><div><h2 className="text-xs uppercase tracking-[0.16em]">Need anything?</h2><div className="mt-5 grid gap-5 sm:grid-cols-2">{(payload?.contact?.length ? payload.contact.slice(0,2) : [{id:'fallback',label:'Contact concierge',value:'We are here to help with your order.'}]).map(item => { const href = getSafeContactHref(item.href); return <div key={item.id}><p className="text-xs font-semibold uppercase tracking-[0.12em]">{item.label}</p>{href ? <a href={href} className="mt-2 block text-sm underline underline-offset-4">{item.value}</a> : <p className="mt-2 text-sm">{item.value}</p>}<p className="mt-1 text-xs text-neutral-500">{item.note}</p></div> })}</div></div><div><h2 className="text-xs uppercase tracking-[0.16em]">Continue exploring</h2><div className="mt-5 grid gap-3 sm:grid-cols-3">{(payload?.categories || []).map(category => <Link key={category.slug} href={`/collections/${category.slug}`} className="flex h-12 items-center justify-between border border-black/20 px-4 text-xs uppercase tracking-[0.1em] hover:bg-black hover:text-white"><span>{category.name}</span><span aria-hidden>+</span></Link>)}</div></div></section>
+    <section className="mx-auto grid max-w-[1440px] gap-10 px-5 py-12 sm:px-8 lg:grid-cols-[1fr_1.35fr] lg:px-12"><div><h2 className="text-xs uppercase tracking-[0.16em]">Need anything?</h2><div className="mt-5 grid gap-5 sm:grid-cols-2">{(payload?.contact?.length ? payload.contact.slice(0, 2) : [{ id: 'fallback', label: 'Contact concierge', value: 'We are here to help with your order.' }]).map(item => { const href = getSafeContactHref(item.href); return <div key={item.id}><p className="text-xs font-semibold uppercase tracking-[0.12em]">{item.label}</p>{href ? <a href={href} className="mt-2 block text-sm underline underline-offset-4">{item.value}</a> : <p className="mt-2 text-sm">{item.value}</p>}<p className="mt-1 text-xs text-neutral-500">{item.note}</p></div> })}</div></div><div><h2 className="text-xs uppercase tracking-[0.16em]">Continue exploring</h2><div className="mt-5 grid gap-3 sm:grid-cols-3">{(payload?.categories || []).map(category => <Link key={category.slug} href={`/collections/${category.slug}`} className="flex h-12 items-center justify-between border border-black/20 px-4 text-xs uppercase tracking-[0.1em] hover:bg-black hover:text-white"><span>{category.name}</span><span aria-hidden>+</span></Link>)}</div></div></section>
   </main>
 }

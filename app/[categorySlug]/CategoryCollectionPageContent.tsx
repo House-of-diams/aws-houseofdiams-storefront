@@ -1,16 +1,18 @@
+import { loadCategoryFaqFromRds } from '@/lib/repositories/legacy-cms-repository'
 import { unstable_cache } from 'next/cache'
 import { notFound } from 'next/navigation'
 import { cache } from 'react'
-import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import ShopClient from '@/components/pages/ShopClient'
 import { buildNavbarRenderItems } from '@/lib/navbar'
-import { createSupabaseServerClient } from '@/lib/server-supabase'
 import { getStorefrontFilterGroups, getStorefrontProductCardPage, type StorefrontProductSort } from '@/lib/catalog-products'
 import JsonLd from '@/components/seo/JsonLd'
 import { createBreadcrumbSchema, createFaqSchema } from '@/lib/structured-data'
 import { buildCategoryPath, buildOptionPath, buildSubcategoryPath } from '@/lib/catalog-paths'
 import type { ResolvedCatalogTaxonomy } from '@/lib/catalog-taxonomy'
 import { parseCatalogPage } from '@/lib/catalog-metadata'
+import { findActiveCatalogCategoryPageBySlug } from '@/lib/repositories/catalog-repository'
+import { loadNavbarRowsFromRds } from '@/lib/repositories/navbar-repository'
+import { mediaUrl } from '@/lib/media-url'
 
 function slugifyValue(value: string) {
   return value
@@ -22,61 +24,32 @@ function slugifyValue(value: string) {
 }
 
 function toPublicUrl(path: string | null | undefined) {
-  if (!path) return null
-  if (/^https?:\/\//i.test(path)) return path
-  if (!supabaseUrl) return path
-  const bucket = process.env.NEXT_PUBLIC_SUPABASE_COLLECTION_BUCKET || 'hod'
-  return `${supabaseUrl}/storage/v1/object/public/${bucket}/${path}`
-}
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
-
-function getPublicNavbarDataClient() {
-  if (!supabaseUrl) return null
-  const serverKey = supabaseServiceRoleKey || supabaseAnonKey
-  return serverKey ? createClient(supabaseUrl, serverKey) : null
-}
-
-async function loadNavbarItems(client: SupabaseClient) {
-  return client
-    .from('navbar_items')
-    .select('*')
-    .eq('status', 'active')
-    .order('display_order', { ascending: true })
+  return path ? mediaUrl(path) : null
 }
 
 const getCategoryBySlug = cache(async (slug: string) => {
-  const supabase = createSupabaseServerClient()
-  const { data } = await supabase
-    .from('catalog_categories')
-    .select('id, name, slug, status, category_lane, banner_desktop_image_path, banner_mobile_image_path, banner_desktop_image_alt, banner_mobile_image_alt, banner_title, banner_subtitle, banner_cta_label, banner_cta_link, banner_enabled')
-    .eq('slug', slug)
-    .eq('status', 'active')
-    .maybeSingle()
+  return findActiveCatalogCategoryPageBySlug(slug)
 
-  return data
 })
 
 const getCategoryReferenceData = unstable_cache(
   async () => {
-    const client = getPublicNavbarDataClient() ?? createSupabaseServerClient()
+    const rows = await loadNavbarRowsFromRds()
+    return [
+      { data: rows.items, error: null as { code?: string; message: string } | null },
+      { data: rows.sections, error: null as { code?: string; message: string } | null },
+      { data: rows.sectionLinks, error: null as { code?: string; message: string } | null },
+      { data: rows.sectionSourceItems, error: null as { code?: string; message: string } | null },
+      { data: rows.featuredCards, error: null as { code?: string; message: string } | null },
+      { data: rows.categories, error: null as { code?: string; message: string } | null },
+      { data: rows.subcategories, error: null as { code?: string; message: string } | null },
+      { data: rows.options, error: null as { code?: string; message: string } | null },
+      { data: rows.certificates, error: null as { code?: string; message: string } | null },
+      { data: rows.metals, error: null as { code?: string; message: string } | null },
+      { data: rows.stoneShapes, error: null as { code?: string; message: string } | null },
+      { data: rows.styles, error: null as { code?: string; message: string } | null },
+    ] as const
 
-    return Promise.all([
-      loadNavbarItems(client),
-      client.from('navbar_sections').select('*').eq('status', 'active').order('column_number', { ascending: true }).order('display_order', { ascending: true }),
-      client.from('navbar_section_links').select('*').eq('status', 'active').order('display_order', { ascending: true }),
-      client.from('navbar_section_source_items').select('*').eq('is_active', true).order('sort_order', { ascending: true }),
-      client.from('navbar_featured_cards').select('*'),
-      client.from('catalog_categories').select('id, name, slug, display_order, status, banner_desktop_image_path, banner_mobile_image_path, banner_desktop_image_alt, banner_mobile_image_alt').eq('status', 'active').order('display_order', { ascending: true }),
-      client.from('catalog_subcategories').select('id, category_id, name, slug, icon_svg_path, image_path, image_alt, display_order, status').eq('status', 'active').order('display_order', { ascending: true }),
-      client.from('catalog_options').select('id, subcategory_id, name, slug, icon_svg_path, image_path, image_alt, display_order, status').eq('status', 'active').order('display_order', { ascending: true }),
-      client.from('catalog_certificates').select('*').order('display_order', { ascending: true }),
-      client.from('catalog_metals').select('*').eq('status', 'active').order('display_order', { ascending: true }),
-      client.from('catalog_stone_shapes').select('*').eq('status', 'active').order('display_order', { ascending: true }),
-      client.from('catalog_styles').select('*').eq('status', 'active').order('display_order', { ascending: true }),
-    ])
   },
   ['category-page-reference-data'],
   { revalidate: 300 }
@@ -131,12 +104,11 @@ function deriveSectionFilterHref(
       if (segments[0] === currentCategorySlug && segments[1]) {
         return `/${currentCategorySlug}/${segments[1]}`
       }
-    } catch {}
+    } catch { }
   }
 
   return null
 }
-
 
 export async function CategoryCollectionPageContent({
   params,
@@ -157,7 +129,7 @@ export async function CategoryCollectionPageContent({
   const query = await searchParams
   const requestedPage = parseCatalogPage(query.page)
   if (!requestedPage) notFound()
-  const resolvedProductLane = category.category_lane ?? 'standard'
+  const resolvedProductLane = (category.category_lane ?? 'standard') as 'standard' | 'hiphop' | 'collection'
   const requestedSort = typeof query.sort === 'string' ? query.sort : 'best-matches'
   const sort: StorefrontProductSort = ['best-matches', 'price-low', 'price-high', 'best-sellers'].includes(requestedSort)
     ? requestedSort as StorefrontProductSort
@@ -181,12 +153,7 @@ export async function CategoryCollectionPageContent({
     }),
     getStorefrontFilterGroups(resolvedProductLane, category.id),
     getCategoryReferenceData(),
-    createSupabaseServerClient()
-      .from('support_faq_items')
-      .select('id, question, answer, sort_order')
-      .eq('catalog_category_id', category.id)
-      .eq('is_active', true)
-      .order('sort_order', { ascending: true }),
+    loadCategoryFaqFromRds(category.id).then((data) => ({ data, error: null as { code?: string; message: string } | null })),
   ])
   const totalPages = Math.ceil(productPage.totalCount / productPage.pageSize)
   if (requestedPage > 1 && (totalPages === 0 || requestedPage > totalPages)) {
@@ -217,8 +184,8 @@ export async function CategoryCollectionPageContent({
     const subcategories = categorySubcategoriesResult.data ?? []
     const options = categoryOptionsResult.data ?? []
     const certificates = certificatesResult.error ? [] : (certificatesResult.data ?? []).map((entry, index) => ({ id: `${index}-${entry.name}`, name: entry.name, status: 'active' as const }))
-    const metals = metalsResult.error ? [] : (metalsResult.data ?? []).map((entry, index) => ({ id: `${index}-${entry.slug}`, ...entry, display_order: index, status: 'active' as const }))
-    const stoneShapes = stoneShapesResult.error ? [] : (stoneShapesResult.data ?? []).map((entry, index) => ({ id: `${index}-${entry.slug}`, ...entry, display_order: index, status: 'active' as const }))
+    const metals = metalsResult.error ? [] : (metalsResult.data ?? []).map((entry, index) => ({ ...entry, display_order: index, status: 'active' as const }))
+    const stoneShapes = stoneShapesResult.error ? [] : (stoneShapesResult.data ?? []).map((entry, index) => ({ ...entry, display_order: index, status: 'active' as const }))
     const styles = stylesResult.error ? [] : stylesResult.data ?? []
 
     const renderItems = buildNavbarRenderItems({
@@ -227,7 +194,7 @@ export async function CategoryCollectionPageContent({
       sectionLinks: navbarLinks,
       sectionSourceItems: navbarSourceItems,
       featuredCards: navbarFeatured,
-      categories: categoriesResult.error ? [{ ...category, display_order: 0 }] : categoriesResult.data ?? [{ ...category, display_order: 0 }],
+      categories: categoriesResult.error ? [{ ...category, status: 'active' as const, display_order: 0 }] : categoriesResult.data ?? [{ ...category, display_order: 0 }],
       subcategories,
       options,
       metals,

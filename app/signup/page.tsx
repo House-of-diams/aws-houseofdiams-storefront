@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
-import AuthForm from '@/components/auth/AuthForm';
 import AuthShell from '@/components/auth/AuthShell';
+import CustomerAuthEntry from '@/components/auth/CustomerAuthEntry';
 
 export const metadata: Metadata = {
   title: 'Sign Up',
@@ -18,7 +18,7 @@ export default function SignupPage() {
       asideBody="Sign up once and continue with a longer-running session, future private features, and a smoother path through bespoke and ready-to-ship pieces."
       asidePoints={['Username Saved', 'Secure Password Auth', 'Session Persistence']}
     >
-      <AuthForm mode="signup" />
+      {process.env.HOD_CUSTOMER_AUTH_ENABLED === 'true' ? <CustomerAuthEntry mode="signup" /> : <p>Customer accounts are temporarily unavailable. Please return later.</p>}
     </AuthShell>
   );
 }

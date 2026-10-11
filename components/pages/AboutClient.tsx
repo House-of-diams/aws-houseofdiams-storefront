@@ -23,7 +23,7 @@ export default function AboutClient({ hero, wideBanner, founders, timeline, valu
   hero?: AboutHeroContent | null; wideBanner?: AboutWideBannerContent | null;
   founders?: Array<{ sort_order?: number; name: string; designation: string; bio: string; image_path?: string | null }>;
   timeline?: Array<{ id?: number | string; sort_order?: number; year: string; label: string }>;
-  values?: Array<{ id?: number | string; sort_order?: number; icon_path?: string | null; title: string; description: string }>;
+  values?: Array<{ id?: number | string; sort_order?: number; icon_path?: string | null; title?: string; description?: string; image_path?: string | null; image_alt?: string | null }>;
 }) {
   return <div className="min-h-screen bg-white text-(--ink)">
     <AboutHero content={hero} />

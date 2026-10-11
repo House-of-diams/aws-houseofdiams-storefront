@@ -1,10 +1,10 @@
 import { NextResponse } from 'next/server'
 import { enforceRateLimit } from '@/lib/rate-limit'
-import { createSupabaseServiceRoleClient } from '@/lib/server-supabase'
+import { insertBespokeSubmission } from '@/lib/repositories/public-forms-repository'
 import { isValidEmail, isValidPhone } from '@/lib/validation'
 
 export async function POST(request: Request) {
-  if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+  if (!process.env.DATABASE_URL?.trim()) {
     return NextResponse.json({ error: 'Form submission is temporarily unavailable.' }, { status: 503 })
   }
 
@@ -61,22 +61,19 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Enter a message between 10 and 5000 characters.' }, { status: 400 })
   }
 
-  const supabase = createSupabaseServiceRoleClient()
-  const { error } = await supabase.from('bespoke_submissions').insert({
-    full_name: fullName,
-    email,
-    phone,
-    country,
-    piece_type: pieceType,
-    stone_preference: stonePreference,
-    approx_carat: approxCarat,
-    preferred_metal: preferredMetal,
-    message,
-    status: 'new',
-  })
-
-  if (error) {
-    console.error('Bespoke submission failed:', error)
+  try {
+    await insertBespokeSubmission({
+      full_name: fullName,
+      email,
+      phone,
+      country,
+      piece_type: pieceType,
+      stone_preference: stonePreference,
+      approx_carat: approxCarat,
+      preferred_metal: preferredMetal,
+      message,
+    })
+  } catch {
     return NextResponse.json({ error: 'Unable to submit the form right now.' }, { status: 500 })
   }
   return NextResponse.json({ ok: true })

@@ -1,7 +1,7 @@
 import { mapBlogPostRecord, getStorageImageUrl, type BlogPost } from '@/lib/data/blog-posts'
 import type { BlogPageHero } from '@/lib/blog'
-import { createSupabaseServerClient } from '@/lib/server-supabase'
 import { getStorefrontProductsByIds } from '@/lib/catalog-products'
+import { findEditorialHeroFromRds, loadPublishedEducationRowsFromRds } from '@/lib/repositories/editorial-repository'
 
 type EducationPostRow = {
   id: number
@@ -39,24 +39,10 @@ type EducationPostRow = {
   education_post_products: Array<{ product_id: string; sort_order: number }> | null
 }
 
-const educationSelect =
-  'id, slug, category, author, date_label, read_time, bg_key, bg_color, title, title_html, card_title, subtitle, body_html, hero_image_path, card_image_path, hero_image_alt, is_published, sort_order, created_at, updated_at, education_post_tags(tag, sort_order), education_post_content_blocks(id, block_type, sort_order, heading, body_html, image_path, image_alt, image_caption, is_enabled), education_post_products(product_id, sort_order)'
-
 export async function getPublishedEducationPosts(): Promise<BlogPost[]> {
-  const supabase = createSupabaseServerClient()
-  let result: { data: unknown; error: { code?: string; message: string } | null } = await supabase
-    .from('education_posts')
-    .select(educationSelect)
-    .eq('is_published', true)
-    .order('sort_order', { ascending: true })
 
-  if (result.error && (result.error.code === '42703' || result.error.code === 'PGRST204')) {
-    result = await supabase
-      .from('education_posts')
-      .select(educationSelect.replace(', card_title', '').replace(', card_image_path', ''))
-      .eq('is_published', true)
-      .order('sort_order', { ascending: true })
-  }
+  const result: { data: unknown; error: { code?: string; message: string } | null } = { data: await loadPublishedEducationRowsFromRds(), error: null }
+
   if (result.error) {
     console.error('Unable to load Education posts:', result.error.message)
     return []
@@ -97,12 +83,8 @@ export async function getPublishedEducationPostBySlug(slug: string) {
 }
 
 export async function getEducationPageHero(): Promise<BlogPageHero | null> {
-  const supabase = createSupabaseServerClient()
-  const { data, error } = await supabase
-    .from('education_page_hero')
-    .select('is_enabled, heading, paragraph, button_label, button_link, desktop_image_path, desktop_image_alt, mobile_image_path, mobile_image_alt')
-    .eq('id', 1)
-    .maybeSingle()
+
+  const { data, error } = { data: await findEditorialHeroFromRds('education'), error: null as { code?: string; message: string } | null }
   if (error || !data || data.is_enabled === false) return null
   return {
     isEnabled: true,

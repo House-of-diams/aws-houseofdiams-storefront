@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import { cinzelFont } from '@/app/fonts';
 import type { HomeCollectionItem } from '@/lib/home-data';
 import { resolveLegacyHipHopHref } from '@/lib/legacy-hiphop';
+import { mediaUrl } from '@/lib/media-url';
 
 interface CollectionProps {
   onEnquire?: (name: string) => void;
@@ -69,11 +70,6 @@ const PANELS: PanelData[] = [
   },
 ];
 
-const COLLECTION_BUCKET = process.env.NEXT_PUBLIC_SUPABASE_COLLECTION_BUCKET ?? 'hod';
-const COLLECTION_BUCKET_URL = process.env.NEXT_PUBLIC_SUPABASE_URL
-  ? `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/${COLLECTION_BUCKET}`
-  : '';
-
 function mapPanels(items: CollectionApiItem[]): PanelData[] {
   return items.map((item, index) => ({
     index,
@@ -82,7 +78,7 @@ function mapPanels(items: CollectionApiItem[]): PanelData[] {
     desc: item.description,
     cta: 'Shop Now',
     ctaHref: resolveLegacyHipHopHref(item.link),
-    imageSrc: item.image_path ? `${COLLECTION_BUCKET_URL}/${item.image_path}` : null,
+    imageSrc: item.image_path ? mediaUrl(item.image_path) : null,
     bgClass: index % 2 === 0 ? 'bg-[linear-gradient(145deg,#F5F7FC,#D8E2F2)]' : 'bg-[linear-gradient(145deg,#EEF3FA,#D2DEEF)]',
   }));
 }

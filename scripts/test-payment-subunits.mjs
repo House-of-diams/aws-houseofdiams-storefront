@@ -26,9 +26,18 @@ test('database finalization uses the same JPY subunit rule', () => {
   assert.match(migration, /when 'JPY' then round\(coalesce\(v_order\.payment_amount, 0\)\)::bigint/i)
 })
 
+test('F7 RDS patch changes only the verified JPY amount expression', () => {
+  const forward = readFileSync(new URL('../docs/aws-f7-jpy-subunits-forward.sql', import.meta.url), 'utf8')
+  const rollback = readFileSync(new URL('../docs/aws-f7-jpy-subunits-rollback.sql', import.meta.url), 'utf8')
+  assert.match(forward, /when ''JPY'' then round\(coalesce\(v_order\.payment_amount, 0\)\)::bigint/i)
+  assert.match(forward, /EXECUTE replace\(definition, old_line, new_line\)/)
+  assert.match(rollback, /EXECUTE replace\(definition, new_line, old_line\)/)
+  assert.match(forward, /pg_get_userbyid\(proowner\) = current_user/)
+})
+
 test('a delayed failed-payment event cannot overwrite a paid order', () => {
-  const checkoutOrder = readFileSync(new URL('../lib/checkout-order.ts', import.meta.url), 'utf8')
-  assert.match(checkoutOrder, /\.eq\('payment_status', 'pending'\)\s+\.select\('id'\)/)
+  const payments = readFileSync(new URL('../lib/repositories/payment-repository.ts', import.meta.url), 'utf8')
+  assert.match(payments, /where id = \$1 and razorpay_order_id = \$2 and payment_gateway = 'razorpay' and payment_status = 'pending'/)
 })
 
 test('non-USD checkout cannot charge using an emergency FX fallback', () => {

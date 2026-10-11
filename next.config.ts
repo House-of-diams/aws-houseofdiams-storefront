@@ -1,23 +1,6 @@
 import type { NextConfig } from "next";
 
-const r2PublicBaseUrl = process.env.CLOUDFLARE_R2_PUBLIC_BASE_URL?.trim().replace(/\/+$/, '') ?? ''
-let r2RemotePattern: { protocol: 'http' | 'https'; hostname: string; port?: string; pathname?: string } | null = null
-
-if (r2PublicBaseUrl) {
-  try {
-    const url = new URL(r2PublicBaseUrl)
-    if (url.protocol === 'https:' || url.protocol === 'http:') {
-      r2RemotePattern = {
-        protocol: url.protocol.slice(0, -1) as 'http' | 'https',
-        hostname: url.hostname,
-        ...(url.port ? { port: url.port } : {}),
-        pathname: `${url.pathname.replace(/\/+$/, '') || ''}/**`,
-      }
-    }
-  } catch {
-    // Invalid optional configuration leaves the existing Supabase image path unchanged.
-  }
-}
+const mediaCdnBaseUrl = process.env.NEXT_PUBLIC_MEDIA_CDN_BASE_URL?.trim().replace(/\/+$/, '') ?? ''
 
 const securityHeaders = [
   {
@@ -28,7 +11,7 @@ const securityHeaders = [
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
       "img-src 'self' data: blob: https:",
       "font-src 'self' data: https://fonts.gstatic.com",
-      "connect-src 'self' https://*.supabase.co https://maps.googleapis.com https://checkout.razorpay.com https://api.razorpay.com https://www.google-analytics.com https://www.googletagmanager.com https://ajax.googleapis.com https://*.clarity.ms",
+      "connect-src 'self' https://maps.googleapis.com https://checkout.razorpay.com https://api.razorpay.com https://www.google-analytics.com https://www.googletagmanager.com https://ajax.googleapis.com https://*.clarity.ms",
       "media-src 'self' data: blob: https:",
       "frame-src 'self' https://checkout.razorpay.com https://www.googletagmanager.com https://www.instagram.com",
       "object-src 'none'",
@@ -74,16 +57,9 @@ const nextConfig: NextConfig = {
 
     return config
   },
-  env: {
-    NEXT_PUBLIC_CLOUDFLARE_R2_PUBLIC_BASE_URL: r2PublicBaseUrl,
-  },
   images: {
     remotePatterns: [
-      {
-        protocol: 'https',
-        hostname: '**.supabase.co',
-      },
-      ...(r2RemotePattern ? [r2RemotePattern] : []),
+      ...(mediaCdnBaseUrl ? [{ protocol: 'https' as const, hostname: new URL(mediaCdnBaseUrl).hostname }] : []),
     ],
   },
   async headers() {

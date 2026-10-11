@@ -1,11 +1,7 @@
 import { NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
 import { resolveAuthoritativeCheckoutPricing } from '@/lib/checkout-pricing'
 import { buildCheckoutChargeQuote } from '@/lib/exchange-rates'
 import { enforceRateLimit } from '@/lib/rate-limit'
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 
 type QuotePayload = {
   country?: string | null
@@ -22,9 +18,7 @@ type QuotePayload = {
 }
 
 export async function POST(request: Request) {
-  if (!supabaseUrl || !supabaseServiceRoleKey) {
-    return NextResponse.json({ error: 'Missing Supabase environment variables.' }, { status: 500 })
-  }
+
   const rateLimit = await enforceRateLimit(request, { key: 'checkout-quote', limit: 30, windowSeconds: 60 })
   if (!rateLimit.ok && rateLimit.response) return rateLimit.response
 
@@ -35,8 +29,15 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Missing checkout items.' }, { status: 400 })
   }
 
-  const adminClient = createClient(supabaseUrl, supabaseServiceRoleKey)
-  const pricingResult = await resolveAuthoritativeCheckoutPricing({ adminClient, items, coupon: payload?.coupon })
+  let pricingResult: Awaited<ReturnType<typeof resolveAuthoritativeCheckoutPricing>>
+  try {
+    pricingResult = await resolveAuthoritativeCheckoutPricing({
+      items,
+      coupon: payload?.coupon,
+    })
+  } catch {
+    return NextResponse.json({ error: 'Unable to load checkout pricing.' }, { status: 503 })
+  }
   if ('error' in pricingResult) {
     return NextResponse.json({ error: pricingResult.error }, { status: pricingResult.status })
   }

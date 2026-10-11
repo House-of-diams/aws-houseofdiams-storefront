@@ -4,6 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { ArrowLeft, ChevronDown, Search } from 'lucide-react';
 import { getSafeContactHref } from '@/lib/contact-links';
+import { mediaUrl } from '@/lib/media-url';
 
 export type ReturnsContactRow = {
   id: number | string;
@@ -15,8 +16,6 @@ export type ReturnsContactRow = {
 };
 
 type Item = { id: number; question: string; answer: string; sort_order: number };
-
-const storageBase = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/${process.env.NEXT_PUBLIC_SUPABASE_COLLECTION_BUCKET || 'hod'}`;
 
 export default function ReturnsFaqPage({
   title,
@@ -101,7 +100,7 @@ export default function ReturnsFaqPage({
                 return <div key={row.id} className="space-y-1 py-5 text-center">
                   {row.icon_path ? (
                     <img
-                      src={`${storageBase}/${row.icon_path}`}
+                      src={mediaUrl(row.icon_path)}
                       alt=""
                       className="mx-auto mb-2 h-6 w-6 object-contain"
                     />

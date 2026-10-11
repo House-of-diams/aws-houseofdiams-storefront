@@ -1,19 +1,17 @@
 import { NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+import { loadContactInfoFromRds } from '@/lib/repositories/support-repository'
 
 export const revalidate = 300
 export const dynamic = 'force-static'
 
+async function readPublicContent() {
+  return NextResponse.json({ items: await loadContactInfoFromRds() }, { headers: { 'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600' } })
+
+}
+
 export async function GET() {
-  if (!supabaseUrl || !supabaseAnonKey) return NextResponse.json({ error: 'Missing Supabase env vars.' }, { status: 500 })
-  const supabase = createClient(supabaseUrl, supabaseAnonKey)
-  const { data, error } = await supabase.from('contact_info').select('id, sort_order, label, value, note, href, icon_path').order('sort_order', { ascending: true })
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-  return NextResponse.json(
-    { items: data ?? [] },
-    { headers: { 'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600' } }
-  )
+  try { return await readPublicContent() }
+  catch {
+    return NextResponse.json({ error: 'Unable to load content.' }, { status: 500 })
+  }
 }

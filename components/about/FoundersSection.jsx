@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { cinzelFont } from "@/app/fonts";
+import { mediaUrl } from '@/lib/media-url';
 
 /**
  * @typedef {Object} FounderItem
@@ -14,11 +15,7 @@ import { cinzelFont } from "@/app/fonts";
  */
 
 function buildImageUrl(path) {
-  const base = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const bucket = process.env.NEXT_PUBLIC_SUPABASE_COLLECTION_BUCKET ?? "hod";
-  if (!path) return "";
-  if (path.startsWith("http://") || path.startsWith("https://")) return path;
-  return base ? `${base}/storage/v1/object/public/${bucket}/${path}` : path;
+  return mediaUrl(path);
 }
 
 /**

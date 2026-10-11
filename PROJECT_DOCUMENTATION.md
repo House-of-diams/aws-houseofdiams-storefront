@@ -1,10 +1,12 @@
 # House of Diams — Project Documentation
 
+> AWS runtime update (2026-10-11): the storefront now reads from RDS, resolves owned media through CloudFront/S3, and uses the guarded Keycloak customer-auth/RDS payment implementation. Supabase SDKs and runtime ENV dependencies have been removed. The older provider/auth sections below are historical; use [the current AWS status](docs/AWS_MIGRATION_CURRENT_STATUS.md), [F9 report](docs/aws-f9-implementation-report.md) and [DevOps handoff](docs/AWS_UAT_DEPLOYMENT_HANDOFF.md) for deployment decisions. Production cutover remains pending UAT.
+
 ## Project overview
 
 House of Diams is a luxury diamond-jewellery storefront. It supports product discovery, configurable product pages, a persistent shopping bag, coupons and free gifts, guest and authenticated checkout, Razorpay payments, customer accounts, editorial content, bespoke enquiries, promotions, and CMS-backed marketing sections.
 
-This document describes the current repository at:
+This document records the earlier storefront architecture at:
 
     D:\Main Hod\house-of-diams
 

@@ -1,27 +1,17 @@
 import { NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+import { loadCollectionItemsFromRds } from '@/lib/repositories/public-cms-repository'
 
 export const dynamic = 'force-static'
 export const revalidate = 300
 
+async function readPublicContent() {
+  return NextResponse.json({ items: await loadCollectionItemsFromRds() })
+
+}
+
 export async function GET() {
-  if (!supabaseUrl || !supabaseAnonKey) {
-    return NextResponse.json({ error: 'Missing Supabase env vars.' }, { status: 500 })
+  try { return await readPublicContent() }
+  catch {
+    return NextResponse.json({ error: 'Unable to load content.' }, { status: 500 })
   }
-
-  const supabase = createClient(supabaseUrl, supabaseAnonKey)
-
-  const { data, error } = await supabase
-    .from('collection_items')
-    .select('sort_order, label, title, description, image_path, link')
-    .order('sort_order', { ascending: true })
-
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 })
-  }
-
-  return NextResponse.json({ items: data ?? [] })
 }

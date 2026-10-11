@@ -1,4 +1,5 @@
 'use client';
+import { mediaUrl } from '@/lib/media-url';
 
 import { useEffect, useRef, useState } from 'react';
 
@@ -167,8 +168,7 @@ function RevealDiv({ children, className = '', delay = 0 }: { children: React.Re
 
 function resolvePublicMediaUrl(path?: string) {
   if (!path) return '';
-  if (/^https?:\/\//i.test(path)) return path;
-  return `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/${process.env.NEXT_PUBLIC_SUPABASE_COLLECTION_BUCKET || 'hod'}/${path}`;
+  return mediaUrl(path);
 }
 
 function LazyManufacturingVideo({ src, poster, title }: { src: string; poster?: string; title: string }) {

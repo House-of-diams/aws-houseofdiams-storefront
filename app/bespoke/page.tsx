@@ -1,8 +1,14 @@
 import type { Metadata } from 'next';
+import type { ComponentProps } from 'react';
 import BespokeClient from '@/components/pages/BespokeClient';
-import { createClient } from '@supabase/supabase-js';
 import { createPageMetadata } from '@/lib/seo';
 import { buildCategoryPath } from '@/lib/catalog-paths';
+import {
+  findBespokeHeroFromRds, loadBespokeFormConfigFromRds, loadBespokeHeroSlidesFromRds,
+  loadBespokePortfolioFromRds, loadBespokeProcessCardsFromRds,
+} from '@/lib/repositories/bespoke-repository';
+import { loadBespokeExploreCategoriesFromRds } from '@/lib/repositories/catalog-repository';
+import { mediaUrl } from '@/lib/media-url';
 
 export const metadata: Metadata = createPageMetadata({
   title: 'Bespoke',
@@ -14,79 +20,46 @@ export const metadata: Metadata = createPageMetadata({
 export const dynamic = 'force-dynamic';
 
 export default async function BespokePage() {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-  if (!supabaseUrl || !supabaseServiceRoleKey) {
-    return <BespokeClient />;
-  }
-
-  const supabase = createClient(supabaseUrl, supabaseServiceRoleKey);
-  const bucket = process.env.NEXT_PUBLIC_SUPABASE_COLLECTION_BUCKET ?? 'hod';
-  const buildPublicUrl = (path?: string | null) =>
-    !path ? '' : path.startsWith('http://') || path.startsWith('https://')
-      ? path
-      : `${supabaseUrl}/storage/v1/object/public/${bucket}/${path}`;
-
-  const [heroResult, slidesResult, processResult, categoriesResult, portfolioItemsResult, settingsResult, guaranteesResult, pieceTypesResult, stoneOptionsResult, caratOptionsResult, metalOptionsResult, exploreCategoriesResult] = await Promise.all([
-    supabase.from('bespoke_hero_content').select('badge_text, eyebrow, heading_line_1, heading_line_2, subtitle, primary_cta_label, secondary_cta_label, secondary_cta_action, slider_enabled').eq('status', 'active').order('updated_at', { ascending: false }).limit(1).maybeSingle(),
-    supabase.from('bespoke_hero_slider_items').select('sort_order, image_path, mobile_image_path, button_text, button_link').order('sort_order', { ascending: true }),
-    supabase.from('bespoke_process_cards').select('id, sort_order, eyebrow, title, description').order('sort_order', { ascending: true }),
-    supabase.from('bespoke_portfolio_categories').select('id, name, slug, image_path, display_order').eq('status', 'active').order('display_order', { ascending: true }),
-    supabase.from('bespoke_portfolio_items').select('id, title, tag, category_id, media_type, media_path, thumbnail_path, gem_style, gem_color, dark_theme, short_description, display_order').eq('status', 'active').order('display_order', { ascending: true }),
-    supabase.from('bespoke_form_settings').select('*').eq('status', 'active').order('updated_at', { ascending: false }).limit(1).maybeSingle(),
-    supabase.from('bespoke_form_guarantees').select('id, label, display_order').eq('status', 'active').order('display_order', { ascending: true }),
-    supabase.from('bespoke_form_piece_types').select('id, label, display_order').eq('status', 'active').order('display_order', { ascending: true }),
-    supabase.from('bespoke_form_stone_options').select('id, label, display_order').eq('status', 'active').order('display_order', { ascending: true }),
-    supabase.from('bespoke_form_carat_options').select('id, label, display_order').eq('status', 'active').order('display_order', { ascending: true }),
-    supabase.from('bespoke_form_metal_options').select('id, label, display_order').eq('status', 'active').order('display_order', { ascending: true }),
-    supabase.from('catalog_categories').select('id, name, slug, banner_desktop_image_path, banner_mobile_image_path, banner_desktop_image_alt, banner_mobile_image_alt').eq('status', 'active').order('display_order', { ascending: true }).limit(8),
+  const [heroResult, formResult, processItems, portfolioResult, exploreRows] = await Promise.all([
+    findBespokeHeroFromRds(), loadBespokeFormConfigFromRds(), loadBespokeProcessCardsFromRds(),
+    loadBespokePortfolioFromRds(), loadBespokeExploreCategoriesFromRds(),
   ]);
+  const slides = heroResult.item ? await loadBespokeHeroSlidesFromRds(String(heroResult.item.id)) : [];
 
-  const portfolioCategories = categoriesResult.data ?? [];
-  const categoryMap = new Map(portfolioCategories.map((category) => [category.id, category]));
-  const portfolioItems = (portfolioItemsResult.data ?? []).flatMap((item) => {
-    const category = categoryMap.get(item.category_id);
+  const buildPublicUrl = mediaUrl;
+  const categoryMap = new Map(portfolioResult.categories.map((category) => [String(category.id), category]));
+  const portfolioItems = portfolioResult.items.flatMap((item) => {
+    const category = categoryMap.get(String(item.category_id));
     if (!category) return [];
-
-    return [{
-      ...item,
-      category,
-      media_url: buildPublicUrl(item.media_path),
-      thumbnail_url: buildPublicUrl(item.thumbnail_path),
-    }];
+    return [{ ...item, category, media_url: buildPublicUrl(item.media_path as string | null), thumbnail_url: buildPublicUrl(item.thumbnail_path as string | null) }];
   });
-
   const formConfig = {
     settings: {
-      intro_heading: settingsResult.data?.intro_heading ?? 'Configure Your Bespoke Order',
-      intro_subtitle: settingsResult.data?.intro_subtitle ?? 'Every bespoke commission begins with a conversation. Share your vision below and our team will be in touch within 24 hours with next steps.',
-      footer_note: settingsResult.data?.footer_note ?? "We'll reply within 24 hours. Your details stay confidential.",
+      intro_heading: String(formResult.settings?.intro_heading ?? 'Configure Your Bespoke Order'),
+      intro_subtitle: String(formResult.settings?.intro_subtitle ?? 'Every bespoke commission begins with a conversation. Share your vision below and our team will be in touch within 24 hours with next steps.'),
+      footer_note: String(formResult.settings?.footer_note ?? "We'll reply within 24 hours. Your details stay confidential."),
     },
-    guarantees: guaranteesResult.data ?? [],
-    pieceTypes: pieceTypesResult.data ?? [],
-    stoneOptions: stoneOptionsResult.data ?? [],
-    caratOptions: caratOptionsResult.data ?? [],
-    metalOptions: metalOptionsResult.data ?? [],
+    guarantees: formResult.guarantees,
+    pieceTypes: formResult.pieceTypes,
+    stoneOptions: formResult.stoneOptions,
+    caratOptions: formResult.caratOptions,
+    metalOptions: formResult.metalOptions,
   };
-  const moreToExploreCategories = (exploreCategoriesResult.data ?? [])
+  const moreToExploreCategories = exploreRows
     .filter((category) => category.banner_desktop_image_path || category.banner_mobile_image_path)
     .map((category) => ({
-      name: category.name,
-      href: buildCategoryPath(category),
+      name: category.name, href: buildCategoryPath(category),
       imageUrl: buildPublicUrl(category.banner_desktop_image_path ?? category.banner_mobile_image_path),
       imageAlt: category.banner_desktop_image_alt || category.banner_mobile_image_alt || category.name,
     }));
+  return <BespokeClient
+      hero={heroResult.item as ComponentProps<typeof BespokeClient>['hero']}
+      slides={slides as ComponentProps<typeof BespokeClient>['slides']}
+      processItems={processItems as ComponentProps<typeof BespokeClient>['processItems']}
+      portfolioCategories={portfolioResult.categories as ComponentProps<typeof BespokeClient>['portfolioCategories']}
+      portfolioItems={portfolioItems as unknown as ComponentProps<typeof BespokeClient>['portfolioItems']}
+      formConfig={formConfig as unknown as ComponentProps<typeof BespokeClient>['formConfig']}
+    moreToExploreCategories={moreToExploreCategories}
+  />;
 
-  return (
-    <BespokeClient
-      hero={heroResult.data ?? null}
-      slides={slidesResult.data ?? []}
-      portfolioCategories={portfolioCategories}
-      processItems={processResult.data ?? []}
-      portfolioItems={portfolioItems}
-      formConfig={formConfig}
-      moreToExploreCategories={moreToExploreCategories}
-    />
-  );
 }

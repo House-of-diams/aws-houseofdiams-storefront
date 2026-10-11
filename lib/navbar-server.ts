@@ -1,90 +1,30 @@
 import 'server-only'
 
 import { unstable_cache } from 'next/cache'
-import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import { buildNavbarRenderItems, type NavbarRenderItem } from '@/lib/navbar'
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
-
-function getServerClient() {
-  const serverKey = supabaseServiceRoleKey || supabaseAnonKey
-  if (!supabaseUrl || !serverKey) return null
-
-  return createClient(supabaseUrl, serverKey, {
-    auth: { persistSession: false, autoRefreshToken: false },
-  })
-}
-
-async function loadNavbarItems(supabase: SupabaseClient) {
-  return supabase
-    .from('navbar_items')
-    .select('*')
-    .eq('status', 'active')
-    .order('display_order', { ascending: true })
-}
-
-async function loadHiddenDirectNavSlugs(supabase: SupabaseClient) {
-  const result = await supabase
-    .from('navbar_items')
-    .select('slug')
-    .in('slug', ['bespoke'])
-    .eq('status', 'hidden')
-
-  if (result.error) return new Set<string>()
-  return new Set((result.data ?? []).map((item: { slug: string }) => item.slug))
-}
+import { loadNavbarRowsFromRds } from '@/lib/repositories/navbar-repository'
 
 async function loadNavbarRenderItems(): Promise<NavbarRenderItem[]> {
-  const supabase = getServerClient()
-  if (!supabase) return []
+  const data = await loadNavbarRowsFromRds()
+  if (!data) return []
 
-  const [
-    itemsResult,
-    sectionsResult,
-    linksResult,
-    sourceItemsResult,
-    featuredResult,
-    categoriesResult,
-    subcategoriesResult,
-    optionsResult,
-    metalsResult,
-    stoneShapesResult,
-    certificatesResult,
-    stylesResult,
+  const {
+    items,
+    sections,
+    sectionLinks,
+    sectionSourceItems,
+    featuredCards,
+    categories,
+    subcategories,
+    options,
+    metals,
+    stoneShapes,
+    certificates,
+    styles,
     hiddenDirectSlugs,
-  ] = await Promise.all([
-    loadNavbarItems(supabase),
-    supabase.from('navbar_sections').select('*').eq('status', 'active').order('column_number', { ascending: true }).order('display_order', { ascending: true }),
-    supabase.from('navbar_section_links').select('*').eq('status', 'active').order('display_order', { ascending: true }),
-    supabase.from('navbar_section_source_items').select('*').eq('is_active', true).order('sort_order', { ascending: true }),
-    supabase.from('navbar_featured_cards').select('*'),
-    supabase.from('catalog_categories').select('id, name, slug, display_order, status, show_in_nav, nav_type, direct_link_url').eq('status', 'active').order('display_order', { ascending: true }),
-    supabase.from('catalog_subcategories').select('*').eq('status', 'active').order('display_order', { ascending: true }),
-    supabase.from('catalog_options').select('*').eq('status', 'active').order('display_order', { ascending: true }),
-    supabase.from('catalog_metals').select('*').eq('status', 'active').order('display_order', { ascending: true }),
-    supabase.from('catalog_stone_shapes').select('*').eq('status', 'active').order('display_order', { ascending: true }),
-    supabase.from('catalog_certificates').select('*').order('display_order', { ascending: true }),
-    supabase.from('catalog_styles').select('*').eq('status', 'active').order('display_order', { ascending: true }),
-    loadHiddenDirectNavSlugs(supabase),
-  ])
+  } = data
 
-  const error =
-    itemsResult.error ||
-    sectionsResult.error ||
-    linksResult.error ||
-    sourceItemsResult.error ||
-    featuredResult.error ||
-    categoriesResult.error ||
-    subcategoriesResult.error ||
-    optionsResult.error ||
-    metalsResult.error ||
-    stoneShapesResult.error
-
-  if (error) throw new Error(error.message)
-
-  const fallbackItems: NavbarRenderItem[] = (categoriesResult.data ?? [])
+  const fallbackItems: NavbarRenderItem[] = categories
     .filter((entry) => entry.show_in_nav !== false && entry.slug !== 'hiphop')
     .map((entry) => ({
       label: entry.name,
@@ -93,31 +33,31 @@ async function loadNavbarRenderItems(): Promise<NavbarRenderItem[]> {
     }))
 
   const savedNavItems =
-    (itemsResult.data?.length ?? 0) > 0
+    items.length > 0
       ? buildNavbarRenderItems({
-          items: itemsResult.data ?? [],
-          sections: sectionsResult.data ?? [],
-          sectionLinks: linksResult.data ?? [],
-          sectionSourceItems: sourceItemsResult.data ?? [],
-          featuredCards: featuredResult.data ?? [],
-          categories: categoriesResult.data ?? [],
-          subcategories: subcategoriesResult.data ?? [],
-          options: optionsResult.data ?? [],
-          metals: metalsResult.data ?? [],
-          stoneShapes: stoneShapesResult.data ?? [],
-          certificates: certificatesResult.error ? [] : certificatesResult.data ?? [],
-          styles: stylesResult.error ? [] : stylesResult.data ?? [],
-        })
+        items,
+        sections,
+        sectionLinks,
+        sectionSourceItems,
+        featuredCards,
+        categories,
+        subcategories,
+        options,
+        metals,
+        stoneShapes,
+        certificates,
+        styles,
+      })
       : fallbackItems
 
   const existingHrefs = new Set(savedNavItems.map((item) => item.href).filter(Boolean))
   const mergedNavItems =
-    (itemsResult.data?.length ?? 0) > 0
+    items.length > 0
       ? [...savedNavItems, ...fallbackItems.filter((item) => item.href && !existingHrefs.has(item.href))]
       : fallbackItems
 
-  const activeCategoryIds = new Set((categoriesResult.data ?? []).map((entry) => entry.id))
-  const activeCategorySlugs = new Set((categoriesResult.data ?? []).map((entry) => entry.slug))
+  const activeCategoryIds = new Set(categories.map((entry) => entry.id))
+  const activeCategorySlugs = new Set(categories.map((entry) => entry.slug))
   const alwaysAllowedHrefs = new Set(['/bespoke'])
 
   return mergedNavItems.filter((item) => {
@@ -136,8 +76,13 @@ async function loadNavbarRenderItems(): Promise<NavbarRenderItem[]> {
   })
 }
 
-export const getNavbarRenderItems = unstable_cache(
+const getCachedNavbarRenderItems = unstable_cache(
   loadNavbarRenderItems,
   ['site-navbar-render-items'],
   { revalidate: 300, tags: ['site-navbar'] }
 )
+
+export function getNavbarRenderItems() {
+
+  return getCachedNavbarRenderItems()
+}

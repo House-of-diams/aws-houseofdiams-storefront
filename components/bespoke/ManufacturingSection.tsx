@@ -1,4 +1,5 @@
 'use client';
+import { mediaUrl } from '@/lib/media-url';
 
 import { useEffect, useRef, useState } from 'react';
 
@@ -57,7 +58,7 @@ export default function ManufacturingSection() {
               <div className="bg-white border border-[rgba(10,22,40,0.10)] overflow-hidden h-full hover:shadow-[0_24px_60px_rgba(10,22,40,0.12)] transition-all duration-500">
                 {item.image_path ? (
                   <img
-                    src={`${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/${process.env.NEXT_PUBLIC_SUPABASE_COLLECTION_BUCKET || 'hod'}/${item.image_path}`}
+                    src={mediaUrl(item.image_path)}
                     alt={item.title}
                     className="w-full h-[280px] object-cover"
                   />

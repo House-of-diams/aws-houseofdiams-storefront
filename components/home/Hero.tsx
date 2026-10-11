@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import Image, { getImageProps } from 'next/image';
 import Link from 'next/link';
 import { preload } from 'react-dom';
-import { supabase } from '@/lib/supabase';
+import { mediaUrl } from '@/lib/media-url';
 import BrandButton from '@/components/ui/BrandButton';
 
 type HeroSlide = {
@@ -42,10 +42,7 @@ const defaultContent: HeroContent = {
 
 const getPublicImageUrl = (path: string) => {
   if (!path) return '';
-  if (path.startsWith('http://') || path.startsWith('https://')) return path;
-  const bucket = process.env.NEXT_PUBLIC_SUPABASE_COLLECTION_BUCKET ?? 'hod';
-  const { data } = supabase.storage.from(bucket).getPublicUrl(path);
-  return data.publicUrl;
+  return mediaUrl(path);
 };
 
 export default function Hero({ initialContent, onPrimaryVisualReady }: HeroProps) {
@@ -73,29 +70,16 @@ export default function Hero({ initialContent, onPrimaryVisualReady }: HeroProps
     if (initialContent) return;
 
     const loadHero = async () => {
-      const { data: heroData } = await supabase
-        .from('homepage_hero')
-        .select('id, eyebrow, headline, subtitle, slider_enabled')
-        .eq('section_key', 'home_hero')
-        .eq('is_active', true)
-        .single();
+      const response = await fetch('/api/public/home-hero')
+      const payload = await response.json().catch(() => null)
+      const heroData = payload?.content
 
       if (!heroData) {
         setContentResolved(true);
         return;
       }
 
-      let sliderItems: HeroSlide[] = [];
-
-        if (heroData.slider_enabled) {
-          const { data: itemsData } = await supabase
-            .from('homepage_hero_slider_items')
-            .select('sort_order, image_path, mobile_image_path, headline, subtitle, button_text, button_link')
-            .eq('hero_id', heroData.id)
-            .order('sort_order', { ascending: true });
-
-        sliderItems = (itemsData ?? []).map((item) => ({ ...item, headline: item.headline ?? '', subtitle: item.subtitle ?? '' }));
-      }
+      const sliderItems: HeroSlide[] = heroData.slider_items ?? []
 
       setContent({
         eyebrow: heroData.eyebrow,
