@@ -4,6 +4,7 @@ import FaqClient from '@/components/pages/FaqClient'
 import { createPageMetadata } from '@/lib/seo'
 import { createFaqSchema } from '@/lib/structured-data'
 import { findFaqSectionFromRds, loadFaqCategoriesFromRds, loadFaqItemsFromRds } from '@/lib/repositories/support-repository'
+import { cachePublicRead, PUBLIC_CACHE_LONG_SECONDS } from '@/lib/public-cache'
 
 export const metadata: Metadata = createPageMetadata({
   title: 'FAQ',
@@ -39,16 +40,24 @@ type FaqCategory = {
   image_alt: string | null
 }
 
+// Raw reads are cached (errors are not), so the fallback below is never stored.
+const getCachedFaqRows = cachePublicRead('faq-page-rows', async () => {
+  const [section, categories] = await Promise.all([findFaqSectionFromRds(), loadFaqCategoriesFromRds()])
+  const items = section?.id ? await loadFaqItemsFromRds(section.id) : null
+  return { section: section ?? null, categories, items }
+}, PUBLIC_CACHE_LONG_SECONDS)
+
 async function getFaqContent() {
   try {
+    const faqRows = await getCachedFaqRows()
 
-    const { data: sectionData } = { data: await findFaqSectionFromRds() }
+    const { data: sectionData } = { data: faqRows.section }
 
-    const { data: categoryData } = { data: await loadFaqCategoriesFromRds() }
+    const { data: categoryData } = { data: faqRows.categories }
 
     let items: Array<{ question: string; answer: string; category_id: number | null }> = fallbackFaqs
     if (sectionData?.id) {
-      const { data: itemData } = { data: await loadFaqItemsFromRds(sectionData.id) }
+      const { data: itemData } = { data: faqRows.items }
 
       const parsed = (itemData ?? [])
         .filter((item) => item.question && item.answer)

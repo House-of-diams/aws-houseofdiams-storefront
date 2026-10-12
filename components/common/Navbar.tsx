@@ -9,6 +9,7 @@ import {
 } from '@/lib/navbar';
 import { useWishlistStore } from '@/lib/hooks/useWishlistStore';
 import { useCart } from '@/lib/hooks/useCart';
+import { fetchPublicJson } from '@/lib/client/public-json';
 
 const METAL_COLORS: Record<string, string> = {
   yellow: 'linear-gradient(135deg,#F5D76E,#20304A)',
@@ -40,8 +41,10 @@ const STATIC_SEARCH_SUGGESTIONS = [
 ];
 
 async function loadSearchItems(query: string, signal?: AbortSignal): Promise<SearchItem[]> {
+  // Search results are public and short-lived cached by the API, so repeat
+  // searches can be answered by the browser or CDN.
   const response = await fetch(`/api/public/products/search?q=${encodeURIComponent(query.trim())}`, {
-    cache: query.trim() ? 'no-store' : 'force-cache',
+    cache: query.trim() ? 'default' : 'force-cache',
     signal,
   });
   const payload = await response.json().catch(() => null);
@@ -338,17 +341,13 @@ export default function Navbar({ navItems = [], customerAuthEnabled = false }: {
   }, []);
 
   useEffect(() => {
-    const controller = new AbortController();
+    let ignore = false;
 
     const loadAnnouncementBar = async () => {
       try {
-        const response = await fetch('/api/public/announcement-bar', {
-          cache: 'no-store',
-          signal: controller.signal,
-        });
-        const payload = await response.json().catch(() => null);
-        if (!response.ok) throw new Error(payload?.error || 'Unable to load announcement bar.');
-        if (controller.signal.aborted) return;
+        const { ok, payload } = await fetchPublicJson<{ active?: unknown; autoplay?: unknown; items?: Array<{ message: string; linkUrl: string; openInNewTab: boolean }>; error?: string }>('/api/public/announcement-bar');
+        if (!ok) throw new Error(payload?.error || 'Unable to load announcement bar.');
+        if (ignore) return;
 
         setAnnouncementActive(Boolean(payload?.active));
         const nextItems = Array.isArray(payload?.items)
@@ -357,14 +356,13 @@ export default function Navbar({ navItems = [], customerAuthEnabled = false }: {
         setAnnouncementItems(nextItems);
         setAnnouncementIndex(0);
         setAnnouncementAutoplay(payload?.autoplay !== false);
-      } catch (error) {
-        if (error instanceof DOMException && error.name === 'AbortError') return;
+      } catch {
         // Retain the single safe initial fallback only when the endpoint fails.
       }
     };
 
     void loadAnnouncementBar();
-    return () => controller.abort();
+    return () => { ignore = true; };
   }, []);
 
   useEffect(() => {
@@ -497,6 +495,10 @@ export default function Navbar({ navItems = [], customerAuthEnabled = false }: {
     () => searchItems.slice(0, submittedSearchQuery.trim() ? 12 : 16),
     [searchItems, submittedSearchQuery]
   );
+  // Never leave a dead end: when a search finds nothing, offer the popular pieces
+  // already loaded for the empty search panel (no extra request).
+  const isSearchFallback = Boolean(submittedSearchQuery.trim()) && searchLoadState === 'ready' && !filteredSearchItems.length && defaultSearchItems.length > 0;
+  const displayedSearchItems = isSearchFallback ? defaultSearchItems.slice(0, 8) : filteredSearchItems;
   const textSearchSuggestions = useMemo(() => {
     const query = searchQuery.trim().toLocaleLowerCase();
     if (!query) return [];
@@ -511,6 +513,18 @@ export default function Navbar({ navItems = [], customerAuthEnabled = false }: {
       })
       .slice(0, 6);
   }, [defaultSearchItems, searchQuery]);
+
+  // When no text suggestion matches what was typed, search products automatically
+  // after a short pause instead of waiting for Enter.
+  useEffect(() => {
+    const query = searchQuery.trim();
+    if (!searchOpen || query.length < 2 || submittedSearchQuery.trim() || textSearchSuggestions.length) return;
+    const timer = window.setTimeout(() => {
+      setSubmittedSearchQuery(query);
+      setActiveSearchIndex(-1);
+    }, 350);
+    return () => window.clearTimeout(timer);
+  }, [searchOpen, searchQuery, submittedSearchQuery, textSearchSuggestions.length]);
 
   useEffect(() => {
     if (activeSearchIndex < 0) return;
@@ -546,7 +560,7 @@ export default function Navbar({ navItems = [], customerAuthEnabled = false }: {
       return;
     }
 
-    const keyboardItems = isShowingTextSuggestions ? textSearchSuggestions : filteredSearchItems;
+    const keyboardItems = isShowingTextSuggestions ? textSearchSuggestions : displayedSearchItems;
     if (!keyboardItems.length && event.key !== 'Enter') return;
 
     if (event.key === 'ArrowDown') {
@@ -957,9 +971,9 @@ export default function Navbar({ navItems = [], customerAuthEnabled = false }: {
                         role="combobox"
                         aria-label="Search products"
                         aria-autocomplete="list"
-                        aria-expanded={isShowingTextSuggestions ? textSearchSuggestions.length > 0 : searchLoadState === 'ready' && filteredSearchItems.length > 0}
+                        aria-expanded={isShowingTextSuggestions ? textSearchSuggestions.length > 0 : searchLoadState === 'ready' && displayedSearchItems.length > 0}
                         aria-controls={isShowingTextSuggestions ? 'navbar-search-suggestions' : searchLoadState === 'ready' ? 'navbar-search-results' : undefined}
-                        aria-activedescendant={isShowingTextSuggestions && textSearchSuggestions[activeSearchIndex] ? `navbar-search-suggestion-${activeSearchIndex}` : filteredSearchItems[activeSearchIndex] ? `navbar-search-option-${activeSearchIndex}` : undefined}
+                        aria-activedescendant={isShowingTextSuggestions && textSearchSuggestions[activeSearchIndex] ? `navbar-search-suggestion-${activeSearchIndex}` : displayedSearchItems[activeSearchIndex] ? `navbar-search-option-${activeSearchIndex}` : undefined}
                         placeholder="Search jewellery, settings, diamonds..."
                         className="h-12 min-w-0 flex-1 border-0 bg-transparent text-[16px] text-[var(--color-brand-primary)] outline-none placeholder:text-black/55 sm:h-14"
                       />
@@ -982,7 +996,7 @@ export default function Navbar({ navItems = [], customerAuthEnabled = false }: {
                     <span>{isShowingTextSuggestions ? 'Top suggestions' : submittedSearchQuery.trim() ? 'Products' : 'Explore jewellery'}</span>
                     {isShowingTextSuggestions ? <span>{textSearchSuggestions.length} suggestions</span> : searchLoadState === 'ready' && filteredSearchItems.length ? <span>{filteredSearchItems.length} {submittedSearchQuery.trim() ? 'results' : 'suggestions'}</span> : null}
                   </div>
-                  <span className="sr-only" aria-live="polite">{isShowingTextSuggestions ? `${textSearchSuggestions.length} search suggestions available.` : searchLoadState === 'loading' ? 'Loading products.' : searchLoadState === 'error' ? 'Unable to load products.' : `${filteredSearchItems.length} products shown.`}</span>
+                  <span className="sr-only" aria-live="polite">{isShowingTextSuggestions ? `${textSearchSuggestions.length} search suggestions available.` : searchLoadState === 'loading' ? 'Loading products.' : searchLoadState === 'error' ? 'Unable to load products.' : isSearchFallback ? `No exact matches. ${displayedSearchItems.length} popular pieces shown.` : `${filteredSearchItems.length} products shown.`}</span>
                   {isShowingTextSuggestions ? (
                     textSearchSuggestions.length ? (
                       <div id="navbar-search-suggestions" role="listbox" aria-label="Top search suggestions" className="py-5 sm:py-6">
@@ -1002,18 +1016,30 @@ export default function Navbar({ navItems = [], customerAuthEnabled = false }: {
                           </button>
                         ))}
                       </div>
-                    ) : <div className="py-[var(--space-6)] text-sm text-black/70">Press Enter to search for “{searchQuery.trim()}”.</div>
-                  ) : searchLoadState === 'loading' ? null : searchLoadState === 'error' ? (
+                    ) : <div className="py-[var(--space-6)] text-sm text-black/70">{searchQuery.trim().length >= 2 ? `Searching for “${searchQuery.trim()}”…` : `Press Enter to search for “${searchQuery.trim()}”.`}</div>
+                  ) : searchLoadState === 'loading' ? (
+                    <div aria-hidden="true" className="grid grid-cols-3 gap-x-3 gap-y-[var(--space-5)] py-[var(--space-5)] sm:grid-cols-4 sm:gap-x-5 lg:grid-cols-8">
+                      {Array.from({ length: 8 }, (_, index) => (
+                        <div key={index} className="min-w-0 text-center">
+                          <span className="mx-auto block aspect-square w-full max-w-[112px] animate-pulse rounded-full bg-black/[0.06]" />
+                          <span className="mx-auto mt-3 block h-3 w-3/4 animate-pulse rounded bg-black/[0.06]" />
+                        </div>
+                      ))}
+                    </div>
+                  ) : searchLoadState === 'error' ? (
                     <div className="py-[var(--space-6)] text-sm text-black/70">Product results are unavailable. Please try your search again.</div>
-                  ) : filteredSearchItems.length ? (
-                    <div id="navbar-search-results" role="listbox" aria-label="Product search results" className="grid grid-cols-3 gap-x-3 gap-y-[var(--space-5)] py-[var(--space-5)] sm:grid-cols-4 sm:gap-x-5 lg:grid-cols-8">
-                      {filteredSearchItems.map((item, index) => (
+                  ) : displayedSearchItems.length ? (
+                    <>
+                    {isSearchFallback ? <p className="pt-[var(--space-5)] text-sm text-black/70">No exact matches for “{submittedSearchQuery.trim()}”. You might like these pieces:</p> : null}
+                    <div id="navbar-search-results" role="listbox" aria-label={isSearchFallback ? 'Popular pieces' : 'Product search results'} className="grid grid-cols-3 gap-x-3 gap-y-[var(--space-5)] py-[var(--space-5)] sm:grid-cols-4 sm:gap-x-5 lg:grid-cols-8">
+                      {displayedSearchItems.map((item, index) => (
                         <Link key={item.dbId || item.slug} ref={(node) => { searchOptionRefs.current[index] = node; }} id={`navbar-search-option-${index}`} role="option" aria-selected={activeSearchIndex === index} href={`/shop/${item.slug}`} onMouseEnter={() => setActiveSearchIndex(index)} onClick={closeSearch} className="group min-w-0 rounded-sm text-center outline-none focus-visible:ring-2 focus-visible:ring-black/70">
                           <span className="relative mx-auto flex aspect-square w-full max-w-[112px] items-center justify-center overflow-hidden rounded-full border border-black/5 bg-[var(--color-brand-secondary,#F9F9F9)] text-[32px] text-black/15 transition-transform duration-200 group-hover:scale-[1.04]">◇{item.imageUrl ? <img src={item.imageUrl} alt="" loading={index < 3 ? 'eager' : 'lazy'} fetchPriority={index < 3 ? 'high' : 'auto'} decoding="async" onError={(event) => { event.currentTarget.style.display = 'none'; }} className="absolute inset-0 h-full w-full object-cover" /> : null}</span>
                           <span className="mt-3 block truncate text-[11px] font-medium text-[var(--color-brand-primary)] sm:text-[12px]" title={item.name}>{item.name}</span>
                         </Link>
                       ))}
                     </div>
+                    </>
                   ) : searchLoadState === 'ready' ? (
                     <div id="navbar-search-results" role="listbox" aria-label="Product search results" className="py-[var(--space-6)] text-sm text-black/70">{submittedSearchQuery.trim() ? 'No products match your search. Try another term.' : 'No products are available yet.'}</div>
                   ) : null}

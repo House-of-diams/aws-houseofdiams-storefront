@@ -8,6 +8,7 @@ import ReactCountryFlag from 'react-country-flag';
 import { useCurrency } from '@/context/CurrencyContext';
 import type { NavbarRenderItem } from '@/lib/navbar';
 import { getSafeContactHref } from '@/lib/contact-links';
+import { fetchPublicJson } from '@/lib/client/public-json';
 
 const PAYMENT_METHODS = [
   { name: 'Visa', src: '/payment svgs/visa 1.svg' },
@@ -210,25 +211,20 @@ export default function Footer({ navItems = [] }: { navItems?: NavbarRenderItem[
     let ignore = false;
 
     const loadCategories = async () => {
-      const [footerResponse, contactResponse] = await Promise.all([
-        fetch('/api/public/footer-content').catch(() => null),
-        fetch('/api/public/contact/info').catch(() => null),
+      const [footerResult, contactResult] = await Promise.all([
+        fetchPublicJson<{ categories?: FooterCategory[]; collectionConfig?: CollectionPageConfigRow | null }>('/api/public/footer-content').catch(() => null),
+        fetchPublicJson<{ items?: ContactInfoRow[] }>('/api/public/contact/info').catch(() => null),
       ]);
 
       if (ignore) return;
-      if (footerResponse?.ok) {
-        const payload = await footerResponse.json().catch(() => null);
-        if (!ignore) {
-          if (Array.isArray(payload?.categories)) setServiceCategories(payload.categories);
-          setCollectionConfig(payload?.collectionConfig ?? null);
-        }
+      if (footerResult?.ok) {
+        const payload = footerResult.payload;
+        if (Array.isArray(payload?.categories)) setServiceCategories(payload.categories);
+        setCollectionConfig(payload?.collectionConfig ?? null);
       }
 
-      if (contactResponse?.ok) {
-        const payload = await contactResponse.json().catch(() => null);
-        if (!ignore && Array.isArray(payload?.items)) {
-          setContactRows(payload.items);
-        }
+      if (contactResult?.ok && Array.isArray(contactResult.payload?.items)) {
+        setContactRows(contactResult.payload.items);
       }
 
     };

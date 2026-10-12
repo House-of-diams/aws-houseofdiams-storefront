@@ -6,6 +6,7 @@ import { ChevronDown } from 'lucide-react'
 import type { CheckoutSummaryData } from '@/components/checkout/types'
 import { useCurrency } from '@/context/CurrencyContext'
 import { formatMoney } from '@/lib/currency'
+import { fetchPublicJson } from '@/lib/client/public-json'
 
 function selectionLabel(item: CheckoutSummaryData['items'][number]) {
   return [item.purity, item.metal, item.sizeOrFit, item.gemstone, item.carat].filter(Boolean).join(', ')
@@ -34,9 +35,8 @@ export default function CheckoutSummary({ summary, topOffer, couponValue = '', o
   const [estimatedDeliveryText, setEstimatedDeliveryText] = useState('Approximately 3 to 4 weeks')
   useEffect(() => {
     let active = true
-    fetch('/api/public/settings', { cache: 'no-store' })
-      .then((response) => response.json())
-      .then((result) => {
+    fetchPublicJson<{ item?: { estimated_delivery_text?: unknown } }>('/api/public/settings')
+      .then(({ payload: result }) => {
         if (active && typeof result?.item?.estimated_delivery_text === 'string' && result.item.estimated_delivery_text.trim()) {
           setEstimatedDeliveryText(result.item.estimated_delivery_text.trim())
         }

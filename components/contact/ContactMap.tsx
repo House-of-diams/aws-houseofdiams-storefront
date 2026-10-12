@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { fetchPublicJson } from '@/lib/client/public-json';
 
 type ContactInfoRow = {
   id?: number;
@@ -59,8 +60,7 @@ export default function ContactMap() {
 
     const loadContactInfo = async () => {
       try {
-        const response = await fetch('/api/public/contact/info');
-        const payload = await response.json().catch(() => null);
+        const { payload } = await fetchPublicJson<{ items?: ContactInfoRow[] }>('/api/public/contact/info');
         if (ignore) return;
         setRows(Array.isArray(payload?.items) ? payload.items : []);
       } catch {

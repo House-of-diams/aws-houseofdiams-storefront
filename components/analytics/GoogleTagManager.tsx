@@ -7,7 +7,9 @@ export default function GoogleTagManager() {
 
   return (
     <>
-      <Script id="google-tag-manager" strategy="afterInteractive">
+      {/* Loaded after the page is idle so tag scripts do not compete with first paint;
+          dataLayer events pushed earlier are queued and processed once GTM arrives. */}
+      <Script id="google-tag-manager" strategy="lazyOnload">
         {`
           (function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
           new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],

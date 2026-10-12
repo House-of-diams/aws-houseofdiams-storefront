@@ -6,6 +6,7 @@ import { createFaqSchema } from '@/lib/structured-data'
 import { createPageMetadata } from '@/lib/seo'
 import { getDocsPageContent } from '@/lib/docs-pages'
 import { loadContactInfoFromRds } from '@/lib/repositories/support-repository'
+import { cachePublicRead, PUBLIC_CACHE_LONG_SECONDS } from '@/lib/public-cache'
 
 export const metadata: Metadata = createPageMetadata({
   title: 'Returns',
@@ -19,10 +20,13 @@ const fallbackContactRows: ReturnsContactRow[] = [
   { id: 'fallback-address', label: 'Address', value: '36 W 44th Street, Suite 1000B, New York, 10036, USA', note: null, href: null, icon_path: null },
 ]
 
+// Raw read is cached (errors are not), so the fallback rows are never stored.
+const getCachedContactInfo = cachePublicRead('returns-page-contact-info', loadContactInfoFromRds, PUBLIC_CACHE_LONG_SECONDS)
+
 async function getContactRows(): Promise<ReturnsContactRow[]> {
   try {
 
-    const { data, error } = { data: await loadContactInfoFromRds(), error: null as { code?: string; message: string } | null }
+    const { data, error } = { data: await getCachedContactInfo(), error: null as { code?: string; message: string } | null }
 
     if (error) return fallbackContactRows
 

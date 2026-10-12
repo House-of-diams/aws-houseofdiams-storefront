@@ -1,8 +1,10 @@
 import { NextResponse } from 'next/server'
-import { getFreshHomeHeroContent } from '@/lib/home-data'
+import { getCachedHomeHeroContent } from '@/lib/home-data'
+import { publicCacheHeaders, PUBLIC_CACHE_SHORT_SECONDS } from '@/lib/public-cache'
 
 export const dynamic = 'force-dynamic'
 
 export async function GET() {
-  return NextResponse.json({ content: await getFreshHomeHeroContent() })
+  const content = await getCachedHomeHeroContent()
+  return NextResponse.json({ content: content ?? undefined }, { headers: publicCacheHeaders(PUBLIC_CACHE_SHORT_SECONDS) })
 }

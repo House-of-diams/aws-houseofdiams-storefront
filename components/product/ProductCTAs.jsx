@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useCurrency } from '@/context/CurrencyContext';
+import { fetchPublicJson } from '@/lib/client/public-json';
 
 /**
  * CTA button row: primary purchase and enquiry actions.
@@ -40,9 +41,8 @@ export default function ProductCTAs({ product, ctaMode = 'both', ctaLabel, onEnq
   const [whatsappNumber, setWhatsappNumber] = useState('919328536178');
   useEffect(() => {
     let active = true;
-    void fetch('/api/public/settings')
-      .then((response) => response.json())
-      .then((payload) => {
+    void fetchPublicJson('/api/public/settings')
+      .then(({ payload }) => {
         const savedNumber = typeof payload?.item?.whatsapp_number === 'string'
           ? payload.item.whatsapp_number.replace(/[^\d]/g, '')
           : '';

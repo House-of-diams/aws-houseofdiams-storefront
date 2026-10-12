@@ -1,5 +1,7 @@
 import { connection } from 'next/server'
+import { unstable_cache } from 'next/cache'
 import { mediaUrl } from '@/lib/media-url'
+import { PUBLIC_CACHE_LONG_SECONDS, PUBLIC_CONTENT_TAG } from '@/lib/public-cache'
 import {
   findDocsPageFromRds,
   findFaqCategoryFromRds,
@@ -14,19 +16,33 @@ export type DocsPageContent = {
   faqItems?: Array<{ id: number; question: string; answer: string; sort_order: number }>
 }
 
+// Raw reads are cached per slug (errors are not), so the empty fallback
+// returned by getDocsPageContent on failure is never stored.
+const getCachedDocsRows = unstable_cache(
+  async (slug: string) => {
+    const page = await findDocsPageFromRds(slug)
+    if (!page) return null
+    const [blocks, category, items] = await Promise.all([
+      loadDocsBlocksFromRds(page.id),
+      slug === 'returns' && page.faq_category_id ? findFaqCategoryFromRds(page.faq_category_id) : Promise.resolve(null),
+      slug === 'returns' && page.faq_category_id ? loadFaqItemsByCategoryFromRds(page.faq_category_id) : Promise.resolve([]),
+    ])
+    return { page, blocks, category, items }
+  },
+  ['docs-page-rows-v1'],
+  { revalidate: PUBLIC_CACHE_LONG_SECONDS, tags: [PUBLIC_CONTENT_TAG] }
+)
+
 export async function getDocsPageContent(slug: string): Promise<DocsPageContent> {
   await connection()
   try {
-    const page = await findDocsPageFromRds(slug)
-    if (!page) return { page: null, blocks: [] }
-    const blocks = await loadDocsBlocksFromRds(page.id)
+    const rows = await getCachedDocsRows(slug)
+    if (!rows) return { page: null, blocks: [] }
+    const { page, blocks } = rows
     let faqCategory: DocsPageContent['faqCategory'] = null
     let faqItems: NonNullable<DocsPageContent['faqItems']> = []
     if (slug === 'returns' && page.faq_category_id) {
-      const [category, items] = await Promise.all([
-        findFaqCategoryFromRds(page.faq_category_id),
-        loadFaqItemsByCategoryFromRds(page.faq_category_id),
-      ])
+      const { category, items } = rows
       if (category) {
 
         const imageUrl = mediaUrl(category.image_path)

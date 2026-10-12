@@ -1,16 +1,14 @@
 import { loadCategoryFaqFromRds } from '@/lib/repositories/legacy-cms-repository'
 import { unstable_cache } from 'next/cache'
 import { notFound } from 'next/navigation'
-import { cache } from 'react'
 import ShopClient from '@/components/pages/ShopClient'
 import { buildNavbarRenderItems } from '@/lib/navbar'
 import { getStorefrontFilterGroups, getStorefrontProductCardPage, type StorefrontProductSort } from '@/lib/catalog-products'
 import JsonLd from '@/components/seo/JsonLd'
 import { createBreadcrumbSchema, createFaqSchema } from '@/lib/structured-data'
 import { buildCategoryPath, buildOptionPath, buildSubcategoryPath } from '@/lib/catalog-paths'
-import type { ResolvedCatalogTaxonomy } from '@/lib/catalog-taxonomy'
+import { getCatalogCategoryPageBySlug as getCategoryBySlug, type ResolvedCatalogTaxonomy } from '@/lib/catalog-taxonomy'
 import { parseCatalogPage } from '@/lib/catalog-metadata'
-import { findActiveCatalogCategoryPageBySlug } from '@/lib/repositories/catalog-repository'
 import { loadNavbarRowsFromRds } from '@/lib/repositories/navbar-repository'
 import { mediaUrl } from '@/lib/media-url'
 
@@ -27,10 +25,11 @@ function toPublicUrl(path: string | null | undefined) {
   return path ? mediaUrl(path) : null
 }
 
-const getCategoryBySlug = cache(async (slug: string) => {
-  return findActiveCatalogCategoryPageBySlug(slug)
-
-})
+const getCategoryFaq = unstable_cache(
+  (categoryId: string) => loadCategoryFaqFromRds(categoryId),
+  ['category-page-faq-v1'],
+  { revalidate: 300, tags: ['public-content'] }
+)
 
 const getCategoryReferenceData = unstable_cache(
   async () => {
@@ -153,7 +152,7 @@ export async function CategoryCollectionPageContent({
     }),
     getStorefrontFilterGroups(resolvedProductLane, category.id),
     getCategoryReferenceData(),
-    loadCategoryFaqFromRds(category.id).then((data) => ({ data, error: null as { code?: string; message: string } | null })),
+    getCategoryFaq(category.id).then((data) => ({ data, error: null as { code?: string; message: string } | null })),
   ])
   const totalPages = Math.ceil(productPage.totalCount / productPage.pageSize)
   if (requestedPage > 1 && (totalPages === 0 || requestedPage > totalPages)) {

@@ -5,6 +5,7 @@ import { Select } from '@/components/ui/select';
 import { cinzelFont } from '@/app/fonts';
 import { getSafeContactHref } from '@/lib/contact-links';
 import { mediaUrl } from '@/lib/media-url';
+import { fetchPublicJson } from '@/lib/client/public-json';
 
 function RevealDiv({ children, className = '', delay = 0 }: { children: React.ReactNode; className?: string; delay?: number }) {
   const ref = useRef<HTMLDivElement>(null);
@@ -42,8 +43,7 @@ export default function ContactBody({ onSuccess }: ContactBodyProps) {
     let active = true;
     (async () => {
       try {
-        const response = await fetch('/api/public/contact/info');
-        const payload = await response.json();
+        const { payload } = await fetchPublicJson<{ items?: unknown[] }>('/api/public/contact/info');
         if (!active) return;
         setContactRows(Array.isArray(payload?.items) ? payload.items : []);
       } catch {

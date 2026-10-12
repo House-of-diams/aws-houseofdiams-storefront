@@ -26,6 +26,7 @@ import { ToastProvider } from "@/components/home/Toast";
 import { cookies, headers } from "next/headers";
 import { currencyForCountry, normalizeCountryCode } from "@/lib/country-currency";
 import { getNavbarRenderItems } from "@/lib/navbar-server";
+import { warmProductSearchIndex } from "@/lib/catalog-products";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -70,6 +71,9 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  // Fire-and-forget: keeps the in-memory search index ready before a visitor
+  // opens search. Cheap after the first build (memory/cache hit, no query).
+  warmProductSearchIndex();
   const [maintenanceMode, navItems, requestHeaders, requestCookies] = await Promise.all([
     getMaintenanceMode(),
     getNavbarRenderItems().catch(() => []),

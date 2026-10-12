@@ -12,6 +12,7 @@ import type { StorefrontPromotion } from '@/components/commerce/PromotionBanner'
 import { loadServiceBannerFromRds, loadActiveCouponBannerRowsFromRds } from '@/lib/repositories/public-cms-repository';
 import { mediaUrl } from '@/lib/media-url';
 import { isF7ReadPreviewEnabled } from '@/lib/f7-read-preview';
+import { cachePublicRead, PUBLIC_CACHE_LONG_SECONDS, PUBLIC_CACHE_SHORT_SECONDS } from '@/lib/public-cache';
 
 export const revalidate = 60;
 
@@ -48,6 +49,11 @@ async function getFeaturedGiftPromotion(): Promise<StorefrontPromotion | null> {
 
 }
 
+// Same for every product page, so all products share one copy.
+// The gift banner is display only; checkout re-validates the coupon and stock.
+const getCachedServiceBanner = cachePublicRead('product-page-service-banner', getServiceBanner, PUBLIC_CACHE_LONG_SECONDS)
+const getCachedFeaturedGiftPromotion = cachePublicRead('product-page-gift-promotion', getFeaturedGiftPromotion, PUBLIC_CACHE_SHORT_SECONDS)
+
 export async function generateMetadata({ params }: ProductPageProps): Promise<Metadata> {
   const { slug } = await params;
   const product = await getStorefrontProductBySlug(slug);
@@ -81,8 +87,8 @@ export default async function ProductDetailPage({ params }: ProductPageProps) {
 
   const [relatedProducts, serviceBanner, giftPromotion] = await Promise.all([
     getRelatedStorefrontProducts(product, 7),
-    getServiceBanner(),
-    getFeaturedGiftPromotion(),
+    getCachedServiceBanner(),
+    getCachedFeaturedGiftPromotion(),
   ]);
 
   return (

@@ -7,18 +7,19 @@ const securityHeaders = [
     key: 'Content-Security-Policy-Report-Only',
     value: [
       "default-src 'self'",
-      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://checkout.razorpay.com https://www.googletagmanager.com https://www.google-analytics.com https://ajax.googleapis.com https://*.clarity.ms",
+      // Pinterest and Google Ads tags are injected by the GTM container.
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://checkout.razorpay.com https://www.googletagmanager.com https://www.google-analytics.com https://ajax.googleapis.com https://*.clarity.ms https://s.pinimg.com https://ct.pinterest.com",
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
       "img-src 'self' data: blob: https:",
       "font-src 'self' data: https://fonts.gstatic.com",
-      "connect-src 'self' https://maps.googleapis.com https://checkout.razorpay.com https://api.razorpay.com https://www.google-analytics.com https://www.googletagmanager.com https://ajax.googleapis.com https://*.clarity.ms",
+      "connect-src 'self' https://maps.googleapis.com https://checkout.razorpay.com https://api.razorpay.com https://www.google-analytics.com https://*.google-analytics.com https://www.googletagmanager.com https://ajax.googleapis.com https://*.clarity.ms https://www.google.com https://*.doubleclick.net https://ct.pinterest.com",
       "media-src 'self' data: blob: https:",
-      "frame-src 'self' https://checkout.razorpay.com https://www.googletagmanager.com https://www.instagram.com",
+      "frame-src 'self' https://checkout.razorpay.com https://www.googletagmanager.com https://www.instagram.com https://ct.pinterest.com",
       "object-src 'none'",
       "base-uri 'self'",
       "frame-ancestors 'self'",
       "form-action 'self'",
-      "upgrade-insecure-requests",
+      // upgrade-insecure-requests is ignored in a report-only policy and only logs console errors.
       "report-uri /api/csp-report",
     ].join('; '),
   },
@@ -74,24 +75,6 @@ const nextConfig: NextConfig = {
           {
             key: 'Content-Type',
             value: 'text/plain; charset=utf-8',
-          },
-        ],
-      },
-      {
-        source: '/animation%20images/frames/:path*',
-        headers: [
-          {
-            key: 'Cache-Control',
-            value: 'public, max-age=31536000, immutable',
-          },
-        ],
-      },
-      {
-        source: '/frames/:path*',
-        headers: [
-          {
-            key: 'Cache-Control',
-            value: 'public, max-age=31536000, immutable',
           },
         ],
       },

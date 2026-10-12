@@ -10,6 +10,7 @@ import CartDrawer from '@/components/commerce/CartDrawer';
 import ContactDrawer from '@/components/contact/ContactDrawer';
 import ViewportDeferred from '@/components/home/ViewportDeferred';
 import type { NavbarRenderItem } from '@/lib/navbar';
+import DataSourceStatus from '@/components/layout/DataSourceStatus';
 
 const Footer = dynamic(() => import('@/components/common/Footer'), { loading: () => null });
 const AtYourService = dynamic(() => import('@/components/home/AtYourService'), { loading: () => null });
@@ -55,6 +56,7 @@ export default function SiteChrome({ children, initialNavItems, customerAuthEnab
         shadow="0 0 10px rgba(184, 146, 74, 0.45), 0 0 4px rgba(184, 146, 74, 0.3)"
         zIndex={12000}
       />
+      <DataSourceStatus />
       {isMinimalChromeRoute ? (
         <main className="flex-1">{children}</main>
       ) : (

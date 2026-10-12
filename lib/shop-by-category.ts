@@ -1,6 +1,7 @@
 import { buildCategoryPath, buildOptionPath, buildSubcategoryPath } from '@/lib/catalog-paths'
 import { loadShopByCategoryRowsFromRds } from '@/lib/repositories/cms-repository'
 import { mediaUrl } from '@/lib/media-url'
+import { cachePublicRead, PUBLIC_CACHE_LONG_SECONDS } from '@/lib/public-cache'
 
 export type ShopByCategoryCard = { id: string; type: 'category' | 'subcategory' | 'option'; name: string; imageUrl: string | null; imageAlt: string; href: string }
 export type ShopByCategoryData = { heading: string; shopAllLabel: string; shopAllLink: string; desktopColumns: number; tabletColumns: number; mobileColumns: number; cards: ShopByCategoryCard[] }
@@ -45,3 +46,6 @@ export async function getFreshShopByCategory(): Promise<ShopByCategoryData | nul
   }
 
 }
+
+// Five queries per read, so share one result across visitors for a few minutes.
+export const getCachedShopByCategory = cachePublicRead('shop-by-category', getFreshShopByCategory, PUBLIC_CACHE_LONG_SECONDS)

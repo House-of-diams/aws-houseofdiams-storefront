@@ -1,6 +1,7 @@
 ﻿'use client'
 
 import { useEffect, useState } from 'react'
+import { fetchPublicJson } from '@/lib/client/public-json'
 
 type Offer = {
   discountType: 'percentage' | 'fixed'
@@ -19,23 +20,12 @@ export default function SelectedCouponOffer() {
 
   useEffect(() => {
     let active = true
-    const load = async () => {
-      try {
-        const response = await fetch('/api/public/promotion-popup/offer', { cache: 'no-store' })
-        const payload = await response.json().catch(() => null)
-        if (active && response.ok && payload?.offer) setOffer(payload.offer)
-      } catch { /* Keep the visible fallback offer when the endpoint is unavailable. */ }
-    }
-    void load()
-    const refreshOnFocus = () => { void load() }
-    const refreshOnVisibility = () => { if (document.visibilityState === 'visible') void load() }
-    window.addEventListener('focus', refreshOnFocus)
-    document.addEventListener('visibilitychange', refreshOnVisibility)
-    return () => {
-      active = false
-      window.removeEventListener('focus', refreshOnFocus)
-      document.removeEventListener('visibilitychange', refreshOnVisibility)
-    }
+    // One shared request per page; the server and CDN keep the offer fresh
+    // within a minute, so tab focus does not need to trigger refetches.
+    fetchPublicJson<{ offer?: Offer | null }>('/api/public/promotion-popup/offer')
+      .then(({ ok, payload }) => { if (active && ok && payload?.offer) setOffer(payload.offer) })
+      .catch(() => { /* Keep the visible fallback offer when the endpoint is unavailable. */ })
+    return () => { active = false }
   }, [])
 
   if (!offer) return null

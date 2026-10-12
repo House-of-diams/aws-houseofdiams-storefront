@@ -1,5 +1,7 @@
 import { mapBlogPostRecord, posts as fallbackPosts, type BlogPost } from '@/lib/data/blog-posts'
+import { unstable_cache } from 'next/cache'
 import { getStorefrontProductsByIds } from '@/lib/catalog-products'
+import { cachePublicRead, PUBLIC_CACHE_LONG_SECONDS, PUBLIC_CONTENT_TAG } from '@/lib/public-cache'
 import {
   findEditorialHeroFromRds,
   loadLiveBlogCategoriesFromRds,
@@ -72,7 +74,7 @@ function mapRows(rows: BlogPostRow[] | null): BlogPost[] {
   ) ?? fallbackPosts).filter((post) => post.isPublished !== false)
 }
 
-export async function getPublishedBlogPosts() {
+async function loadPublishedBlogPosts() {
   const rows = await loadPublishedBlogRows()
   const mappedPosts = mapRows(rows)
   if (!rows?.length) return mappedPosts
@@ -93,6 +95,20 @@ export async function getPublishedBlogPosts() {
   })
 }
 
+// Posts embed featured product cards, so refresh with product changes too.
+const getCachedPublishedBlogPosts = unstable_cache(
+  () => loadPublishedBlogPosts(),
+  ['blog-published-posts-v1'],
+  { revalidate: PUBLIC_CACHE_LONG_SECONDS, tags: [PUBLIC_CONTENT_TAG, 'storefront-products'] }
+)
+
+export async function getPublishedBlogPosts() {
+  return getCachedPublishedBlogPosts()
+}
+
+const getCachedBlogHeroRow = cachePublicRead('blog-page-hero', () => findEditorialHeroFromRds('blog'), PUBLIC_CACHE_LONG_SECONDS)
+const getCachedLiveBlogCategories = cachePublicRead('blog-live-categories', () => loadLiveBlogCategoriesFromRds(), PUBLIC_CACHE_LONG_SECONDS)
+
 export async function getPublishedBlogPostBySlug(slug: string) {
   const posts = await getPublishedBlogPosts()
   return posts.find((post) => post.slug === slug) ?? null
@@ -112,7 +128,7 @@ export type BlogPageHero = {
 
 export async function getBlogPageHero(): Promise<BlogPageHero | null> {
 
-  const { data, error } = { data: await findEditorialHeroFromRds('blog'), error: null as { code?: string; message: string } | null }
+  const { data, error } = { data: await getCachedBlogHeroRow(), error: null as { code?: string; message: string } | null }
 
   if (error || !data || data.is_enabled === false) return null
   const { getStorageImageUrl } = await import('@/lib/data/blog-posts')
@@ -132,7 +148,7 @@ export async function getBlogPageHero(): Promise<BlogPageHero | null> {
 export type BlogFilterCategory = { id: string; name: string; slug: string }
 
 export async function getLiveBlogCategories(): Promise<BlogFilterCategory[]> {
-  const data = await loadLiveBlogCategoriesFromRds() as unknown as BlogFilterCategory[]
+  const data = await getCachedLiveBlogCategories() as unknown as BlogFilterCategory[]
   return data.filter((category) => category.id && category.name && category.slug)
 
 }

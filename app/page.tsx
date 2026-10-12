@@ -1,9 +1,10 @@
 import type { Metadata } from 'next';
 import HomeClient from '@/components/pages/HomeClient';
 import { mapBlogPostRecord, posts as fallbackPosts } from '@/lib/data/blog-posts';
-import { getFreshHomeHeroContent, getHomePageData, getHomeSeoData } from '@/lib/home-data';
+import { getCachedHomeHeroContent, getHomePageData, getHomeSeoData } from '@/lib/home-data';
 import { createPageMetadata } from '@/lib/seo';
-import { getFreshShopByCategory } from '@/lib/shop-by-category';
+import { getCachedShopByCategory } from '@/lib/shop-by-category';
+import { cachePublicRead, PUBLIC_CACHE_SHORT_SECONDS } from '@/lib/public-cache';
 import type { StorefrontPromotion } from '@/components/commerce/PromotionBanner';
 import { loadActiveCouponBannerRowsFromRds } from '@/lib/repositories/public-cms-repository';
 import { mediaUrl } from '@/lib/media-url';
@@ -50,6 +51,9 @@ async function getFeaturedGiftPromotion(): Promise<StorefrontPromotion | null> {
 
 }
 
+// Display only; the coupon and gift stock are re-validated at checkout.
+const getCachedFeaturedGiftPromotion = cachePublicRead('home-gift-promotion', getFeaturedGiftPromotion, PUBLIC_CACHE_SHORT_SECONDS)
+
 export async function generateMetadata(): Promise<Metadata> {
   const seo = await getHomeSeoData();
 
@@ -61,9 +65,9 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function Home() {
-  const freshHeroContentPromise = getFreshHomeHeroContent().catch(() => undefined);
-  const shopByCategoryPromise = getFreshShopByCategory().catch(() => null);
-  const giftPromotionPromise = getFeaturedGiftPromotion().catch(() => null);
+  const freshHeroContentPromise = getCachedHomeHeroContent().then((content) => content ?? undefined).catch(() => undefined);
+  const shopByCategoryPromise = getCachedShopByCategory().catch(() => null);
+  const giftPromotionPromise = getCachedFeaturedGiftPromotion().catch(() => null);
   const {
     heroContent,
     blogRows,

@@ -10,10 +10,16 @@ import {
   loadProductHydrationRowsFromRds,
   loadProductPageIndexFromRds,
   loadProductPageReferencesFromRds,
-  loadProductSearchCandidatesFromRds,
   loadProductSearchReferencesFromRds,
   loadSearchProductsFromRds,
 } from '@/lib/repositories/product-repository'
+import {
+  buildProductSearchDoc,
+  searchProductDocs,
+  SEARCH_FIELD_WEIGHTS,
+  type ProductSearchDoc,
+  type ProductSearchResult,
+} from '@/lib/product-search'
 
 type ProductKeyValue = {
   key: string
@@ -1075,28 +1081,37 @@ export async function getStorefrontProductCards(productLane?: StorefrontProductL
   return getCachedStorefrontProductCards(productLane, 'rds')
 }
 
-const getRequestStorefrontProductBySlug = cache(async (slug: string) => {
-  const exactMatches = await fetchStorefrontProducts(undefined, { slug, limit: 1 })
-  if (exactMatches[0]) return exactMatches[0]
+// Product pages share one cached copy per product (all metal/purity variants,
+// prices and media included, so metal switching stays fully client-side).
+// Checkout never reads this cache; it prices from the database directly.
+const getCachedStorefrontProductBySlug = unstable_cache(
+  async (slug: string): Promise<StorefrontProduct | null> => {
+    const exactMatches = await fetchStorefrontProducts(undefined, { slug, limit: 1 })
+    if (exactMatches[0]) return exactMatches[0]
 
-  const legacySlug = slug.replace(/-\d+$/, '')
-  if (legacySlug === slug) return null
+    const legacySlug = slug.replace(/-\d+$/, '')
+    if (legacySlug === slug) return null
 
-  const legacyMatches = await fetchStorefrontProducts(undefined, { slug: legacySlug, limit: 1 })
-  return legacyMatches[0] || null
-})
+    const legacyMatches = await fetchStorefrontProducts(undefined, { slug: legacySlug, limit: 1 })
+    return legacyMatches[0] || null
+  },
+  ['storefront-product-by-slug-v1'],
+  { revalidate: 300, tags: ['storefront-products'] }
+)
+
+const getRequestStorefrontProductBySlug = cache((slug: string) => getCachedStorefrontProductBySlug(slug))
 
 export async function getStorefrontProductBySlug(slug: string) {
   return getRequestStorefrontProductBySlug(slug)
 }
 
-const getRequestRelatedStorefrontProducts = cache(
+const getCachedRelatedStorefrontProducts = unstable_cache(
   async (
     productId: string,
     productLane: StorefrontProductLane,
     mainCategoryId: string,
     limit: number
-  ) => {
+  ): Promise<StorefrontProduct[]> => {
     if (!productId || !mainCategoryId || limit < 1) return []
 
     return fetchStorefrontProducts(productLane, {
@@ -1104,8 +1119,12 @@ const getRequestRelatedStorefrontProducts = cache(
       excludeProductId: productId,
       limit,
     })
-  }
+  },
+  ['storefront-related-products-v1'],
+  { revalidate: 300, tags: ['storefront-products'] }
 )
+
+const getRequestRelatedStorefrontProducts = cache(getCachedRelatedStorefrontProducts)
 
 export async function getRelatedStorefrontProducts(product: StorefrontProduct, limit = 7) {
   return getRequestRelatedStorefrontProducts(
@@ -1173,7 +1192,7 @@ function normalizeSlug(value: string) {
   return value.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-')
 }
 
-export async function getStorefrontProductCardPage({
+async function loadStorefrontProductCardPage({
   productLane,
   filters = {},
   sort = 'best-matches',
@@ -1251,7 +1270,7 @@ export async function getStorefrontProductCardPage({
   }
 }
 
-export async function getStorefrontFilterGroups(productLane?: StorefrontProductLane, categoryId?: string) {
+async function loadStorefrontFilterGroups(productLane?: StorefrontProductLane, categoryId?: string) {
 
   const [categories, subcategories, options, shapes, metals, styles, certificates] = await loadProductFilterGroupsFromRds()
   const visibleCategories = (categories.data ?? []).filter((entry) => !productLane || entry.category_lane === productLane)
@@ -1270,14 +1289,29 @@ export async function getStorefrontFilterGroups(productLane?: StorefrontProductL
   ].filter((group) => group.options.length > 0)
 }
 
-function normalizeSearchTokens(query: string) {
-  return query
-    .normalize('NFKC')
-    .toLowerCase()
-    .replace(/[^a-z0-9\s-]/g, ' ')
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 6)
+type StorefrontProductCardPageArgs = Parameters<typeof loadStorefrontProductCardPage>[0]
+
+// Listing pages share one cached copy per lane/filters/sort/page combination,
+// refreshed in the background so no visitor waits on the database.
+const getCachedStorefrontProductCardPage = unstable_cache(
+  (args: StorefrontProductCardPageArgs) => loadStorefrontProductCardPage(args),
+  ['storefront-product-card-page-v1'],
+  { revalidate: 300, tags: ['storefront-products'] }
+)
+
+export async function getStorefrontProductCardPage(args: StorefrontProductCardPageArgs) {
+  return getCachedStorefrontProductCardPage(args)
+}
+
+const getCachedStorefrontFilterGroups = unstable_cache(
+  (productLane: StorefrontProductLane | null, categoryId: string | null) =>
+    loadStorefrontFilterGroups(productLane ?? undefined, categoryId ?? undefined),
+  ['storefront-filter-groups-v1'],
+  { revalidate: 300, tags: ['storefront-products'] }
+)
+
+export async function getStorefrontFilterGroups(productLane?: StorefrontProductLane, categoryId?: string) {
+  return getCachedStorefrontFilterGroups(productLane ?? null, categoryId ?? null)
 }
 
 const getCachedProductSearchReferences = unstable_cache(
@@ -1289,11 +1323,6 @@ const getCachedProductSearchReferences = unstable_cache(
   ['storefront-product-search-references-v1'],
   { revalidate: 300, tags: ['storefront-products'] }
 )
-
-function searchTokensForValue(tokens: string[], values: Array<string | null | undefined>) {
-  const searchable = values.filter(Boolean).join(' ').toLowerCase()
-  return tokens.filter((token) => searchable.includes(token))
-}
 
 function isUsablePublicImageUrl(value: string | null | undefined): value is string {
   if (!value) return false
@@ -1319,103 +1348,18 @@ async function getCanonicalSearchImageUrls(productIds: string[]) {
   )
 }
 
-async function getStorefrontProductSearchItemsUncached(query: string, limit = 12) {
-  const safeLimit = Math.max(1, Math.min(24, Math.floor(limit)))
-  const tokens = normalizeSearchTokens(query)
-
-  const source = 'rds'
-
-  if (!tokens.length) {
-    const result = { data: await loadSearchProductsFromRds(null, safeLimit), error: null as { code?: string; message: string } | null }
-    if (result.error) throw new Error(result.error.message)
-
-    const references = await getCachedProductSearchReferences(source)
-    const imageUrls = await getCanonicalSearchImageUrls((result.data ?? []).map((product) => product.id))
-    return (result.data ?? []).map((product) => {
-      const category = references.categories.find((entry) => entry.id === product.main_category_id)
-      const subcategory = references.subcategories.find((entry) => entry.id === product.subcategory_id)
-      return {
-        dbId: product.id,
-        slug: product.slug,
-        name: product.name,
-        shortMeta: [subcategory?.name, category?.name].filter(Boolean).join(' · '),
-        imageUrl: product.show_image_1 === false ? '' : imageUrls.get(product.id) || '',
-        priceFrom: Number(product.base_price ?? 0),
-        mainCategorySlug: category?.slug || '',
-        mainCategoryName: category?.name || '',
-      }
-    })
-  }
-
-  const references = await getCachedProductSearchReferences(source)
-  const referenceMatches = <T extends { id: string }>(entries: T[], getValues: (entry: T) => Array<string | null | undefined>) =>
-    entries
-      .map((entry) => ({ entry, tokens: searchTokensForValue(tokens, getValues(entry)) }))
-      .filter((match) => match.tokens.length > 0)
-
-  const categoryMatches = referenceMatches(references.categories, (entry) => [entry.name, entry.slug])
-  const subcategoryMatches = referenceMatches(references.subcategories, (entry) => [entry.name, entry.slug])
-  const optionMatches = referenceMatches(references.options, (entry) => [entry.name, entry.slug])
-  const metalMatches = referenceMatches(references.metals, (entry) => [entry.name, entry.slug, entry.display_label, entry.purity_label, entry.base_metal_name])
-  const shapeMatches = referenceMatches(references.shapes, (entry) => [entry.name, entry.slug])
-  const styleMatches = referenceMatches(references.styles, (entry) => [entry.name, entry.slug])
-  const certificateMatches = referenceMatches(references.certificates, (entry) => [entry.name, entry.code])
-  const ids = <T extends { entry: { id: string } }>(matches: T[]) => matches.map((match) => match.entry.id)
-  const matchTokensByReferenceId = new Map<string, string[]>(
-    [...categoryMatches, ...subcategoryMatches, ...optionMatches, ...metalMatches, ...shapeMatches, ...styleMatches, ...certificateMatches]
-      .map((match) => [match.entry.id, match.tokens] as const)
-  )
-
-  const [nameResult, directResult, certificateResult, metalResult, shapeResult, subcategoryLinkResult, optionLinkResult] = await loadProductSearchCandidatesFromRds({
-    tokens,
-    categoryIds: ids(categoryMatches), subcategoryIds: ids(subcategoryMatches),
-    optionIds: ids(optionMatches), styleIds: ids(styleMatches),
-    certificateIds: ids(certificateMatches), metalIds: ids(metalMatches),
-    shapeIds: ids(shapeMatches),
-  })
-
-  const firstError = [nameResult, directResult, certificateResult, metalResult, shapeResult, subcategoryLinkResult, optionLinkResult].find((result) => result.error)?.error
-  if (firstError) throw new Error(firstError.message)
-
-  const matchedTokensByProductId = new Map<string, Set<string>>()
-  const addTokens = (productId: string, matchedTokens: string[]) => {
-    const productTokens = matchedTokensByProductId.get(productId) ?? new Set<string>()
-    matchedTokens.forEach((token) => productTokens.add(token))
-    matchedTokensByProductId.set(productId, productTokens)
-  }
-  for (const product of (nameResult.data ?? []) as Array<{ id: string; name: string; slug: string }>) addTokens(product.id, searchTokensForValue(tokens, [product.name, product.slug]))
-  for (const product of (directResult.data ?? []) as Array<{ id: string; main_category_id: string | null; subcategory_id: string | null; option_id: string | null; style_id: string | null }>) {
-    ;[product.main_category_id, product.subcategory_id, product.option_id, product.style_id]
-      .filter((value): value is string => Boolean(value))
-      .forEach((referenceId) => addTokens(product.id, matchTokensByReferenceId.get(referenceId) ?? []))
-  }
-  for (const product of (certificateResult.data ?? []) as Array<{ id: string; certificate_ids: string[] | null }>) {
-    ; (product.certificate_ids ?? []).forEach((referenceId: string) => addTokens(product.id, matchTokensByReferenceId.get(referenceId) ?? []))
-  }
-  for (const row of (metalResult.data ?? []) as Array<{ product_id: string; metal_id: string }>) addTokens(row.product_id, matchTokensByReferenceId.get(row.metal_id) ?? [])
-  for (const row of (shapeResult.data ?? []) as Array<{ product_id: string; shape_id: string }>) addTokens(row.product_id, matchTokensByReferenceId.get(row.shape_id) ?? [])
-  for (const row of (subcategoryLinkResult.data ?? []) as Array<{ product_id: string; subcategory_id: string }>) addTokens(row.product_id, matchTokensByReferenceId.get(row.subcategory_id) ?? [])
-  for (const row of (optionLinkResult.data ?? []) as Array<{ product_id: string; option_id: string }>) addTokens(row.product_id, matchTokensByReferenceId.get(row.option_id) ?? [])
-
-  const matchingProductIds = [...matchedTokensByProductId]
-    .filter(([, matchedTokens]) => tokens.every((token) => matchedTokens.has(token)))
-    .map(([productId]) => productId)
-    .slice(0, 120)
-  if (!matchingProductIds.length) return []
-
-  const productsResult = { data: await loadSearchProductsFromRds(matchingProductIds, safeLimit), error: null as { code?: string; message: string } | null }
-  if (productsResult.error) throw new Error(productsResult.error.message)
-
-  const imageUrls = await getCanonicalSearchImageUrls((productsResult.data ?? []).map((product) => product.id))
-  return (productsResult.data ?? []).map((product) => {
+async function getDefaultProductSearchItemsUncached(limit: number): Promise<ProductSearchResult[]> {
+  const products = await loadSearchProductsFromRds(null, limit)
+  const references = await getCachedProductSearchReferences('rds')
+  const imageUrls = await getCanonicalSearchImageUrls(products.map((product) => product.id))
+  return products.map((product) => {
     const category = references.categories.find((entry) => entry.id === product.main_category_id)
     const subcategory = references.subcategories.find((entry) => entry.id === product.subcategory_id)
-    const option = references.options.find((entry) => entry.id === product.option_id)
     return {
       dbId: product.id,
       slug: product.slug,
       name: product.name,
-      shortMeta: [option?.name, subcategory?.name, category?.name].filter(Boolean).join(' · '),
+      shortMeta: [subcategory?.name, category?.name].filter(Boolean).join(' · '),
       imageUrl: product.show_image_1 === false ? '' : imageUrls.get(product.id) || '',
       priceFrom: Number(product.base_price ?? 0),
       mainCategorySlug: category?.slug || '',
@@ -1424,21 +1368,92 @@ async function getStorefrontProductSearchItemsUncached(query: string, limit = 12
   })
 }
 
+// The search index is derived from the product cards the shop already caches,
+// so building it adds no database queries. Searches then run fully in memory.
+const getCachedProductSearchDocs = unstable_cache(
+  async (_source?: 'rds'): Promise<ProductSearchDoc[]> => {
+    void _source
+    const [cards, references] = await Promise.all([
+      getCachedStorefrontProductCards(undefined, 'rds'),
+      getCachedProductSearchReferences('rds'),
+    ])
+    const namesBySlug = (entries: Array<{ slug: string; name: string }>) => new Map(entries.map((entry) => [entry.slug, entry.name]))
+    const optionNames = namesBySlug(references.options)
+    const subcategoryNames = namesBySlug(references.subcategories)
+    const text = (value: unknown) => (typeof value === 'string' ? value : null)
+
+    return cards.map((card) => {
+      const optionName = card.optionSlug ? optionNames.get(card.optionSlug) : undefined
+      const subcategoryName = card.subcategorySlug ? subcategoryNames.get(card.subcategorySlug) : undefined
+      return buildProductSearchDoc(
+        {
+          dbId: card.dbId,
+          slug: card.slug,
+          name: card.name,
+          shortMeta: [optionName, subcategoryName, card.mainCategoryName].filter(Boolean).join(' · '),
+          imageUrl: isUsablePublicImageUrl(card.imageUrl) ? card.imageUrl : '',
+          priceFrom: Number(card.priceFrom ?? 0),
+          mainCategorySlug: card.mainCategorySlug || '',
+          mainCategoryName: card.mainCategoryName || '',
+        },
+        Boolean(card.featured),
+        [
+          { weight: SEARCH_FIELD_WEIGHTS.name, values: [card.name] },
+          { weight: SEARCH_FIELD_WEIGHTS.option, values: [optionName, ...(card.linkedOptionSlugs ?? []).map((slug) => optionNames.get(slug) ?? slug)] },
+          { weight: SEARCH_FIELD_WEIGHTS.subcategory, values: [subcategoryName, ...(card.linkedSubcategorySlugs ?? []).map((slug) => subcategoryNames.get(slug) ?? slug)] },
+          { weight: SEARCH_FIELD_WEIGHTS.category, values: [card.mainCategoryName, text(card.category)] },
+          { weight: SEARCH_FIELD_WEIGHTS.style, values: [card.styleName] },
+          { weight: SEARCH_FIELD_WEIGHTS.shape, values: (card.shapeOptions ?? []).map((shape) => shape.name) },
+          { weight: SEARCH_FIELD_WEIGHTS.metal, values: (card.metalsFull ?? []).flatMap((metal) => [metal.name, metal.displayLabel]) },
+          { weight: SEARCH_FIELD_WEIGHTS.certificate, values: card.certificateNames ?? [] },
+          { weight: SEARCH_FIELD_WEIGHTS.attribute, values: [text(card.type), text(card.stone), text(card.cut)] },
+        ]
+      )
+    })
+  },
+  ['storefront-product-search-docs-v1'],
+  { revalidate: 300, tags: ['storefront-products'] }
+)
+
+// Keeps the parsed index in process memory between searches instead of
+// re-reading the data cache on every request.
+const SEARCH_DOCS_MEMORY_MS = 30_000
+let searchDocsMemory: { expiresAt: number; promise: Promise<ProductSearchDoc[]> } | null = null
+
+function getProductSearchDocs() {
+  const now = Date.now()
+  if (!searchDocsMemory || searchDocsMemory.expiresAt <= now) {
+    const promise = getCachedProductSearchDocs('rds')
+    searchDocsMemory = { expiresAt: now + SEARCH_DOCS_MEMORY_MS, promise }
+    promise.catch(() => {
+      if (searchDocsMemory?.promise === promise) searchDocsMemory = null
+    })
+  }
+  return searchDocsMemory.promise
+}
+
+/** Builds the search index in the background so the first real search is instant. */
+export function warmProductSearchIndex() {
+  void getProductSearchDocs().catch(() => {})
+}
+
+
 const getCachedDefaultProductSearchItems = unstable_cache(
   (_source?: 'rds') => {
     void _source
-    return getStorefrontProductSearchItemsUncached('', 16)
+    return getDefaultProductSearchItemsUncached(16)
   },
   ['storefront-default-product-search-items-v2'],
   { revalidate: 300, tags: ['storefront-products'] }
 )
 
-export async function getStorefrontProductSearchItems(query: string, limit = 12) {
+export async function getStorefrontProductSearchItems(query: string, limit = 12): Promise<ProductSearchResult[]> {
   const safeQuery = query.trim()
   const safeLimit = Math.max(1, Math.min(24, Math.floor(limit)))
-  return !safeQuery && safeLimit === 16
-    ? getCachedDefaultProductSearchItems('rds')
-    : getStorefrontProductSearchItemsUncached(safeQuery, safeLimit)
+  if (!safeQuery) {
+    return safeLimit === 16 ? getCachedDefaultProductSearchItems('rds') : getDefaultProductSearchItemsUncached(safeLimit)
+  }
+  return searchProductDocs(await getProductSearchDocs(), safeQuery, safeLimit)
 }
 
 export async function getStorefrontCartRecommendations({

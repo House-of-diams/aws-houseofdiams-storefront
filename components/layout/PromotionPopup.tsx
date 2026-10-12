@@ -4,6 +4,7 @@ import { type FormEvent, useEffect, useRef, useState } from 'react'
 import { ArrowLeft, Check, Copy } from 'lucide-react'
 import { cinzelFont } from '@/app/fonts'
 import { mediaUrl } from '@/lib/media-url'
+import { fetchPublicJson } from '@/lib/client/public-json'
 
 type PromotionOption = string | { id?: string | number; value?: string; label?: string }
 type PromotionQuestion = { id: number; field_key: string; question: string; input_type: 'text' | 'email' | 'phone' | 'number' | 'options'; options?: PromotionOption[] | null; allow_multiple?: boolean; validation_pattern?: string | null; validation_message?: string | null; is_required: boolean; sort_order: number }
@@ -86,10 +87,9 @@ export default function PromotionPopup() {
     let active = true
     const loadPromotion = async () => {
       try {
-        const response = await fetch('/api/public/promotion-popup', { cache: 'no-store' })
-        const payload = await response.json().catch(() => null)
-        const nextItem = payload?.item as PromotionPopupData | null
-        if (!response.ok || !nextItem?.is_active || nextItem.cta_action !== 'reveal_coupon' || !nextItem.selected_coupon_id) return null
+        const { ok, payload } = await fetchPublicJson<{ item?: PromotionPopupData | null }>('/api/public/promotion-popup')
+        const nextItem = payload?.item ?? null
+        if (!ok || !nextItem?.is_active || nextItem.cta_action !== 'reveal_coupon' || !nextItem.selected_coupon_id) return null
         if (active) {
           itemRef.current = nextItem
           setItem(nextItem)

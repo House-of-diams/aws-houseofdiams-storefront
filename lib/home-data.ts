@@ -1,6 +1,7 @@
 import { unstable_cache } from 'next/cache';
 import { formatUsd } from '@/lib/money';
 import { mediaUrl } from '@/lib/media-url';
+import { cachePublicRead, PUBLIC_CACHE_LONG_SECONDS, PUBLIC_CACHE_SHORT_SECONDS } from '@/lib/public-cache';
 import { buildOptionPath, buildSubcategoryPath } from '@/lib/catalog-paths';
 import { resolveLegacyHipHopHref } from '@/lib/legacy-hiphop';
 import {
@@ -845,10 +846,12 @@ async function getFreshInstagramReelsData(): Promise<HomeInstagramReelsData> {
   };
 }
 
+const getCachedInstagramReelsData = cachePublicRead('home-instagram-reels', getFreshInstagramReelsData, PUBLIC_CACHE_LONG_SECONDS);
+
 export async function getHomePageData() {
   const [data, instagramReels] = await Promise.all([
     loadHomePageData('rds'),
-    getFreshInstagramReelsData().catch(() => ({ heading: '', subtitle: '', isEnabled: false, marqueeDurationSeconds: 40, pauseOnHover: true, items: [] })),
+    getCachedInstagramReelsData().catch(() => ({ heading: '', subtitle: '', isEnabled: false, marqueeDurationSeconds: 40, pauseOnHover: true, items: [] })),
   ]);
   return { ...data, instagramReels };
 }
@@ -881,6 +884,14 @@ export async function getFreshHomeHeroContent(): Promise<HomeHeroContent | undef
     slider_items: sliderItems,
   };
 }
+
+// Shared by the homepage render and /api/public/home-hero: one read per minute
+// keeps banner edits visible quickly without a database query per visit.
+export const getCachedHomeHeroContent = cachePublicRead(
+  'home-hero',
+  async () => (await getFreshHomeHeroContent()) ?? null,
+  PUBLIC_CACHE_SHORT_SECONDS
+);
 
 const loadHomeSeoData = unstable_cache(
   async (_source?: 'rds'): Promise<HomeSeoData> => {

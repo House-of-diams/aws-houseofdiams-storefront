@@ -81,7 +81,7 @@ export default function ProductGrid({ products, sourceProducts = products, initi
         else params.delete(key);
       });
       params.set("page", String(nextLoadPage));
-      const response = await fetch(`/api/public/products/category?${params.toString()}`, { cache: "no-store" });
+      const response = await fetch(`/api/public/products/category?${params.toString()}`, { cache: "default" });
       const payload = await response.json().catch(() => null);
       if (!response.ok || !Array.isArray(payload?.products)) {
         throw new Error(payload?.error || "Unable to load more products.");

@@ -9,6 +9,7 @@ import {
 } from '@/lib/repositories/bespoke-repository';
 import { loadBespokeExploreCategoriesFromRds } from '@/lib/repositories/catalog-repository';
 import { mediaUrl } from '@/lib/media-url';
+import { cachePublicRead, PUBLIC_CACHE_SHORT_SECONDS } from '@/lib/public-cache';
 
 export const metadata: Metadata = createPageMetadata({
   title: 'Bespoke',
@@ -19,12 +20,21 @@ export const metadata: Metadata = createPageMetadata({
 // This content is administered in real time; do not serve a five-minute-old form.
 export const dynamic = 'force-dynamic';
 
-export default async function BespokePage() {
-  const [heroResult, formResult, processItems, portfolioResult, exploreRows] = await Promise.all([
-    findBespokeHeroFromRds(), loadBespokeFormConfigFromRds(), loadBespokeProcessCardsFromRds(),
+// Display content is shared for a minute; the form config above stays live.
+const getCachedBespokeDisplayRows = cachePublicRead('bespoke-page-display-rows', async () => {
+  const [heroResult, processItems, portfolioResult, exploreRows] = await Promise.all([
+    findBespokeHeroFromRds(), loadBespokeProcessCardsFromRds(),
     loadBespokePortfolioFromRds(), loadBespokeExploreCategoriesFromRds(),
   ]);
   const slides = heroResult.item ? await loadBespokeHeroSlidesFromRds(String(heroResult.item.id)) : [];
+  return { heroResult, processItems, portfolioResult, exploreRows, slides };
+}, PUBLIC_CACHE_SHORT_SECONDS);
+
+export default async function BespokePage() {
+  const [{ heroResult, processItems, portfolioResult, exploreRows, slides }, formResult] = await Promise.all([
+    getCachedBespokeDisplayRows(),
+    loadBespokeFormConfigFromRds(),
+  ]);
 
   const buildPublicUrl = mediaUrl;
   const categoryMap = new Map(portfolioResult.categories.map((category) => [String(category.id), category]));

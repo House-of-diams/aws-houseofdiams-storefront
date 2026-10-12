@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { fetchPublicJson } from '@/lib/client/public-json';
 
 const fallbackWhatsappNumber = '919328536178';
 
@@ -49,9 +50,8 @@ export default function FloatingWidgets() {
 
     const loadSettings = async () => {
       try {
-        const response = await fetch('/api/public/settings');
-        const payload = await response.json().catch(() => null);
-        if (!response.ok || ignore) return;
+        const { ok, payload } = await fetchPublicJson<{ item?: { whatsapp_number?: unknown } }>('/api/public/settings');
+        if (!ok || ignore) return;
 
         const nextNumber = typeof payload?.item?.whatsapp_number === 'string'
           ? payload.item.whatsapp_number

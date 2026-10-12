@@ -6,6 +6,7 @@ import { useContactDrawer } from '@/lib/hooks/useContactDrawer'
 import { useCart } from '@/lib/hooks/useCart'
 import { useToast } from '@/components/home/Toast'
 import { getSafeContactHref } from '@/lib/contact-links'
+import { fetchPublicJson } from '@/lib/client/public-json'
 
 type ContactRow = { id?: number | string | null; label?: string | null; value?: string | null; note?: string | null; href?: string | null }
 const FALLBACK_ROWS: ContactRow[] = [
@@ -35,9 +36,8 @@ export default function ContactDrawer() {
     if (!isOpen) return
     closeCart()
     if (!loaded) {
-      void fetch('/api/public/contact/info').then(async (response) => {
-        const payload = await response.json().catch(() => null)
-        if (response.ok && Array.isArray(payload?.items)) setRows(payload.items)
+      void fetchPublicJson<{ items?: ContactRow[] }>('/api/public/contact/info').then(({ ok, payload }) => {
+        if (ok && Array.isArray(payload?.items)) setRows(payload.items)
       }).catch(() => {}).finally(() => setLoaded(true))
     }
     const previousBodyOverflow = document.body.style.overflow

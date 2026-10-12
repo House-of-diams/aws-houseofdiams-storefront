@@ -2,6 +2,10 @@ import { mapBlogPostRecord, getStorageImageUrl, type BlogPost } from '@/lib/data
 import type { BlogPageHero } from '@/lib/blog'
 import { getStorefrontProductsByIds } from '@/lib/catalog-products'
 import { findEditorialHeroFromRds, loadPublishedEducationRowsFromRds } from '@/lib/repositories/editorial-repository'
+import { cachePublicRead, PUBLIC_CACHE_LONG_SECONDS } from '@/lib/public-cache'
+
+const getCachedEducationRows = cachePublicRead('education-published-rows', () => loadPublishedEducationRowsFromRds(), PUBLIC_CACHE_LONG_SECONDS)
+const getCachedEducationHeroRow = cachePublicRead('education-page-hero', () => findEditorialHeroFromRds('education'), PUBLIC_CACHE_LONG_SECONDS)
 
 type EducationPostRow = {
   id: number
@@ -41,7 +45,7 @@ type EducationPostRow = {
 
 export async function getPublishedEducationPosts(): Promise<BlogPost[]> {
 
-  const result: { data: unknown; error: { code?: string; message: string } | null } = { data: await loadPublishedEducationRowsFromRds(), error: null }
+  const result: { data: unknown; error: { code?: string; message: string } | null } = { data: await getCachedEducationRows(), error: null }
 
   if (result.error) {
     console.error('Unable to load Education posts:', result.error.message)
@@ -84,7 +88,7 @@ export async function getPublishedEducationPostBySlug(slug: string) {
 
 export async function getEducationPageHero(): Promise<BlogPageHero | null> {
 
-  const { data, error } = { data: await findEditorialHeroFromRds('education'), error: null as { code?: string; message: string } | null }
+  const { data, error } = { data: await getCachedEducationHeroRow(), error: null as { code?: string; message: string } | null }
   if (error || !data || data.is_enabled === false) return null
   return {
     isEnabled: true,

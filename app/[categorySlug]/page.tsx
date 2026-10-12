@@ -5,17 +5,12 @@ export const dynamic = 'force-dynamic'
 import { createPageMetadata } from '@/lib/seo'
 import { mediaUrl } from '@/lib/media-url'
 import { buildCategoryPath } from '@/lib/catalog-paths'
-import { findActiveCatalogCategoryPageBySlug } from '@/lib/repositories/catalog-repository'
+import { getCatalogCategoryPageBySlug as getCategoryBySlug } from '@/lib/catalog-taxonomy'
 import { getCatalogCanonicalPath, hasCatalogFilterQuery } from '@/lib/catalog-metadata'
 import { CategoryCollectionPageContent } from './CategoryCollectionPageContent'
 
 function toPublicUrl(path: string | null | undefined) {
   return path ? mediaUrl(path) : null
-}
-
-async function getCategoryBySlug(slug: string) {
-  return findActiveCatalogCategoryPageBySlug(slug)
-
 }
 
 export async function generateMetadata({

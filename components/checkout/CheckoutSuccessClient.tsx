@@ -6,6 +6,7 @@ import { useSearchParams } from 'next/navigation'
 import { CalendarDays, CreditCard, MapPin } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { formatMoney } from '@/lib/currency'
+import { fetchPublicJson } from '@/lib/client/public-json'
 
 const GUEST_CHECKOUT_TOKEN_KEY = 'hod_guest_checkout_token'
 const FALLBACK_IMAGE = '/HOD%20specs/profile%20banner/wesfly-jzXYuYd-o00-unsplash.jpg'
@@ -99,9 +100,8 @@ export default function CheckoutSuccessClient({ customerAuthEnabled = false }: {
 
   useEffect(() => {
     let active = true
-    fetch('/api/public/settings', { cache: 'no-store' })
-      .then((response) => response.json())
-      .then((result) => {
+    fetchPublicJson<{ item?: { estimated_delivery_text?: unknown } }>('/api/public/settings')
+      .then(({ payload: result }) => {
         if (active && typeof result?.item?.estimated_delivery_text === 'string' && result.item.estimated_delivery_text.trim()) {
           setEstimatedDeliveryText(result.item.estimated_delivery_text.trim())
         }

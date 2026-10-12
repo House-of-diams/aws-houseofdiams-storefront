@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { getStorefrontProductCardPage, type StorefrontProductPageFilters, type StorefrontProductSort } from '@/lib/catalog-products'
-import { findActiveCatalogCategoryPageBySlug } from '@/lib/repositories/catalog-repository'
+import { getCatalogCategoryPageBySlug } from '@/lib/catalog-taxonomy'
 
 const validSlug = /^[a-z0-9]+(?:-[a-z0-9]+)*$/
 const validSorts = new Set<StorefrontProductSort>(['best-matches', 'price-low', 'price-high', 'best-sellers'])
@@ -21,7 +21,7 @@ async function readPublicContent(request: Request) {
       return NextResponse.json({ error: 'Invalid category page request.' }, { status: 400 })
     }
 
-    const category = await findActiveCatalogCategoryPageBySlug(categorySlug)
+    const category = await getCatalogCategoryPageBySlug(categorySlug)
     if (!category) return NextResponse.json({ error: 'Category not found.' }, { status: 404 })
 
     const certificate = params.get('certificate')?.trim().slice(0, 100) || null
@@ -43,7 +43,8 @@ async function readPublicContent(request: Request) {
       pageSize: 24,
     })
 
-    return NextResponse.json(productPage, { headers: { 'Cache-Control': 'private, no-store' } })
+    // Listings are the same for every visitor; let CloudFront share them briefly.
+    return NextResponse.json(productPage, { headers: { 'Cache-Control': 'public, max-age=0, s-maxage=60, stale-while-revalidate=240' } })
   } catch (error) {
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Unable to load category products.' },
