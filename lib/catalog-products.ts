@@ -1368,15 +1368,17 @@ async function getDefaultProductSearchItemsUncached(limit: number): Promise<Prod
   })
 }
 
-// The search index is derived from the product cards the shop already caches,
-// so building it adds no database queries. Searches then run fully in memory.
+// The index stores only compact search documents (about 1 KB per product), so it
+// stays well under the 2 MB per-entry data-cache limit as the catalogue grows.
+// It is rebuilt at most every five minutes; searches then run fully in memory.
 const getCachedProductSearchDocs = unstable_cache(
   async (_source?: 'rds'): Promise<ProductSearchDoc[]> => {
     void _source
-    const [cards, references] = await Promise.all([
-      getCachedStorefrontProductCards(undefined, 'rds'),
+    const [products, references] = await Promise.all([
+      fetchStorefrontProducts(undefined),
       getCachedProductSearchReferences('rds'),
     ])
+    const cards = products.map(toStorefrontProductCard)
     const namesBySlug = (entries: Array<{ slug: string; name: string }>) => new Map(entries.map((entry) => [entry.slug, entry.name]))
     const optionNames = namesBySlug(references.options)
     const subcategoryNames = namesBySlug(references.subcategories)
@@ -1411,7 +1413,7 @@ const getCachedProductSearchDocs = unstable_cache(
       )
     })
   },
-  ['storefront-product-search-docs-v1'],
+  ['storefront-product-search-docs-v2'],
   { revalidate: 300, tags: ['storefront-products'] }
 )
 
@@ -1430,11 +1432,6 @@ function getProductSearchDocs() {
     })
   }
   return searchDocsMemory.promise
-}
-
-/** Builds the search index in the background so the first real search is instant. */
-export function warmProductSearchIndex() {
-  void getProductSearchDocs().catch(() => {})
 }
 
 

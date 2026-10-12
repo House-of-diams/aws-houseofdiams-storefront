@@ -2,9 +2,9 @@ import { mapBlogPostRecord, getStorageImageUrl, type BlogPost } from '@/lib/data
 import type { BlogPageHero } from '@/lib/blog'
 import { getStorefrontProductsByIds } from '@/lib/catalog-products'
 import { findEditorialHeroFromRds, loadPublishedEducationRowsFromRds } from '@/lib/repositories/editorial-repository'
-import { cachePublicRead, PUBLIC_CACHE_LONG_SECONDS } from '@/lib/public-cache'
+import { unstable_cache } from 'next/cache'
+import { cachePublicRead, PUBLIC_CACHE_LONG_SECONDS, PUBLIC_CONTENT_TAG } from '@/lib/public-cache'
 
-const getCachedEducationRows = cachePublicRead('education-published-rows', () => loadPublishedEducationRowsFromRds(), PUBLIC_CACHE_LONG_SECONDS)
 const getCachedEducationHeroRow = cachePublicRead('education-page-hero', () => findEditorialHeroFromRds('education'), PUBLIC_CACHE_LONG_SECONDS)
 
 type EducationPostRow = {
@@ -43,9 +43,9 @@ type EducationPostRow = {
   education_post_products: Array<{ product_id: string; sort_order: number }> | null
 }
 
-export async function getPublishedEducationPosts(): Promise<BlogPost[]> {
+async function loadPublishedEducationPosts(): Promise<BlogPost[]> {
 
-  const result: { data: unknown; error: { code?: string; message: string } | null } = { data: await getCachedEducationRows(), error: null }
+  const result: { data: unknown; error: { code?: string; message: string } | null } = { data: await loadPublishedEducationRowsFromRds(), error: null }
 
   if (result.error) {
     console.error('Unable to load Education posts:', result.error.message)
@@ -79,6 +79,17 @@ export async function getPublishedEducationPosts(): Promise<BlogPost[]> {
       .filter((product): product is NonNullable<typeof product> => Boolean(product))
     return { ...post, featuredProducts }
   })
+}
+
+// Posts embed featured products, so cache the finished posts (errors are not cached).
+const getCachedPublishedEducationPosts = unstable_cache(
+  () => loadPublishedEducationPosts(),
+  ['education-published-posts-v1'],
+  { revalidate: PUBLIC_CACHE_LONG_SECONDS, tags: [PUBLIC_CONTENT_TAG, 'storefront-products'] }
+)
+
+export async function getPublishedEducationPosts(): Promise<BlogPost[]> {
+  return getCachedPublishedEducationPosts()
 }
 
 export async function getPublishedEducationPostBySlug(slug: string) {
