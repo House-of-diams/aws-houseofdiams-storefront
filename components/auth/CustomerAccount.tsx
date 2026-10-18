@@ -60,7 +60,7 @@ export default function CustomerAccount({ ordersEnabled = false }: { ordersEnabl
   return <section className="mx-auto max-w-3xl px-6 py-12">
     <h1 className="text-3xl">Your account</h1>
     <p role="status" className="my-4">{status}</p>
-    {signedOut ? <Link className="underline" href="/login?next=%2Fprofile">Sign in</Link> : null}
+    {signedOut ? <Link className="underline" href="/login?next=%2Fprofile" prefetch={false}>Sign in</Link> : null}
     {email ? <>
       <p className="my-4">{email}</p>
       <form onSubmit={save} className="grid gap-4 sm:grid-cols-2">

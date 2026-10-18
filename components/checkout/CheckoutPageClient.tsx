@@ -1411,7 +1411,7 @@ export default function CheckoutPageClient({ customerAuthEnabled = false }: { cu
                 <div className="font-[family-name:var(--font-family-primary)] text-[18px] font-medium uppercase text-black">Express checkout</div>
                 <p className="mt-2 font-[family-name:var(--font-family-secondary)] text-[12px] leading-5 text-black/55">Continue as a guest or sign in to use your saved details.</p>
                 <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                  <Link href={`/login?next=${encodeURIComponent(`/checkout?${searchParams.toString()}`)}`} className="flex min-h-11 items-center justify-center border border-black bg-white px-5 font-[family-name:var(--font-family-button)] text-[11px] font-semibold uppercase tracking-[0.1em] text-black transition hover:bg-black hover:text-white">Sign in</Link>
+                  <Link href={`/login?next=${encodeURIComponent(`/checkout?${searchParams.toString()}`)}`} prefetch={false} className="flex min-h-11 items-center justify-center border border-black bg-white px-5 font-[family-name:var(--font-family-button)] text-[11px] font-semibold uppercase tracking-[0.1em] text-black transition hover:bg-black hover:text-white">Sign in</Link>
                   <div className="flex min-h-11 items-center justify-center border border-black bg-black px-5 font-[family-name:var(--font-family-button)] text-[11px] font-semibold uppercase tracking-[0.1em] text-white">Guest checkout</div>
                 </div>
               </div>
