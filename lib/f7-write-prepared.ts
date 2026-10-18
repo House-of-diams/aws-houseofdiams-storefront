@@ -1,7 +1,6 @@
 import 'server-only'
 
-// Intentionally does not relax proxy.ts: customer-auth mode still returns 503
-// for order placement until SQL, ownership, and payment regressions pass.
+// Shared server-side release gate for RDS checkout and payment handlers.
 export function isF7WritePrepared() {
   return process.env.HOD_F7_RDS_WRITE_PREPARED === 'true'
     && process.env.HOD_CUSTOMER_AUTH_ENABLED === 'true'

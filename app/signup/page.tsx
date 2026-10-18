@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import AuthShell from '@/components/auth/AuthShell';
 import CustomerAuthEntry from '@/components/auth/CustomerAuthEntry';
+import { connection } from 'next/server';
 
 export const metadata: Metadata = {
   title: 'Sign Up',
@@ -8,7 +9,8 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-export default function SignupPage() {
+export default async function SignupPage() {
+  await connection();
   return (
     <AuthShell
       eyebrow="House of Diams Membership"

@@ -29,14 +29,16 @@ function addDetectedCurrency(request: NextRequest, response: NextResponse) {
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl
-  // F6 identity preview must never start orders with the legacy owner contract.
-  // Existing payment verification/webhooks remain reachable for recovery.
-  if (pathname === '/api/checkout/place' || pathname === '/api/create-order') {
-    if (process.env.HOD_CUSTOMER_AUTH_ENABLED === 'true') {
+  // Keep placement closed in identity-only preview. Both flags must be on;
+  // the route handler independently enforces the same write gate.
+  if (pathname === '/api/checkout/place') {
+    if (process.env.HOD_CUSTOMER_AUTH_ENABLED !== 'true' || process.env.HOD_F7_RDS_WRITE_PREPARED !== 'true') {
       return NextResponse.json({ error: 'Checkout is temporarily unavailable.' }, { status: 503, headers: { 'cache-control': 'no-store' } })
     }
     return NextResponse.next()
   }
+  // The legacy direct-order endpoint must never bypass the checkout flow.
+  if (pathname === '/api/create-order') return NextResponse.next()
   if (pathname === '/maintenance') {
     return addDetectedCurrency(request, NextResponse.next())
   }

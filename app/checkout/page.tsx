@@ -1,6 +1,8 @@
 import type { Metadata } from 'next';
 import { Plus_Jakarta_Sans } from 'next/font/google';
 import CheckoutPageClient from '@/components/checkout/CheckoutPageClient';
+import { connection } from 'next/server';
+import { isF7WritePrepared } from '@/lib/f7-write-prepared';
 
 const plusJakartaSans = Plus_Jakarta_Sans({
   subsets: ['latin'],
@@ -13,10 +15,11 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-export default function CheckoutPage() {
-  // Preserve the release guard until customer/payment UAT is approved.
-  // An OFF gate must not expose a checkout that can no longer place an order.
-  if (process.env.HOD_CUSTOMER_AUTH_ENABLED === 'true' || process.env.HOD_F7_RDS_WRITE_PREPARED !== 'true') {
+export default async function CheckoutPage() {
+  await connection();
+  // Never expose checkout unless the same server-side gate used by the
+  // placement, verification and webhook routes is enabled.
+  if (!isF7WritePrepared()) {
     return <section className="mx-auto max-w-2xl px-6 py-16"><h1 className="text-2xl">Checkout is temporarily unavailable</h1><p className="mt-4">Please return later to complete your purchase.</p></section>;
   }
   return (
