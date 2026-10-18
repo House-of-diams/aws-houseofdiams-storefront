@@ -14,7 +14,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
   await connection();
   const params = await searchParams;
   if (process.env.HOD_CUSTOMER_AUTH_ENABLED === 'true' && !params.error) {
-    const next = typeof params.next === 'string' ? params.next : '/profile';
+    const next = typeof params.next === 'string' ? params.next : '/';
     redirect(`/api/customer-auth/start?${new URLSearchParams({ flow: 'login', next })}`);
   }
   return (
