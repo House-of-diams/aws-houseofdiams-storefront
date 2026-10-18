@@ -475,13 +475,16 @@ test('every mutation repository and pending creation fails before SQL when gate 
   await assert.rejects(attempts.failCheckoutAttempt(customer, 'attempt', 'failed'), /RDS checkout is disabled/)
 })
 
-test('proxy and page guards remain active and direct create-order remains disabled', () => {
+test('proxy and page use the same two-flag checkout gate; direct create-order remains disabled', () => {
   const proxy = readFileSync(new URL('../proxy.ts', import.meta.url), 'utf8')
   assert.match(proxy, /pathname === '\/api\/checkout\/place'/)
-  assert.match(proxy, /HOD_CUSTOMER_AUTH_ENABLED === 'true'/)
-  assert.doesNotMatch(proxy, /HOD_F7_RDS_WRITE_PREPARED/)
+  assert.match(proxy, /HOD_CUSTOMER_AUTH_ENABLED !== 'true' \|\| process.env.HOD_F7_RDS_WRITE_PREPARED !== 'true'/)
   const page = readFileSync(new URL('../app/checkout/page.tsx', import.meta.url), 'utf8')
-  assert.match(page, /if \(process.env.HOD_CUSTOMER_AUTH_ENABLED === 'true' \|\| process.env.HOD_F7_RDS_WRITE_PREPARED !== 'true'\)/)
+  assert.match(page, /if \(!isF7WritePrepared\(\)\)/)
+  assert.match(page, /await connection\(\)/)
+  for (const path of ['login', 'signup', 'profile']) {
+    assert.match(readFileSync(new URL(`../app/${path}/page.tsx`, import.meta.url), 'utf8'), /await connection\(\)/)
+  }
   assert.match(readFileSync(new URL('../app/api/create-order/route.ts', import.meta.url), 'utf8'), /status: 403/)
 })
 
