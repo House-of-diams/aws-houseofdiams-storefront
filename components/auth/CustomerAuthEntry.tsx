@@ -13,6 +13,6 @@ export default function CustomerAuthEntry({ mode }: { mode: 'login' | 'signup' }
     <a className="brand-button text-center" href={start(mode)}>{mode === 'signup' ? 'Create account with email' : 'Continue with email'}</a>
     <a className="border border-gray-300 p-3 text-center" href={start('google')}>Continue with Google</a>
     <p>Your password is entered on our secure account service.</p>
-    <Link className="underline" href={`${mode === 'signup' ? '/login' : '/signup'}?${new URLSearchParams({ next })}`}>{mode === 'signup' ? 'Already have an account? Sign in' : 'Create an account'}</Link>
+    <Link className="underline" href={`${mode === 'signup' ? '/login' : '/signup'}?${new URLSearchParams({ next })}`} prefetch={false}>{mode === 'signup' ? 'Already have an account? Sign in' : 'Create an account'}</Link>
   </div>
 }

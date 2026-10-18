@@ -933,9 +933,10 @@ export default function Navbar({ navItems = [], customerAuthEnabled = false }: {
                 </Link>
               ) : (
                 <Link
-                  href="/signup"
-                  aria-label="Sign up"
-                  title="Sign up"
+                  href="/login"
+                  prefetch={false}
+                  aria-label="Sign in"
+                  title="Sign in"
                   className="inline-flex h-[34px] w-[34px] items-center justify-center text-current transition-opacity duration-300 hover:opacity-70"
                   style={{ color: desktopHeaderText }}
                 >
@@ -1143,6 +1144,7 @@ export default function Navbar({ navItems = [], customerAuthEnabled = false }: {
 
             <Link
               href={customerAuthEnabled && authReady && authUser ? '/profile' : '/login'}
+              prefetch={false}
               onClick={closeMenu}
               className="flex min-h-[58px] items-center gap-3 border-b border-black/[0.06] py-4 text-[13px] font-semibold uppercase tracking-[0.16em] text-[#0A1628] no-underline"
             >
