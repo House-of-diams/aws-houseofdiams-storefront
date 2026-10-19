@@ -30,21 +30,25 @@ import { getNavbarRenderItems } from "@/lib/navbar-server";
 const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],
+  preload: false,
 });
 
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
+  preload: false,
 });
 
 const plusJakartaSans = Plus_Jakarta_Sans({
   variable: "--font-plus-jakarta",
   subsets: ["latin"],
+  preload: false,
 });
 
 const manrope = Manrope({
   variable: "--font-manrope",
   subsets: ["latin"],
+  preload: false,
 });
 
 export const metadata: Metadata = {

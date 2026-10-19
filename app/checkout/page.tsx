@@ -6,6 +6,7 @@ import { isF7WritePrepared } from '@/lib/f7-write-prepared';
 
 const plusJakartaSans = Plus_Jakarta_Sans({
   subsets: ['latin'],
+  preload: false,
   weight: ['400', '500', '600', '700'],
 });
 
