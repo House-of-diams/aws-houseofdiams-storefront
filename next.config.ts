@@ -1,6 +1,9 @@
 import type { NextConfig } from "next";
 
 const mediaCdnBaseUrl = process.env.NEXT_PUBLIC_MEDIA_CDN_BASE_URL?.trim().replace(/\/+$/, '') ?? ''
+// Admin CMS, category and navbar uploads are stored on the content CDN.
+const contentCdnBaseUrl = (process.env.NEXT_PUBLIC_CONTENT_CDN_BASE_URL?.trim() || 'https://content.houseofdiams.com').replace(/\/+$/, '')
+const imageHosts = [...new Set([mediaCdnBaseUrl, contentCdnBaseUrl].filter(Boolean).map((url) => new URL(url).hostname))]
 
 const securityHeaders = [
   {
@@ -59,9 +62,7 @@ const nextConfig: NextConfig = {
     return config
   },
   images: {
-    remotePatterns: [
-      ...(mediaCdnBaseUrl ? [{ protocol: 'https' as const, hostname: new URL(mediaCdnBaseUrl).hostname }] : []),
-    ],
+    remotePatterns: imageHosts.map((hostname) => ({ protocol: 'https' as const, hostname })),
   },
   async headers() {
     return [
