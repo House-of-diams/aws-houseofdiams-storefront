@@ -23,8 +23,16 @@ export async function loadCheckoutProductsFromRds(slugs: string[]) {
     [slugs], 'checkout.pricing.products')
 }
 
+// Metal label fields and the variant's first image let checkout record what was
+// priced, instead of trusting labels and images sent by the browser.
 export async function loadCheckoutVariantsFromRds(productIds: string[]) {
-  return rows('select to_jsonb(v) row from public.product_metal_variants v where v.product_id = any($1::uuid[])',
+  return rows(`select to_jsonb(v) || jsonb_build_object(
+      'metal_name', m.name, 'metal_display_label', m.display_label,
+      'metal_purity_label', m.purity_label, 'metal_base_name', m.base_metal_name,
+      'image_path', (select i.media_path from public.product_variant_media_items i
+        where i.variant_id = v.id and i.media_type = 'image' order by i.sort_order, i.id limit 1)) row
+    from public.product_metal_variants v join public.catalog_metals m on m.id = v.metal_id
+    where v.product_id = any($1::uuid[])`,
     [productIds], 'checkout.pricing.variants')
 }
 

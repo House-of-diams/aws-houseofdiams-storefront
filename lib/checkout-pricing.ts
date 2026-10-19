@@ -1,5 +1,6 @@
 import 'server-only'
 import { mediaUrl } from '@/lib/media-url'
+import { buildCombinedMetalLabel } from '@/lib/metal-label'
 import {
   loadCheckoutProductsFromRds, loadCheckoutVariantsFromRds,
   loadCheckoutPurityPricesFromRds, loadCheckoutSettingsFromRds,
@@ -42,7 +43,11 @@ type ProductRow = {
   image_1_path?: string | null
 }
 
-type MetalVariantRow = { id: string; product_id: string; price: number | null }
+type MetalVariantRow = {
+  id: string; product_id: string; price: number | null
+  metal_name?: string | null; metal_display_label?: string | null; metal_purity_label?: string | null
+  metal_base_name?: string | null; image_path?: string | null
+}
 type PurityPriceRow = { id: string; product_id: string; purity_label: string | null; price: number | null; sort_order: number | null }
 type GstSlabRow = { id: string; name: string; percentage: number | null }
 
@@ -56,6 +61,10 @@ export type AuthoritativePricingLine = {
   gstLabel: string
   gstAmount: number
   gstSlabId: string | null
+  /** Label of the priced metal variant, from the database; null when the product has no variants. */
+  metalLabel: string | null
+  /** Image of the priced variant (or the product), from the database. */
+  imageUrl: string
 }
 
 export async function resolveAuthoritativeCheckoutPricing({
@@ -133,6 +142,10 @@ export async function resolveAuthoritativeCheckoutPricing({
     const productHasStoredVariants = metalVariants.some((variant) => variant.product_id === product.id)
     if (entry.metalVariantId && (!requestedVariant || requestedVariant.product_id !== product.id) && (!entry.metalVariantId.startsWith('legacy-') || productHasStoredVariants)) {
       pricingError = `The selected configuration for ${product.name} is no longer available.`
+    } else if (productHasStoredVariants && !requestedVariant) {
+      // A product with metal variants is only ever priced from the chosen variant;
+      // omitting the variant must not fall back to a cheaper base or purity price.
+      pricingError = `Choose a metal option for ${product.name}.`
     }
 
     const productPurityPrices = purityPrices.filter((row) => row.product_id === product.id)
@@ -160,6 +173,15 @@ export async function resolveAuthoritativeCheckoutPricing({
       gstLabel: gstSlab?.name || 'Taxes',
       gstAmount: 0,
       gstSlabId: product.gst_slab_id ?? null,
+      metalLabel: requestedVariant?.metal_name
+        ? buildCombinedMetalLabel({
+          displayLabel: requestedVariant.metal_display_label,
+          purityLabel: requestedVariant.metal_purity_label,
+          baseMetalName: requestedVariant.metal_base_name,
+          name: requestedVariant.metal_name,
+        })
+        : null,
+      imageUrl: publicImageUrl(requestedVariant?.image_path || product.image_1_path),
     }
   }).filter(Boolean) as AuthoritativePricingLine[]
 
