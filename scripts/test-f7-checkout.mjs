@@ -537,11 +537,14 @@ test('success rejects missing/wrong owner before loading content; preserves immu
     assert.equal(fixture.calls.some(([name]) => name === 'owner-items'), false)
   }
   const fixture = resultFixture({ owner: guest, order: { payment_status: 'paid',
-    gateway_payload: { totals: { chargedSubtotal: 200, chargedGst: 24, shippingCharged: 10, exchangeRate: 2 } } } })
+    gateway_payload: { totals: { chargedSubtotal: 200, chargedGst: 24, shippingCharged: 10, exchangeRate: 2, chargedCouponDiscount: 20 },
+      checkout: { coupon: { code: 'OFFER', discountAmount: 10 } }, payment: { razorpaySignature: 'secret' }, rawEvent: { private: true } } } })
   const response = await fixture.handlers.handleF7Success(request())
   const body = await response.json()
   assert.equal(response.headers.get('cache-control'), 'no-store')
   assert.equal(body.state, 'success'); assert.equal(body.order.subtotal_amount, 200)
+  assert.equal(body.order.gateway_payload, undefined, 'internal payload is not sent to the browser')
+  assert.equal(body.order.coupon_code, 'OFFER'); assert.equal(body.order.coupon_discount_amount, 20)
   assert.equal(body.order.items[0].line_total, 200); assert.equal(body.statusEvents.length, 1)
   assert.equal(body.cms.page.main_banner_image_url, 'https://media.test/banner.png')
   assert.deepEqual(fixture.calls.find(([name]) => name === 'owner-history').slice(1), [guest, orderId])
