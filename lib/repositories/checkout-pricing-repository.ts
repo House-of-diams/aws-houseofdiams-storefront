@@ -66,6 +66,18 @@ export async function loadCheckoutCouponFromRds(id: number, code: string) {
   return found[0] ?? null
 }
 
+// Orders still in payment with this coupon (reservation window), so a limited
+// coupon is not handed out to more checkouts than it has uses left. Uses
+// orders_pending_coupon_idx (db/migrations/2026101901_coupon_usage_limit).
+export async function countPendingCouponOrdersFromRds(couponId: number) {
+  const found = await rows<{ n: number }>(`select jsonb_build_object('n', count(*)::int) row from public.orders
+    where payment_status = 'pending' and coalesce(gateway_order_status, '') <> 'checkout_dismissed'
+      and created_at > now() - interval '15 minutes'
+      and gateway_payload->'checkout'->'coupon'->>'id' = $1::text`,
+  [String(couponId)], 'checkout.pricing.coupon-pending')
+  return Number(found[0]?.n ?? 0)
+}
+
 export async function findCheckoutCouponByCodeFromRds(code: string) {
   const found = await rows<CouponRow>('select to_jsonb(c) row from public.coupons c where c.code = $1 limit 2',
     [code], 'checkout.coupon.lookup')

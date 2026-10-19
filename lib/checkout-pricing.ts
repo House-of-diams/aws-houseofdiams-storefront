@@ -6,7 +6,7 @@ import {
   loadCheckoutPurityPricesFromRds, loadCheckoutSettingsFromRds,
   loadCheckoutGstSlabsFromRds, loadFallbackCheckoutGstSlabFromRds,
   loadCheckoutCouponFromRds, loadCheckoutGiftProductFromRds,
-  loadCheckoutGiftVariantFromRds,
+  loadCheckoutGiftVariantFromRds, countPendingCouponOrdersFromRds,
 } from '@/lib/repositories/checkout-pricing-repository'
 
 function publicImageUrl(path: unknown) {
@@ -209,8 +209,11 @@ export async function resolveAuthoritativeCheckoutPricing({
     const now = Date.now()
     if (couponRow.starts_at && new Date(couponRow.starts_at).getTime() > now) return { error: 'This coupon is not active yet.', status: 400 as const }
     if (couponRow.ends_at && new Date(couponRow.ends_at).getTime() <= now) return { error: 'This coupon has expired.', status: 400 as const }
-    if (couponRow.usage_limit != null && couponRow.usage_count >= couponRow.usage_limit) {
-      return { error: 'Coupon usage limit has been reached.', status: 400 as const }
+    if (couponRow.usage_limit != null) {
+      const inPayment = await countPendingCouponOrdersFromRds(Number(couponRow.id))
+      if (Number(couponRow.usage_count ?? 0) + inPayment >= Number(couponRow.usage_limit)) {
+        return { error: 'Coupon usage limit has been reached.', status: 400 as const }
+      }
     }
     couponRewardType = couponRow.reward_type === 'free_gift' ? 'free_gift' : couponRow.reward_type === 'fixed' ? 'fixed' : 'percentage'
     const minimumOrderAmount = Number(couponRow.minimum_order_amount ?? 0)

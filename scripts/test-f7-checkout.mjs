@@ -73,6 +73,7 @@ function pricingFixture(overrides = {}) {
     loadCheckoutGstSlabsFromRds: async () => [{ id: 'gst', name: 'GST', percentage: 12 }], loadFallbackCheckoutGstSlabFromRds: async () => null,
     loadCheckoutCouponFromRds: async () => coupon, loadCheckoutGiftProductFromRds: async () => ({ ...product, id: 'gift', slug: 'gift', ...overrides.gift }),
     loadCheckoutGiftVariantFromRds: async () => overrides.giftVariant ?? null,
+    countPendingCouponOrdersFromRds: async () => overrides.pendingCouponOrders ?? 0,
   }
   return load('lib/checkout-pricing.ts', { '@/lib/media-url': { mediaUrl: (value) => value || '' }, '@/lib/metal-label': load('lib/metal-label.ts'),
     '@/lib/repositories/checkout-pricing-repository': repository }).resolveAuthoritativeCheckoutPricing
@@ -566,6 +567,13 @@ test('profile orders requires customer owner and bounds pagination; guest cannot
   const response = await fixture.handlers.handleF7ProfileOrders(new Request('https://store.test/api/profile/orders?page=2&pageSize=5'))
   assert.deepEqual((await response.json()).pagination, { page: 2, pageSize: 5, total: 11, totalPages: 3 })
   assert.deepEqual(fixture.calls.at(-1).slice(1), [customer, 2, 5])
+})
+
+test('a limited coupon counts orders still in payment (HOD-012)', async () => {
+  const coupon = { usage_limit: 5, usage_count: 3 }
+  assert.equal((await pricingFixture({ coupon, pendingCouponOrders: 2 })({ items, coupon: { id: 1, code: 'OFFER' } })).status, 400)
+  assert.equal((await pricingFixture({ coupon, pendingCouponOrders: 1 })({ items, coupon: { id: 1, code: 'OFFER' } })).data.couponDiscountAmount, 10)
+  assert.equal((await pricingFixture({ coupon: { usage_limit: null, usage_count: 99 }, pendingCouponOrders: 50 })({ items, coupon: { id: 1, code: 'OFFER' } })).data.couponDiscountAmount, 10)
 })
 
 test('pending order lines store database name, metal label and image, never browser values (HOD-005)', async () => {
