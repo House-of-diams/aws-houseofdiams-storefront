@@ -39,7 +39,7 @@ const emailFrom = process.env.EMAIL_FROM
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.SITE_URL || 'http://localhost:3000'
 const logoUrl = `${siteUrl.replace(/\/$/, '')}/logo.jpeg`
 
-let cachedTransporter: nodemailer.Transporter | null = null
+let cachedTransporter: ReturnType<typeof nodemailer.createTransport> | null = null
 
 function formatMoney(amount: number, currency?: string | null) {
   return formatCurrencyAmount(amount, currency || 'USD')
