@@ -2,24 +2,6 @@ import 'server-only'
 
 import { query } from '@/lib/db/query'
 
-type TestimonialMarquee = { id: number; title: string }
-type TestimonialMarqueeItem = {
-  id: number
-  sort_order: number
-  quote: string
-  author: string
-}
-
-export async function findHomeTestimonialMarquee(): Promise<TestimonialMarquee | null> {
-  const result = await query<{ row: TestimonialMarquee }>(
-    `SELECT jsonb_build_object('id', id, 'title', title) AS row
-     FROM public.testimonial_marquee WHERE section_key = $1 LIMIT 1`,
-    ['home_testimonial_marquee'],
-    { operation: 'cms.testimonial_marquee' },
-  )
-  return result.rows[0]?.row ?? null
-}
-
 type CmsRow = Record<string, unknown>
 
 async function cmsRows(sql: string, values: readonly unknown[], operation: string) {
