@@ -1,5 +1,6 @@
 import type { Product } from '@/lib/data/products'
 import { mediaUrl } from '@/lib/media-url'
+import { buildCombinedMetalLabel } from '@/lib/metal-label'
 import { cache } from 'react'
 import { unstable_cache } from 'next/cache'
 import {
@@ -509,31 +510,6 @@ function normalizeType(value: string | null | undefined) {
   if (source.includes('chain')) return 'chain'
   if (source.includes('grill')) return 'grillz'
   return 'ring'
-}
-
-function buildCombinedMetalLabel(args: {
-  displayLabel?: string | null
-  purityLabel?: string | null
-  baseMetalName?: string | null
-  name: string
-}) {
-  const purity = args.purityLabel?.trim()
-  const baseMetal = args.baseMetalName?.trim() || args.name.trim()
-  const displayLabel = args.displayLabel?.trim()
-  const generatedLabel = (() => {
-    if (!purity) return baseMetal
-
-    const normalizedPurity = purity.toLowerCase()
-    const normalizedBaseMetal = baseMetal.toLowerCase()
-    return normalizedBaseMetal === normalizedPurity || normalizedBaseMetal.startsWith(`${normalizedPurity} `)
-      ? baseMetal
-      : `${purity} ${baseMetal}`.trim()
-  })()
-
-  if (displayLabel && displayLabel !== args.name.trim() && displayLabel !== baseMetal) {
-    return displayLabel
-  }
-  return generatedLabel
 }
 
 function buildShortMeta(args: {

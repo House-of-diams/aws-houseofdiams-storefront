@@ -92,7 +92,7 @@ export default function CouplesSection({
 
     const previousBodyOverflow = document.body.style.overflow;
     const previousHtmlOverflow = document.documentElement.style.overflow;
-    const lenis = typeof window !== 'undefined' ? (window as any).__lenis : null;
+    const lenis = typeof window !== 'undefined' ? (window as Window & { __lenis?: { stop?: () => void; start?: () => void } }).__lenis : null;
 
     document.body.style.overflow = 'hidden';
     document.documentElement.style.overflow = 'hidden';

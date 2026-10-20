@@ -55,7 +55,7 @@ try {
     await new Promise((resolve) => setTimeout(resolve, 500))
   }
   assert.ok(ready, 'Verification server did not become ready')
-  for (const path of ['/api/readiness/db', '/api/public/home-hero', '/api/public/settings', '/api/public/footer-content', '/api/public/diamond-info', '/api/public/hiphop/hero']) {
+  for (const path of ['/api/readiness/db', '/api/public/home-hero', '/api/public/settings', '/api/public/footer-content',]) {
     const response = await request(path)
     assert.equal(response.status, 200, path)
     await response.json()

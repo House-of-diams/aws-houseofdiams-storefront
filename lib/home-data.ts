@@ -3,14 +3,12 @@ import { formatUsd } from '@/lib/money';
 import { mediaUrl } from '@/lib/media-url';
 import { cachePublicRead, PUBLIC_CACHE_LONG_SECONDS, PUBLIC_CACHE_SHORT_SECONDS } from '@/lib/public-cache';
 import { buildOptionPath, buildSubcategoryPath } from '@/lib/catalog-paths';
-import { resolveLegacyHipHopHref } from '@/lib/legacy-hiphop';
 import {
   findActiveHomeHeroRowFromRds,
   loadHomeBestSellerRowsFromRds,
   loadHomeCmsRowsFromRds,
   loadHomeHeroSliderRowsFromRds,
   loadHomeInstagramRowsFromRds,
-  loadHomeTestimonialsRowsFromRds,
 } from '@/lib/repositories/cms-repository';
 
 export type HomeHeroContent = {
@@ -88,17 +86,6 @@ export type HomeDiscoverItem = {
   target_id?: string | null;
 };
 
-export type HomeHipHopSection = {
-  is_enabled: boolean;
-  eyebrow: string;
-  heading_line_1: string;
-  heading_line_2: string;
-  heading_emphasis: string;
-  cta_label: string;
-  cta_link: string;
-  image_path: string;
-  image_alt: string;
-};
 
 export type CollectionPageConfig = {
   pageEnabled: boolean;
@@ -147,11 +134,6 @@ export type HomeCoupleItem = {
   image_path: string;
 };
 
-export type HomeTestimonialsData = {
-  eyebrow: string;
-  heading: string;
-  items: Array<{ quote: string; author: string; origin: string; rating?: number }>;
-};
 
 export type HomeDiamondInfoItem = {
   id?: string;
@@ -581,8 +563,7 @@ type BespokeShowcaseRow = {
 type HomeRows = [
   ReadResult<HeroRow | null>, ReadResult<Record<string, unknown>[]>, ReadResult<HomeCollectionItem[]>,
   ReadResult<(HomeDiscoverItem & { shape_id: string })[]>, ReadResult<DiscoverStoneShapeRow[]>,
-  ReadResult<HomeHipHopSection | null>, ReadResult<CollectionConfigRow | null>, ReadResult<BespokeShowcaseRow | null>,
-  ReadResult<{ id: number; eyebrow: string; heading: string } | null>,
+  ReadResult<CollectionConfigRow | null>, ReadResult<BespokeShowcaseRow | null>,
   ReadResult<(HomeBestSellerSection & { id: string }) | null>, ReadResult<BestSellerProductSelectionRow[]>,
 ];
 type BestSellerRows = [
@@ -602,10 +583,8 @@ const loadHomePageData = unstable_cache(
       collectionResult,
       discoverShapesResult,
       discoverStoneShapesResult,
-      hiphopResult,
       collectionPageConfigResult,
       bespokeShowcaseResult,
-      testimonialsSectionResult,
       bestSellerSectionResult,
       bestSellerProductSelectionsResult,
     ] = await loadHomeCmsRowsFromRds() as unknown as HomeRows;
@@ -617,11 +596,6 @@ const loadHomePageData = unstable_cache(
       sliderItems = (itemsData ?? []).map((item) => ({ ...item, headline: item.headline ?? '', subtitle: item.subtitle ?? '' }));
     }
 
-    let testimonialsItems: HomeTestimonialsData['items'] = [];
-    if (testimonialsSectionResult.data?.id) {
-      const { data } = await loadHomeTestimonialsRowsFromRds(testimonialsSectionResult.data.id) as unknown as ReadResult<HomeTestimonialsData['items']>;
-      testimonialsItems = data ?? [];
-    }
 
     let bestSellerProducts: HomeBestSellerProduct[] = [];
     const discoverStoneShapes = (discoverStoneShapesResult.data ?? []) as DiscoverStoneShapeRow[];
@@ -770,17 +744,6 @@ const loadHomePageData = unstable_cache(
         image_path: toPublicUrl(item.image_path) || item.image_path,
         href: resolveDiscoverShapeHref(item.shape_id, discoverStoneShapes),
       })),
-      hiphopSection: {
-        is_enabled: hiphopResult.data?.is_enabled ?? true,
-        eyebrow: hiphopResult.data?.eyebrow ?? 'Hip Hop Collection · House of Diams',
-        heading_line_1: hiphopResult.data?.heading_line_1 ?? 'Ice That',
-        heading_line_2: hiphopResult.data?.heading_line_2 ?? 'Speaks',
-        heading_emphasis: hiphopResult.data?.heading_emphasis ?? 'Louder.',
-        cta_label: hiphopResult.data?.cta_label ?? 'Shop Iced Pieces',
-        cta_link: resolveLegacyHipHopHref(hiphopResult.data?.cta_link),
-        image_path: hiphopResult.data?.image_path ?? '',
-        image_alt: hiphopResult.data?.image_alt ?? 'House of Diams Hip Hop Collection',
-      },
       collectionPageConfig: {
         pageEnabled: isMissingCollectionPageConfigTable ? false : (collectionPageConfigResult.data?.page_enabled ?? false),
         showInFooter: isMissingCollectionPageConfigTable ? false : (collectionPageConfigResult.data?.show_in_footer ?? false),
@@ -803,11 +766,6 @@ const loadHomePageData = unstable_cache(
         imageUrl: toPublicUrl(bespokeShowcaseResult.data?.image_path),
         mobileImageUrl: toPublicUrl(bespokeShowcaseResult.data?.mobile_image_path),
         imageAlt: bespokeShowcaseResult.data?.image_alt ?? 'House of Diams bespoke jewellery showcase',
-      },
-      testimonialsData: {
-        eyebrow: testimonialsSectionResult.data?.eyebrow ?? 'Client Stories',
-        heading: testimonialsSectionResult.data?.heading ?? 'What Our Clients Say',
-        items: testimonialsItems,
       },
       bestSellerSection: {
         eyebrow: bestSellerSectionResult.data?.eyebrow ?? 'House of Diams',

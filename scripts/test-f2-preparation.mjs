@@ -11,7 +11,6 @@ const taxonomy = source('lib/catalog-taxonomy.ts')
 const navbarRepository = source('lib/repositories/navbar-repository.ts')
 const navbar = source('lib/navbar-server.ts')
 const cmsRepository = source('lib/repositories/cms-repository.ts')
-const testimonialRoute = source('app/api/public/testimonial-marquee/route.ts')
 
 test('taxonomy RDS reads are mandatory and preserve missing-category boundaries', () => {
   assert.doesNotMatch(taxonomy, /HOD_F2_|createSupabaseServerClient/)
@@ -45,14 +44,7 @@ test('navbar SQL preserves the hidden bespoke read and ordered active lists', ()
   assert.match(navbarRepository, /to_jsonb\(t\) AS row/)
 })
 
-test('testimonial RDS path preserves numeric JSON IDs and static revalidation', () => {
-  assert.doesNotMatch(testimonialRoute, /HOD_F2_|supabaseAnonKey/)
-  assert.match(testimonialRoute, /findHomeTestimonialMarquee/)
-  assert.match(testimonialRoute, /export const dynamic = 'force-static'/)
-  assert.match(testimonialRoute, /export const revalidate = 300/)
-  assert.match(cmsRepository, /jsonb_build_object\('id', id, 'title', title\)/)
-  assert.match(cmsRepository, /marquee_id = \$1 ORDER BY sort_order ASC/)
-})
+// HOD-057 removed the unused testimonial marquee route and its queries.
 
 test('CMS and bespoke RDS readers are server-only and mandatory', () => {
   const publicCmsRepository = source('lib/repositories/public-cms-repository.ts')

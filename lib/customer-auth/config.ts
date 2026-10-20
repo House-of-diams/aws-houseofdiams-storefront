@@ -28,11 +28,11 @@ export function getCustomerAuthConfig() {
 }
 
 export function safeNextPath(value: string | null) {
-  if (!value || !value.startsWith('/') || value.startsWith('//') || value.includes('\\')) return '/profile'
+  if (!value || !value.startsWith('/') || value.startsWith('//') || value.includes('\\')) return '/'
   try {
     const parsed = new URL(value, 'https://storefront.invalid')
-    return parsed.origin === 'https://storefront.invalid' ? `${parsed.pathname}${parsed.search}${parsed.hash}` : '/profile'
+    return parsed.origin === 'https://storefront.invalid' ? `${parsed.pathname}${parsed.search}${parsed.hash}` : '/'
   } catch {
-    return '/profile'
+    return '/'
   }
 }

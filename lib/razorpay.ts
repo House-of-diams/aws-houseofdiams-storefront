@@ -1,7 +1,6 @@
 import crypto from 'node:crypto'
 import Razorpay from 'razorpay'
 
-export const RAZORPAY_CURRENCY = process.env.RAZORPAY_CURRENCY || 'INR'
 
 export function getRazorpayKeyId() {
   return process.env.RAZORPAY_KEY_ID || ''

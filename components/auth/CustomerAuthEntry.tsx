@@ -5,7 +5,7 @@ import Link from 'next/link'
 
 export default function CustomerAuthEntry({ mode }: { mode: 'login' | 'signup' }) {
   const params = useSearchParams()
-  const next = params.get('next') || '/profile'
+  const next = params.get('next') || '/'
   const start = (flow: string) => `/api/customer-auth/start?${new URLSearchParams({ flow, next })}`
   return <div className="grid gap-4 text-sm">
     <p>{mode === 'signup' ? 'Create your account securely with House of Diams.' : 'Sign in to your House of Diams account.'}</p>

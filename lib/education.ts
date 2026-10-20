@@ -43,58 +43,55 @@ type EducationPostRow = {
   education_post_products: Array<{ product_id: string; sort_order: number }> | null
 }
 
-async function loadPublishedEducationPosts(): Promise<BlogPost[]> {
-
-  const result: { data: unknown; error: { code?: string; message: string } | null } = { data: await loadPublishedEducationRowsFromRds(), error: null }
-
-  if (result.error) {
-    console.error('Unable to load Education posts:', result.error.message)
-    return []
-  }
-
-  const rows = (result.data ?? []) as unknown as EducationPostRow[]
-  if (!rows.length) return []
-
-  const products = await getStorefrontProductsByIds(
-    rows.flatMap((row) => (row.education_post_products ?? []).map((entry) => entry.product_id))
-  )
-  const productMap = new Map(products.map((product) => [product.dbId, product]))
-
-  return rows.map((row) => {
-    const post = mapBlogPostRecord({
-      ...row,
-      hero_image_alt: row.hero_image_alt ?? undefined,
-      content_blocks: (row.education_post_content_blocks ?? [])
-        .filter((block) => block.is_enabled !== false)
-        .sort((a, b) => a.sort_order - b.sort_order),
-      tags: (row.education_post_tags ?? [])
-        .sort((a, b) => a.sort_order - b.sort_order)
-        .map((tag) => tag.tag),
-      created_at: row.created_at ?? undefined,
-      updated_at: row.updated_at ?? undefined,
-    })
-    const featuredProducts = (row.education_post_products ?? [])
+function mapRow(row: EducationPostRow): BlogPost {
+  return mapBlogPostRecord({
+    ...row,
+    // Summaries carry no body (HOD-061).
+    body_html: row.body_html ?? '',
+    hero_image_alt: row.hero_image_alt ?? undefined,
+    content_blocks: (row.education_post_content_blocks ?? [])
+      .filter((block) => block.is_enabled !== false)
+      .sort((a, b) => a.sort_order - b.sort_order),
+    tags: (row.education_post_tags ?? [])
       .sort((a, b) => a.sort_order - b.sort_order)
-      .map((entry) => productMap.get(entry.product_id))
-      .filter((product): product is NonNullable<typeof product> => Boolean(product))
-    return { ...post, featuredProducts }
+      .map((tag) => tag.tag),
+    created_at: row.created_at ?? undefined,
+    updated_at: row.updated_at ?? undefined,
   })
 }
 
-// Posts embed featured products, so cache the finished posts (errors are not cached).
-const getCachedPublishedEducationPosts = unstable_cache(
-  () => loadPublishedEducationPosts(),
-  ['education-published-posts-v1'],
+// HOD-061: lists use light summaries; a post page loads its one post by slug.
+const getCachedEducationSummaries = unstable_cache(
+  async () => ((await loadPublishedEducationRowsFromRds({ summary: true })) as unknown as EducationPostRow[]).map(mapRow),
+  ['education-published-summaries-v2'],
+  { revalidate: PUBLIC_CACHE_LONG_SECONDS, tags: [PUBLIC_CONTENT_TAG] }
+)
+
+export async function getPublishedEducationSummaries(): Promise<BlogPost[]> {
+  return getCachedEducationSummaries()
+}
+
+// One full post per cache entry; it embeds featured products, so refresh with them.
+async function loadEducationPostBySlug(slug: string): Promise<BlogPost | null> {
+  const row = ((await loadPublishedEducationRowsFromRds({ slug })) as unknown as EducationPostRow[])[0]
+  if (!row) return null
+  const entries = (row.education_post_products ?? []).sort((a, b) => a.sort_order - b.sort_order)
+  const productMap = new Map((await getStorefrontProductsByIds(entries.map((entry) => entry.product_id))).map((product) => [product.dbId, product]))
+  const featuredProducts = entries
+    .map((entry) => productMap.get(entry.product_id))
+    .filter((product): product is NonNullable<typeof product> => Boolean(product))
+  return { ...mapRow(row), featuredProducts }
+}
+
+const getCachedEducationPostBySlug = unstable_cache(
+  (slug: string) => loadEducationPostBySlug(slug),
+  ['education-post-by-slug-v1'],
   { revalidate: PUBLIC_CACHE_LONG_SECONDS, tags: [PUBLIC_CONTENT_TAG, 'storefront-products'] }
 )
 
-export async function getPublishedEducationPosts(): Promise<BlogPost[]> {
-  return getCachedPublishedEducationPosts()
-}
-
 export async function getPublishedEducationPostBySlug(slug: string) {
-  const posts = await getPublishedEducationPosts()
-  return posts.find((post) => post.slug === slug) ?? null
+  if (!slug || slug.length > 300) return null
+  return getCachedEducationPostBySlug(slug)
 }
 
 export async function getEducationPageHero(): Promise<BlogPageHero | null> {

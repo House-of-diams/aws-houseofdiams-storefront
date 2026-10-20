@@ -25,6 +25,9 @@ export async function POST(request: Request) {
   try {
     await insertNewsletterSubmission(email)
   } catch (error) {
+    // HOD-071: one row per email. A repeat signup is already subscribed; answer the
+    // same as a new one so the form cannot reveal who is on the list.
+    if (getPostgresErrorCode(error) === '23505') return NextResponse.json({ ok: true })
     if (getPostgresErrorCode(error) === '42P01') {
       return NextResponse.json({ error: 'Newsletter storage is not enabled yet.' }, { status: 503 })
     }

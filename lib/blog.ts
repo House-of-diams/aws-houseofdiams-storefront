@@ -48,15 +48,12 @@ type BlogPostRow = {
   blog_post_products: { product_id: string; sort_order: number | null }[] | null
 }
 
-async function loadPublishedBlogRows() {
-  return loadPublishedBlogRowsFromRds() as unknown as BlogPostRow[]
-
-}
-
-function mapRows(rows: BlogPostRow[] | null): BlogPost[] {
-  return ((rows?.length ? rows : null)?.map((row) =>
+function mapRows(rows: BlogPostRow[]): BlogPost[] {
+  return rows.map((row) =>
     mapBlogPostRecord({
       ...row,
+      // Summaries carry no body (HOD-061).
+      body_html: row.body_html ?? '',
       hero_image_path: row.hero_image_path ?? undefined,
       hero_image_alt: row.hero_image_alt ?? undefined,
       content_blocks: (row.blog_post_content_blocks ?? [])
@@ -71,47 +68,58 @@ function mapRows(rows: BlogPostRow[] | null): BlogPost[] {
         .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
         .map((tag) => tag.tag),
     })
-  ) ?? fallbackPosts).filter((post) => post.isPublished !== false)
+  ).filter((post) => post.isPublished !== false)
 }
 
-async function loadPublishedBlogPosts() {
-  const rows = await loadPublishedBlogRows()
-  const mappedPosts = mapRows(rows)
-  if (!rows?.length) return mappedPosts
-
-  const storefrontProducts = await getStorefrontProductsByIds(
-    rows.flatMap((row) => (row.blog_post_products ?? []).map((entry) => entry.product_id))
-  )
-  const productMap = new Map(storefrontProducts.map((product) => [product.dbId, product]))
-
-  return mappedPosts.map((post) => {
-    const sourceRow = rows.find((row) => row.id === post.id)
-    const featuredProducts = (sourceRow?.blog_post_products ?? [])
-      .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
-      .map((entry) => productMap.get(entry.product_id))
-      .filter((product): product is NonNullable<typeof product> => Boolean(product))
-
-    return { ...post, featuredProducts }
-  })
+// HOD-061: lists (blog page, related posts, sitemap) use light summaries: no
+// bodies, content blocks or product cards. Built-in sample posts show only
+// while the database has no published posts, as before.
+async function loadBlogSummaries(): Promise<{ posts: BlogPost[]; fromDatabase: boolean }> {
+  const rows = await loadPublishedBlogRowsFromRds({ summary: true }) as unknown as BlogPostRow[]
+  return rows.length ? { posts: mapRows(rows), fromDatabase: true } : { posts: fallbackPosts.filter((post) => post.isPublished !== false), fromDatabase: false }
 }
 
-// Posts embed featured product cards, so refresh with product changes too.
-const getCachedPublishedBlogPosts = unstable_cache(
-  () => loadPublishedBlogPosts(),
-  ['blog-published-posts-v1'],
-  { revalidate: PUBLIC_CACHE_LONG_SECONDS, tags: [PUBLIC_CONTENT_TAG, 'storefront-products'] }
+const getCachedBlogSummaries = unstable_cache(
+  () => loadBlogSummaries(),
+  ['blog-published-summaries-v2'],
+  { revalidate: PUBLIC_CACHE_LONG_SECONDS, tags: [PUBLIC_CONTENT_TAG] }
 )
 
-export async function getPublishedBlogPosts() {
-  return getCachedPublishedBlogPosts()
+export async function getPublishedBlogSummaries() {
+  return (await getCachedBlogSummaries()).posts
 }
+
+// One full post per cache entry. Posts embed featured product cards, so refresh
+// with product changes too.
+async function loadBlogPostBySlug(slug: string): Promise<BlogPost | null> {
+  const rows = await loadPublishedBlogRowsFromRds({ slug }) as unknown as BlogPostRow[]
+  const row = rows[0]
+  if (!row) {
+    const summaries = await getCachedBlogSummaries()
+    return summaries.fromDatabase ? null : summaries.posts.find((post) => post.slug === slug) ?? null
+  }
+  const [post] = mapRows([row])
+  if (!post) return null
+  const entries = (row.blog_post_products ?? []).sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
+  const productMap = new Map((await getStorefrontProductsByIds(entries.map((entry) => entry.product_id))).map((product) => [product.dbId, product]))
+  const featuredProducts = entries
+    .map((entry) => productMap.get(entry.product_id))
+    .filter((product): product is NonNullable<typeof product> => Boolean(product))
+  return { ...post, featuredProducts }
+}
+
+const getCachedBlogPostBySlug = unstable_cache(
+  (slug: string) => loadBlogPostBySlug(slug),
+  ['blog-post-by-slug-v1'],
+  { revalidate: PUBLIC_CACHE_LONG_SECONDS, tags: [PUBLIC_CONTENT_TAG, 'storefront-products'] }
+)
 
 const getCachedBlogHeroRow = cachePublicRead('blog-page-hero', () => findEditorialHeroFromRds('blog'), PUBLIC_CACHE_LONG_SECONDS)
 const getCachedLiveBlogCategories = cachePublicRead('blog-live-categories', () => loadLiveBlogCategoriesFromRds(), PUBLIC_CACHE_LONG_SECONDS)
 
 export async function getPublishedBlogPostBySlug(slug: string) {
-  const posts = await getPublishedBlogPosts()
-  return posts.find((post) => post.slug === slug) ?? null
+  if (!slug || slug.length > 300) return null
+  return getCachedBlogPostBySlug(slug)
 }
 
 export type BlogPageHero = {

@@ -78,7 +78,12 @@ export function createProductSchema(product: StorefrontProduct) {
           '@type': 'Offer',
           price,
           priceCurrency: 'USD',
-          availability: product.stockQuantity === 0 ? 'https://schema.org/OutOfStock' : 'https://schema.org/InStock',
+          // Pieces are made to order, so stock does not decide availability; a piece
+          // that can be checked out is orderable now (HOD-076). Enquiry-only pieces
+          // (collection lane, hip hop without checkout) are not offered as in stock.
+          availability: product.productLane === 'standard' || (product.productLane === 'hiphop' && product.allowCheckout)
+            ? 'https://schema.org/InStock'
+            : 'https://schema.org/LimitedAvailability',
           url: getCanonicalUrl(`/shop/${product.slug}`).toString(),
           seller: {
             '@type': 'Organization',

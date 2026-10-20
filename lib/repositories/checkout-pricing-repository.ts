@@ -23,8 +23,16 @@ export async function loadCheckoutProductsFromRds(slugs: string[]) {
     [slugs], 'checkout.pricing.products')
 }
 
+// Metal label fields and the variant's first image let checkout record what was
+// priced, instead of trusting labels and images sent by the browser.
 export async function loadCheckoutVariantsFromRds(productIds: string[]) {
-  return rows('select to_jsonb(v) row from public.product_metal_variants v where v.product_id = any($1::uuid[])',
+  return rows(`select to_jsonb(v) || jsonb_build_object(
+      'metal_name', m.name, 'metal_display_label', m.display_label,
+      'metal_purity_label', m.purity_label, 'metal_base_name', m.base_metal_name,
+      'image_path', (select i.media_path from public.product_variant_media_items i
+        where i.variant_id = v.id and i.media_type = 'image' order by i.sort_order, i.id limit 1)) row
+    from public.product_metal_variants v join public.catalog_metals m on m.id = v.metal_id
+    where v.product_id = any($1::uuid[])`,
     [productIds], 'checkout.pricing.variants')
 }
 
@@ -56,6 +64,18 @@ export async function loadCheckoutCouponFromRds(id: number, code: string) {
     [id, code], 'checkout.pricing.coupon')
   if (found.length > 1) throw new Error('Expected one checkout coupon.')
   return found[0] ?? null
+}
+
+// Orders still in payment with this coupon (reservation window), so a limited
+// coupon is not handed out to more checkouts than it has uses left. Uses
+// orders_pending_coupon_idx (db/migrations/2026101901_coupon_usage_limit).
+export async function countPendingCouponOrdersFromRds(couponId: number) {
+  const found = await rows<{ n: number }>(`select jsonb_build_object('n', count(*)::int) row from public.orders
+    where payment_status = 'pending' and coalesce(gateway_order_status, '') <> 'checkout_dismissed'
+      and created_at > now() - interval '15 minutes'
+      and gateway_payload->'checkout'->'coupon'->>'id' = $1::text`,
+  [String(couponId)], 'checkout.pricing.coupon-pending')
+  return Number(found[0]?.n ?? 0)
 }
 
 export async function findCheckoutCouponByCodeFromRds(code: string) {

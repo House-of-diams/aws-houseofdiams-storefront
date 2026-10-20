@@ -10,9 +10,8 @@ export async function POST(request: Request) {
     const products = await getStorefrontProductsByIdentifiers({ slugs, ids, limit: 50 })
     return NextResponse.json({ items: products.map((product) => ({ id: String(product.id), dbId: product.dbId, slug: product.slug, name: product.name, shortMeta: product.shortMeta, imageUrl: product.imageUrl || '', priceFrom: product.priceFrom, mainCategorySlug: product.mainCategorySlug, mainCategoryName: product.mainCategoryName })) })
   } catch (error) {
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Unable to load cart products.' },
-      { status: 500 }
-    )
+    // HOD-034: never send internal error text to the browser.
+    console.error('Cart products lookup failed:', error instanceof Error ? error.name : 'unknown')
+    return NextResponse.json({ error: 'Unable to load cart products.' }, { status: 500 })
   }
 }

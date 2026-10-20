@@ -3,7 +3,7 @@ import type { Metadata } from 'next'
 export const dynamic = 'force-dynamic'
 import BlogClient from '@/components/pages/BlogClient'
 import { createPageMetadata } from '@/lib/seo'
-import { getBlogPageHero, getLiveBlogCategories, getPublishedBlogPosts } from '@/lib/blog'
+import { getBlogPageHero, getLiveBlogCategories, getPublishedBlogSummaries } from '@/lib/blog'
 
 const legacyQueryKeys = ['post', 'slug'] as const
 
@@ -35,7 +35,7 @@ export async function generateMetadata({
 }
 
 export default async function BlogPage() {
-  const [blogPosts, hero, categories] = await Promise.all([getPublishedBlogPosts(), getBlogPageHero(), getLiveBlogCategories()])
+  const [blogPosts, hero, categories] = await Promise.all([getPublishedBlogSummaries(), getBlogPageHero(), getLiveBlogCategories()])
 
   return <BlogClient blogPosts={blogPosts} hero={hero} categories={categories} />
 }

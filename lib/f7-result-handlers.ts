@@ -74,7 +74,14 @@ export async function handleF7Success(request: Request) {
     ])
     const totals = order.gateway_payload?.totals
     const exchangeRate = amount(totals?.exchangeRate, 1)
-    return f7Json({ state, order: { ...order,
+    const coupon = order.gateway_payload?.checkout?.coupon
+    // The browser needs the charged totals and the coupon, not the internal
+    // gateway payload (signatures, raw provider events, full checkout copy).
+    const { gateway_payload: _internalPayload, ...publicOrder } = order
+    void _internalPayload
+    return f7Json({ state, order: { ...publicOrder,
+      coupon_code: coupon?.code || null,
+      coupon_discount_amount: amount(totals?.chargedCouponDiscount, Number(coupon?.discountAmount || 0) * exchangeRate),
       subtotal_amount: amount(totals?.chargedSubtotal, Number(order.subtotal_amount || 0)),
       gst_amount: amount(totals?.chargedGst, Number(order.gst_amount || 0)),
       shipping_amount: amount(totals?.shippingCharged, Number(order.shipping_amount || 0)),

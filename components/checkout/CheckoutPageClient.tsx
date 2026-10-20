@@ -151,6 +151,17 @@ function loadRazorpayCheckoutScript() {
   })
 }
 
+// Best-effort release of a prepared order the shopper will not pay (details changed
+// before Pay). The server refuses to release anything that has a payment.
+function releasePaymentSession(orderId: string, guestToken: string | null) {
+  void fetch('/api/checkout/cancel', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', ...(guestToken ? { 'x-guest-checkout-token': guestToken } : {}) },
+    body: JSON.stringify({ orderId }),
+    keepalive: true,
+  }).catch(() => null)
+}
+
 function getOrCreateGuestCheckoutToken() {
   const existing = window.sessionStorage.getItem(GUEST_CHECKOUT_TOKEN_KEY)
   if (existing && /^[0-9a-f]{64}$/.test(existing)) return existing
@@ -198,7 +209,7 @@ export default function CheckoutPageClient({ customerAuthEnabled = false }: { cu
   const [currentStep, setCurrentStep] = useState(0);
   const [sessionLoading, setSessionLoading] = useState(true);
   const [sessionReady, setSessionReady] = useState(false);
-  const [guestCheckout, setGuestCheckout] = useState(false);
+  const guestCheckout = !sessionReady;
   const [customerForm, setCustomerForm] = useState<CheckoutProfileForm>(EMPTY_PROFILE_FORM);
   const [processingPayment, setProcessingPayment] = useState(false);
   const [paymentUiStage, setPaymentUiStage] = useState<PaymentUiStage>('idle')
@@ -253,6 +264,8 @@ export default function CheckoutPageClient({ customerAuthEnabled = false }: { cu
   const postalLookupAbortRef = useRef<AbortController | null>(null)
   const checkoutAttemptKeyRef = useRef<string | null>(null)
   const paymentSessionPromiseRef = useRef<Promise<PendingPaymentSession | null> | null>(null)
+  const pendingPaymentSessionRef = useRef<PendingPaymentSession | null>(null)
+  const paymentSessionSignatureRef = useRef('')
   const paymentCustomerSessionRef = useRef(false)
   const paymentGuestTokenRef = useRef<string | null>(null)
   const lastPostalLookupKeyRef = useRef<string>('')
@@ -476,6 +489,12 @@ export default function CheckoutPageClient({ customerAuthEnabled = false }: { cu
   }, [])
 
   useEffect(() => {
+    paymentSessionSignatureRef.current = paymentSessionSignature
+    // A prepared order no longer matches the cart, address, coupon or currency:
+    // release it so its stock hold and gateway order do not linger.
+    const stale = pendingPaymentSessionRef.current
+    if (stale) releasePaymentSession(stale.orderId, paymentGuestTokenRef.current)
+    pendingPaymentSessionRef.current = null
     setPendingPaymentSession(null)
     paymentSessionPromiseRef.current = null
     checkoutAttemptKeyRef.current = null
@@ -1004,9 +1023,8 @@ export default function CheckoutPageClient({ customerAuthEnabled = false }: { cu
 
     setErrorMessage('')
     setCurrentStep((step) => Math.min(CHECKOUT_STEPS.length - 1, step + 1))
-    if (currentStep === CHECKOUT_STEPS.length - 2) {
-      void preparePaymentSession(false)
-    }
+    // The order, gateway order and stock hold are created only when the shopper
+    // presses Pay (handlePayNow), not on reaching the review step.
   }
 
   const preparePaymentSession = async (showErrors: boolean) => {
@@ -1014,6 +1032,7 @@ export default function CheckoutPageClient({ customerAuthEnabled = false }: { cu
     if (paymentSessionPromiseRef.current) return paymentSessionPromiseRef.current
 
     const request = (async () => {
+      const requestSignature = paymentSessionSignatureRef.current
       const session = customerAuthEnabled
         ? await fetch('/api/customer-auth/session', { cache: 'no-store' }).then((response) => response.ok ? response.json() : null).catch(() => null)
         : null
@@ -1058,6 +1077,15 @@ export default function CheckoutPageClient({ customerAuthEnabled = false }: { cu
       }
 
       const nextSession = payload as PendingPaymentSession
+      if (paymentSessionSignatureRef.current !== requestSignature) {
+        // Cart, address, coupon or currency changed while the order was being
+        // created; never open payment for the outdated order.
+        releasePaymentSession(nextSession.orderId, guestToken)
+        checkoutAttemptKeyRef.current = null
+        if (showErrors) setErrorMessage('Your checkout details changed while payment was starting. Please press Pay again.')
+        return null
+      }
+      pendingPaymentSessionRef.current = nextSession
       setPendingPaymentSession(nextSession)
       return nextSession
     })()
@@ -1140,6 +1168,7 @@ export default function CheckoutPageClient({ customerAuthEnabled = false }: { cu
 
             if (paymentHandlerStarted) return
 
+            pendingPaymentSessionRef.current = null
             setPendingPaymentSession(null)
             paymentSessionPromiseRef.current = null
             setPaymentUiStage('idle')
@@ -1184,10 +1213,13 @@ export default function CheckoutPageClient({ customerAuthEnabled = false }: { cu
             return
           }
 
+          // Forget the paid session before clearing the cart, so the cart change
+          // is not treated as an outdated order to release.
+          pendingPaymentSessionRef.current = null
+          setPendingPaymentSession(null)
           if (cartMode) {
             clearCart()
           }
-          setPendingPaymentSession(null)
           clearLoveLetterDraft()
           router.replace(`/checkout/success?order=${encodeURIComponent(verifyPayload.orderNumber || paymentSession.orderNumber)}`)
         },

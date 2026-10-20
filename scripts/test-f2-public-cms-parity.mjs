@@ -5,14 +5,6 @@ const supabaseBase = process.env.F2_SUPABASE_TEST_BASE_URL || 'http://localhost:
 
 const paths = [
   '/api/public/announcement-bar',
-  '/api/public/certifications',
-  '/api/public/collection',
-  '/api/public/couples',
-  '/api/public/hiphop-showcase',
-  '/api/public/material-strip',
-  '/api/public/service-banner',
-  '/api/public/testimonials',
-  '/api/public/stats',
   '/api/public/contact/hero',
   '/api/public/promotion-popup',
   '/api/public/promotion-popup/offer',

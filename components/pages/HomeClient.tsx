@@ -18,14 +18,12 @@ import type {
   HomeBestSellerSection,
   HomeBespokeShowcaseSection,
   HomeDiscoverItem,
-  HomeHipHopSection,
   HomeInstagramReelsData,
 } from '@/lib/home-data';
 import type { ShopByCategoryData } from '@/lib/shop-by-category';
 import FreeGiftOfferBanner from '@/components/home/FreeGiftOfferBanner';
 import type { StorefrontPromotion } from '@/components/commerce/PromotionBanner';
 
-const HipHopShowcase = dynamic(() => import('@/components/home/HipHopShowcase'), { loading: () => null });
 const DiscoverShapes = dynamic(() => import('@/components/home/DiscoverShapes'), { loading: () => null });
 const BestSellers = dynamic(() => import('@/components/home/BestSellers'), { loading: () => null });
 const CollectionShowcase = dynamic(() => import('@/components/home/CollectionShowcase'), { loading: () => null });
@@ -67,7 +65,6 @@ export default function HomeClient({
   shopByCategory,
   blogPosts = posts,
   discoverShapesItems = [],
-  hiphopSection,
   collectionPageConfig,
   bespokeShowcaseSection,
   instagramReels,
@@ -79,7 +76,6 @@ export default function HomeClient({
   shopByCategory: ShopByCategoryData | null
   blogPosts?: BlogPost[]
   discoverShapesItems?: HomeDiscoverItem[]
-  hiphopSection: HomeHipHopSection
   collectionPageConfig: CollectionPageConfig
   bespokeShowcaseSection: HomeBespokeShowcaseSection
   instagramReels: HomeInstagramReelsData
@@ -176,7 +172,6 @@ export default function HomeClient({
             </section>
           ) : null}
       </>
-      {/* {hiphopSection.is_enabled ? <HipHopShowcase initialSection={hiphopSection} /> : null} */}
       {/* <Newsletter onToast={handleToast} /> */}
 
       {isEnquireOpen && <EnquireModal open={isEnquireOpen} piece={enquireGemName} onClose={handleEnquireClose} />}

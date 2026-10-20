@@ -72,7 +72,6 @@ export default async function Home() {
     heroContent,
     blogRows,
     discoverShapesItems,
-    hiphopSection,
     collectionPageConfig,
     bespokeShowcaseSection,
     instagramReels,
@@ -100,7 +99,6 @@ export default async function Home() {
       shopByCategory={shopByCategory}
       blogPosts={blogPosts}
       discoverShapesItems={discoverShapesItems}
-      hiphopSection={hiphopSection}
       collectionPageConfig={collectionPageConfig}
       bespokeShowcaseSection={bespokeShowcaseSection}
       instagramReels={instagramReels}

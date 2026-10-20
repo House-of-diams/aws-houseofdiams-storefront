@@ -10,6 +10,8 @@ export async function withTransaction<Result>(
     throw normalizePostgresError(error)
   })
   let transactionStarted = false
+  // HOD-036: a connection whose ROLLBACK failed is broken; discard it, never reuse it.
+  let discard = false
 
   try {
     await client.query('BEGIN')
@@ -22,6 +24,7 @@ export async function withTransaction<Result>(
       try {
         await client.query('ROLLBACK')
       } catch (rollbackError) {
+        discard = true
         console.error('[db] Transaction rollback failed.', {
           code: getPostgresErrorCode(rollbackError) ?? 'unknown',
         })
@@ -30,6 +33,6 @@ export async function withTransaction<Result>(
 
     throw normalizePostgresError(error)
   } finally {
-    client.release()
+    client.release(discard)
   }
 }

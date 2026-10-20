@@ -81,7 +81,22 @@ type PreparedItem = {
   gstAmount: number
   gstSlabId: string | null
   selectedCustomDropdowns: { dropdown_id: string; name: string; label: string; option_id: string; option_label: string; option_value: string }[]
+  /** Server-derived values recorded on the order; never taken from the request. */
+  productName: string
+  metalLabel: string | null
+  imageUrl: string
 }
+
+// Free-text selections (size, gemstone, carat) do not affect price. Keep them as
+// the shopper chose them, but bounded and free of control characters.
+function cleanSelection(value: unknown, maxLength = 80) {
+  return typeof value === 'string' ? value.replace(/[\u0000-\u001f\u007f]/g, '').trim().slice(0, maxLength) : ''
+}
+
+const LOVE_LETTER_LIMITS = {
+  recipientName: 120, senderName: 120, aboutHerText: 2_000,
+  customLetterText: 6_000, finalLetterText: 6_000, finalLetterHtml: 30_000,
+} as const
 
 type ProductRow = {
   id: string
@@ -194,8 +209,12 @@ function buildGatewayPayload(input: {
   return {
     checkout: {
       customer: input.prepared.resolvedCustomer,
-      items: input.prepared.normalizedItems.map(({ entry, quantity, unitPrice, subtotalAmount, gstAmount, gstPercentage, gstLabel }) => ({
+      items: input.prepared.normalizedItems.map(({ entry, quantity, unitPrice, subtotalAmount, gstAmount, gstPercentage, gstLabel, productName, metalLabel, imageUrl }) => ({
         ...entry,
+        name: productName,
+        metal: metalLabel ?? entry.metal,
+        purity: metalLabel ? '' : entry.purity,
+        imageUrl,
         quantity,
         unitPrice,
         subtotalAmount,
@@ -318,7 +337,14 @@ export async function prepareCheckoutPayload({
     })
 
     return {
-      entry,
+      entry: {
+        ...entry,
+        metal: cleanSelection(entry.metal, 120),
+        purity: cleanSelection(entry.purity, 40),
+        sizeOrFit: cleanSelection(entry.sizeOrFit),
+        gemstone: cleanSelection(entry.gemstone),
+        carat: cleanSelection(entry.carat),
+      },
       product: line.product,
       quantity: line.quantity,
       unitPrice: line.unitPrice,
@@ -328,12 +354,23 @@ export async function prepareCheckoutPayload({
       gstAmount: line.gstAmount,
       gstSlabId: line.gstSlabId,
       selectedCustomDropdowns,
+      productName: line.product.name,
+      metalLabel: line.metalLabel,
+      imageUrl: line.imageUrl,
     }
   })
   if (selectionError) return { error: selectionError, status: 400 as const }
 
   const { subtotalAmount, gstAmount, gstLabel, gstPercentage, couponId, couponCode, couponDiscountAmount, couponRewardType, gift, totalAmount } = pricing
   const loveLetter = payload?.loveLetter ?? null
+  if (loveLetter) {
+    for (const [field, limit] of Object.entries(LOVE_LETTER_LIMITS)) {
+      const value = (loveLetter as Record<string, unknown>)[field]
+      if (value != null && (typeof value !== 'string' || value.length > limit)) {
+        return { error: 'The love letter is too long. Please shorten it and try again.', status: 400 as const }
+      }
+    }
+  }
   const customer = payload?.customer ?? {}
   const profileDate = (value: unknown) => value instanceof Date
     ? value.toISOString().slice(0, 10)
@@ -494,15 +531,15 @@ export async function createPendingOrder({
       print_status: prepared.loveLetter.wantsLetter ? 'pending' : 'skipped',
     }
     : null
-  const itemInputs: Array<Record<string, unknown>> = prepared.normalizedItems.map(({ entry, product, quantity, unitPrice, subtotalAmount, gstSlabId, gstPercentage, gstAmount, selectedCustomDropdowns }) => ({
+  const itemInputs: Array<Record<string, unknown>> = prepared.normalizedItems.map(({ entry, product, quantity, unitPrice, subtotalAmount, gstSlabId, gstPercentage, gstAmount, selectedCustomDropdowns, productName, metalLabel, imageUrl }) => ({
     product_id: product?.id || null,
-    product_name: entry.name,
-    product_slug: entry.slug,
+    product_name: productName,
+    product_slug: product?.slug || entry.slug,
     sku: product?.sku || null,
     quantity,
     unit_price: unitPrice,
     line_total: subtotalAmount,
-    selected_metal: buildSelectionLabel(entry.metal, entry.purity) || null,
+    selected_metal: metalLabel || buildSelectionLabel(entry.metal, entry.purity) || null,
     selected_purity: null,
     selected_size_or_fit: entry.sizeOrFit || null,
     selected_gemstone: entry.gemstone || null,
@@ -510,7 +547,7 @@ export async function createPendingOrder({
     gst_slab_id: gstSlabId,
     gst_percentage: gstPercentage,
     gst_amount: gstAmount,
-    image_url: entry.imageUrl || null,
+    image_url: imageUrl || null,
     selected_custom_dropdowns: selectedCustomDropdowns,
     item_type: 'regular',
     promotion_coupon_id: null,

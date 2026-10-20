@@ -37,6 +37,13 @@ const bodyRequest = (body, headers = {}) => new Request('https://store.test/api'
   body: JSON.stringify(body) })
 const queryResult = (rows = []) => ({ rows, rowCount: rows.length })
 
+test('signed-out checkout selects the guest path and still sends its owner token', () => {
+  const source = readFileSync(new URL('../components/checkout/CheckoutPageClient.tsx', import.meta.url), 'utf8')
+  assert.match(source, /const guestCheckout = !sessionReady;/)
+  assert.match(source, /const guestToken = hasCustomerSession \? null : \(guestCheckout \? getOrCreateGuestCheckoutToken\(\) : null\)/)
+  assert.match(source, /setSessionReady\(false\);\s*setSessionLoading\(false\);/)
+})
+
 test('write gate is OFF by default and requires both server flags', () => {
   for (const [auth, write, expected] of [['', '', false], ['false', 'true', false], ['true', '', false], ['true', 'TRUE', false], ['true', 'true', true]]) {
     process.env.HOD_CUSTOMER_AUTH_ENABLED = auth; process.env.HOD_F7_RDS_WRITE_PREPARED = write
@@ -73,8 +80,9 @@ function pricingFixture(overrides = {}) {
     loadCheckoutGstSlabsFromRds: async () => [{ id: 'gst', name: 'GST', percentage: 12 }], loadFallbackCheckoutGstSlabFromRds: async () => null,
     loadCheckoutCouponFromRds: async () => coupon, loadCheckoutGiftProductFromRds: async () => ({ ...product, id: 'gift', slug: 'gift', ...overrides.gift }),
     loadCheckoutGiftVariantFromRds: async () => overrides.giftVariant ?? null,
+    countPendingCouponOrdersFromRds: async () => overrides.pendingCouponOrders ?? 0,
   }
-  return load('lib/checkout-pricing.ts', { '@/lib/media-url': { mediaUrl: (value) => value || '' },
+  return load('lib/checkout-pricing.ts', { '@/lib/media-url': { mediaUrl: (value) => value || '' }, '@/lib/metal-label': load('lib/metal-label.ts'),
     '@/lib/repositories/checkout-pricing-repository': repository }).resolveAuthoritativeCheckoutPricing
 }
 const items = [{ slug: 'ring', name: 'Ring', quantity: 1 }]
@@ -110,12 +118,28 @@ test('RDS pricing rejects inactive, unavailable, invalid quantities/configuratio
   }
 })
 
+test('variant products are priced and labelled only from the stored variant (HOD-005)', async () => {
+  const variants = [{ id: 'variant', product_id: orderId, price: 125, metal_name: 'White Gold', metal_display_label: '14K White Gold',
+    metal_purity_label: '14K', metal_base_name: 'White Gold', image_path: 'products/images/variant.webp' }]
+  const pricing = pricingFixture({ variants, product: { image_1_path: 'products/images/product.webp' } })
+  const missing = await pricing({ items: [{ ...items[0], metal: 'Platinum', purity: '950' }] })
+  assert.equal(missing.status, 400); assert.match(missing.error, /Choose a metal option/)
+  assert.equal((await pricing({ items: [{ ...items[0], metalVariantId: 'legacy-anything' }] })).status, 400)
+  const chosen = await pricing({ items: [{ ...items[0], metalVariantId: 'variant', metal: 'Platinum', name: 'Other name', imageUrl: 'https://elsewhere.test/x.png' }] })
+  assert.equal(chosen.data.lines[0].unitPrice, 125)
+  assert.equal(chosen.data.lines[0].metalLabel, '14K White Gold')
+  assert.equal(chosen.data.lines[0].imageUrl, 'products/images/variant.webp')
+  const noVariants = await pricingFixture({ product: { image_1_path: 'products/images/product.webp' } })({ items })
+  assert.equal(noVariants.data.lines[0].metalLabel, null); assert.equal(noVariants.data.lines[0].imageUrl, 'products/images/product.webp')
+})
+
 const subunits = load('lib/payment-subunits.ts')
 function checkoutFixture(options = {}) {
   enable()
   const calls = []
   const prepared = { normalizedItems: [{ entry: { ...items[0], priceFrom: 1 }, product: { id: orderId, sku: null }, quantity: 1,
-    unitPrice: 100, subtotalAmount: 100, gstSlabId: 'gst', gstPercentage: 12, gstAmount: 12, gstLabel: 'GST', selectedCustomDropdowns: [] }],
+    unitPrice: 100, subtotalAmount: 100, gstSlabId: 'gst', gstPercentage: 12, gstAmount: 12, gstLabel: 'GST', selectedCustomDropdowns: [],
+    productName: 'Ring', metalLabel: null, imageUrl: '' }],
     subtotalAmount: 100, gstAmount: 12, gstLabel: 'GST', gstPercentage: 12, couponId: null,
     couponCode: null, couponDiscountAmount: 0, couponRewardType: null, gift: null, totalAmount: 112,
     chargeQuote: { totalCharged: 112, chargeCurrency: 'USD', baseCurrency: 'USD', totalUsd: 112,
@@ -520,11 +544,14 @@ test('success rejects missing/wrong owner before loading content; preserves immu
     assert.equal(fixture.calls.some(([name]) => name === 'owner-items'), false)
   }
   const fixture = resultFixture({ owner: guest, order: { payment_status: 'paid',
-    gateway_payload: { totals: { chargedSubtotal: 200, chargedGst: 24, shippingCharged: 10, exchangeRate: 2 } } } })
+    gateway_payload: { totals: { chargedSubtotal: 200, chargedGst: 24, shippingCharged: 10, exchangeRate: 2, chargedCouponDiscount: 20 },
+      checkout: { coupon: { code: 'OFFER', discountAmount: 10 } }, payment: { razorpaySignature: 'secret' }, rawEvent: { private: true } } } })
   const response = await fixture.handlers.handleF7Success(request())
   const body = await response.json()
   assert.equal(response.headers.get('cache-control'), 'no-store')
   assert.equal(body.state, 'success'); assert.equal(body.order.subtotal_amount, 200)
+  assert.equal(body.order.gateway_payload, undefined, 'internal payload is not sent to the browser')
+  assert.equal(body.order.coupon_code, 'OFFER'); assert.equal(body.order.coupon_discount_amount, 20)
   assert.equal(body.order.items[0].line_total, 200); assert.equal(body.statusEvents.length, 1)
   assert.equal(body.cms.page.main_banner_image_url, 'https://media.test/banner.png')
   assert.deepEqual(fixture.calls.find(([name]) => name === 'owner-history').slice(1), [guest, orderId])
@@ -550,4 +577,38 @@ test('profile orders requires customer owner and bounds pagination; guest cannot
   const response = await fixture.handlers.handleF7ProfileOrders(new Request('https://store.test/api/profile/orders?page=2&pageSize=5'))
   assert.deepEqual((await response.json()).pagination, { page: 2, pageSize: 5, total: 11, totalPages: 3 })
   assert.deepEqual(fixture.calls.at(-1).slice(1), [customer, 2, 5])
+})
+
+test('a limited coupon counts orders still in payment (HOD-012)', async () => {
+  const coupon = { usage_limit: 5, usage_count: 3 }
+  assert.equal((await pricingFixture({ coupon, pendingCouponOrders: 2 })({ items, coupon: { id: 1, code: 'OFFER' } })).status, 400)
+  assert.equal((await pricingFixture({ coupon, pendingCouponOrders: 1 })({ items, coupon: { id: 1, code: 'OFFER' } })).data.couponDiscountAmount, 10)
+  assert.equal((await pricingFixture({ coupon: { usage_limit: null, usage_count: 99 }, pendingCouponOrders: 50 })({ items, coupon: { id: 1, code: 'OFFER' } })).data.couponDiscountAmount, 10)
+})
+
+test('pending order lines store database name, metal label and image, never browser values (HOD-005)', async () => {
+  const fixture = checkoutFixture()
+  const prepared = { ...fixture.prepared, normalizedItems: [{ ...fixture.prepared.normalizedItems[0],
+    entry: { ...items[0], name: 'Browser name', metal: 'Platinum 950', imageUrl: 'https://elsewhere.test/x.png', sizeOrFit: ' 7\u0000 ' },
+    productName: 'Ring', metalLabel: '14K White Gold', imageUrl: 'products/images/variant.webp' }] }
+  const created = await fixture.domain.createPendingOrder({ userId: null, customerIdentityId: customer.id, guestTokenHash: null,
+    payload: {}, prepared, razorpayOrderId: 'order_fake' })
+  assert.equal(created.error, undefined)
+  const input = fixture.calls.find(([name]) => name === 'create-pending')[1]
+  assert.equal(input.items[0].product_name, 'Ring')
+  assert.equal(input.items[0].selected_metal, '14K White Gold')
+  assert.equal(input.items[0].image_url, 'products/images/variant.webp')
+  const stored = input.order.gateway_payload.checkout.items[0]
+  assert.equal(stored.name, 'Ring'); assert.equal(stored.metal, '14K White Gold'); assert.equal(stored.imageUrl, 'products/images/variant.webp')
+})
+
+test('love letter fields over their limits are rejected before pricing is charged (HOD-027)', async () => {
+  const fixture = checkoutFixture({ useRealPreparation: true })
+  const base = { items, customer: fixture.prepared.resolvedCustomer }
+  const tooLong = await fixture.domain.prepareCheckoutPayload({ customerIdentity: customer,
+    payload: { ...base, loveLetter: { wantsLetter: true, finalLetterHtml: 'x'.repeat(30_001) } } })
+  assert.equal(tooLong.status, 400); assert.match(tooLong.error, /love letter is too long/)
+  const ok = await fixture.domain.prepareCheckoutPayload({ customerIdentity: customer,
+    payload: { ...base, loveLetter: { wantsLetter: true, finalLetterText: 'Dear you' } } })
+  assert.equal(ok.error, undefined)
 })

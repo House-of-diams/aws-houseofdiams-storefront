@@ -85,9 +85,9 @@ export default function ReturnsFaqPage({
         <div className="space-y-6">
           <div className="border border-[#e4e4e4] bg-(--color-white) px-6 py-8 text-center">
             <h2 className="text-[16px] uppercase tracking-[0.06em] text-[#222222] font-bold!">Quick Actions</h2>
-            <a href="/profile?tab=orders" className="brand-button mt-6 w-full">
+            <Link href="/profile?tab=orders" className="brand-button mt-6 w-full">
               Track My Order
-            </a>
+            </Link>
           </div>
 
           <div className="border border-[#e4e4e4] bg-(--color-white) px-6 py-8">
