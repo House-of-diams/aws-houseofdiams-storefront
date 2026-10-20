@@ -177,14 +177,11 @@ test('password change starts an authenticated PKCE Keycloak action and returns t
 })
 
 test('RDS read failures return a bounded public error without database details', async () => {
-  const route = load('app/api/public/diamond-info/route.ts', {
+  // HOD-057 removed the unused diamond-info route; this live public route has the same contract.
+  const route = load('app/api/public/additional-summary-details/route.ts', {
     'next/server': { NextResponse: { json: Response.json } },
-    '@/lib/db/errors': { DatabaseError: class DatabaseError extends Error {} },
-    '@/lib/media-url': { mediaUrl: (value) => value || '' },
-    '@/lib/repositories/legacy-cms-repository': {
-      loadDiamondInfoFeaturesFromRds: async () => { throw new Error('private database credentials') },
-      findDiamondInfoConfigFromRds: async () => null,
-    },
+    '@/lib/repositories/summary-repository': { findAdditionalSummaryFromRds: async () => { throw new Error('private database credentials') } },
+    '@/lib/public-cache': { cachePublicRead: (_key, read) => read, publicCacheHeaders: () => ({}), PUBLIC_CACHE_LONG_SECONDS: 300 },
   })
   const response = await route.GET()
   assert.equal(response.status, 500)

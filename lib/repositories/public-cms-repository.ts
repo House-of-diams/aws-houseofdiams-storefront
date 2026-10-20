@@ -17,38 +17,10 @@ export async function findAnnouncementBarFromRds() {
   return { section: row, items: items.rows }
 }
 
-export async function findCertificationsFromRds() {
-  const [section, items] = await Promise.all([
-    query<Record<string, unknown>>('SELECT section_key, eyebrow, heading FROM public.certifications_section WHERE section_key = $1 LIMIT 2', ['home_certifications'], { operation: 'cms.certifications.section' }),
-    query<Record<string, unknown>>('SELECT sort_order, title, description, badge, icon_path FROM public.certifications_items ORDER BY sort_order ASC', [], { operation: 'cms.certifications.items' }),
-  ])
-  if (section.rows.length > 1) throw new Error('Expected one certifications section.')
-  return { section: section.rows[0] ?? null, items: items.rows }
-}
-
-export async function loadCollectionItemsFromRds() {
-  const result = await query<Record<string, unknown>>('SELECT sort_order, label, title, description, image_path, link FROM public.collection_items ORDER BY sort_order ASC', [], { operation: 'cms.collection.items' })
-  return result.rows
-}
-
-export async function findCouplesFromRds() {
-  const section = await query<Record<string, unknown>>('SELECT id, eyebrow, heading, subtitle FROM public.couples_section WHERE section_key = $1 LIMIT 2', ['home_couples'], { operation: 'cms.couples.section' })
-  if (section.rows.length > 1) throw new Error('Expected one couples section.')
-  const row = section.rows[0]
-  if (!row) return null
-  const items = await query<Record<string, unknown>>('SELECT sort_order, names, location, story, product_name, product_link, product_detail, image_path FROM public.couples_items WHERE section_id = $1 ORDER BY sort_order ASC', [row.id], { operation: 'cms.couples.items' })
-  return { section: row, items: items.rows }
-}
-
 export async function findHipHopShowcaseFromRds() {
   const result = await query<Record<string, unknown>>('SELECT is_enabled, eyebrow, heading_line_1, heading_line_2, heading_emphasis, cta_label, cta_link, image_path, image_alt FROM public.hiphop_showcase_section WHERE section_key = $1 LIMIT 2', ['home_hiphop_showcase'], { operation: 'cms.hiphop_showcase' })
   if (result.rows.length > 1) throw new Error('Expected one hip-hop showcase section.')
   return result.rows[0] ?? null
-}
-
-export async function loadMaterialStripItemsFromRds() {
-  const result = await query<Record<string, unknown>>('SELECT sort_order, title, description, icon_path FROM public.material_strip_items ORDER BY sort_order ASC', [], { operation: 'cms.material_strip' })
-  return result.rows
 }
 
 export async function loadServiceBannerFromRds() {
@@ -58,20 +30,6 @@ export async function loadServiceBannerFromRds() {
   ])
   if (section.rows.length > 1) throw new Error('Expected one service banner section.')
   return { section: section.rows[0] ?? null, blocks: blocks.rows }
-}
-
-export async function findTestimonialsFromRds() {
-  const section = await query<Record<string, unknown>>('SELECT id, eyebrow, heading FROM public.testimonials_section WHERE section_key = $1 LIMIT 2', ['home_testimonials'], { operation: 'cms.testimonials.section' })
-  if (section.rows.length > 1) throw new Error('Expected one testimonials section.')
-  const row = section.rows[0]
-  if (!row) return null
-  const items = await query<Record<string, unknown>>('SELECT sort_order, quote, author, origin, rating FROM public.testimonials_items WHERE section_id = $1 ORDER BY sort_order ASC', [row.id], { operation: 'cms.testimonials.items' })
-  return { section: row, items: items.rows }
-}
-
-export async function loadPublicStatsFromRds() {
-  const result = await query<Record<string, unknown>>('SELECT sort_order, target, suffix, label FROM public.stats_strip_items ORDER BY sort_order ASC', [], { operation: 'cms.stats_strip' })
-  return result.rows
 }
 
 export async function findContactHeroFromRds() {

@@ -20,18 +20,6 @@ export async function findHomeTestimonialMarquee(): Promise<TestimonialMarquee |
   return result.rows[0]?.row ?? null
 }
 
-export async function listTestimonialMarqueeItems(marqueeId: number): Promise<TestimonialMarqueeItem[]> {
-  const result = await query<{ row: TestimonialMarqueeItem }>(
-    `SELECT jsonb_build_object(
-       'id', id, 'sort_order', sort_order, 'quote', quote, 'author', author
-     ) AS row FROM public.testimonial_marquee_items
-     WHERE marquee_id = $1 ORDER BY sort_order ASC`,
-    [marqueeId],
-    { operation: 'cms.testimonial_marquee_items' },
-  )
-  return result.rows.map((entry) => entry.row)
-}
-
 type CmsRow = Record<string, unknown>
 
 async function cmsRows(sql: string, values: readonly unknown[], operation: string) {
@@ -50,25 +38,25 @@ function cmsMany(data: CmsRow[]) {
 }
 
 export async function loadHomeCmsRowsFromRds() {
-  const [hero, blog, collection, discoverShapes, stoneShapes, hiphop,
-    collectionConfig, bespoke, testimonials, bestSellerSection, bestSellerSelections] = await Promise.all([
+  // HOD-057: hip hop and testimonials are no longer shown, so they are not read.
+  const [hero, blog, collection, discoverShapes, stoneShapes,
+    collectionConfig, bespoke, bestSellerSection, bestSellerSelections] = await Promise.all([
       cmsOne('SELECT to_jsonb(t) AS row FROM public.homepage_hero t WHERE section_key = $1 AND is_active = $2 LIMIT 2', ['home_hero', true], 'cms.home.hero'),
-      cmsRows(`SELECT to_jsonb(p) || jsonb_build_object('blog_post_tags',
+      // The home blog grid shows cards only: no bodies.
+      cmsRows(`SELECT (to_jsonb(p) - 'body_html') || jsonb_build_object('blog_post_tags',
               COALESCE((SELECT jsonb_agg(jsonb_build_object('tag', t.tag, 'sort_order', t.sort_order) ORDER BY t.sort_order)
                         FROM public.blog_post_tags t WHERE t.post_id = p.id), '[]'::jsonb)) AS row
               FROM public.blog_posts p WHERE is_published = $1 ORDER BY sort_order ASC`, [true], 'cms.home.blog'),
       cmsRows('SELECT to_jsonb(t) AS row FROM public.collection_items t ORDER BY sort_order ASC', [], 'cms.home.collection'),
       cmsRows('SELECT to_jsonb(t) AS row FROM public.discover_shapes_items t WHERE status = $1 ORDER BY sort_order ASC', ['active'], 'cms.home.discover_shapes'),
       cmsRows('SELECT to_jsonb(t) AS row FROM public.catalog_stone_shapes t WHERE status = $1 ORDER BY display_order ASC', ['active'], 'cms.home.stone_shapes'),
-      cmsOne('SELECT to_jsonb(t) AS row FROM public.hiphop_showcase_section t WHERE section_key = $1 LIMIT 2', ['home_hiphop_showcase'], 'cms.home.hiphop'),
       cmsOne('SELECT to_jsonb(t) AS row FROM public.collection_page_config t WHERE section_key = $1 LIMIT 2', ['main_collection_page'], 'cms.home.collection_config'),
       cmsOne('SELECT to_jsonb(t) AS row FROM public.home_bespoke_showcase_section t WHERE section_key = $1 LIMIT 2', ['home_bespoke_showcase'], 'cms.home.bespoke'),
-      cmsOne('SELECT to_jsonb(t) AS row FROM public.testimonials_section t WHERE section_key = $1 LIMIT 2', ['home_testimonials'], 'cms.home.testimonials'),
       cmsOne('SELECT to_jsonb(t) AS row FROM public.cms_home_bestsellers t WHERE status = $1 LIMIT 2', ['active'], 'cms.home.bestsellers'),
       cmsRows('SELECT to_jsonb(t) AS row FROM public.cms_home_bestseller_products t ORDER BY display_order ASC', [], 'cms.home.bestseller_products'),
     ])
   return [hero, cmsMany(blog), cmsMany(collection), cmsMany(discoverShapes), cmsMany(stoneShapes),
-    hiphop, collectionConfig, bespoke, testimonials, bestSellerSection, cmsMany(bestSellerSelections)] as const
+    collectionConfig, bespoke, bestSellerSection, cmsMany(bestSellerSelections)] as const
 }
 
 export async function loadHomeHeroSliderRowsFromRds(heroId: number) {
@@ -78,13 +66,6 @@ export async function loadHomeHeroSliderRowsFromRds(heroId: number) {
        'headline', headline, 'subtitle', subtitle, 'button_text', button_text, 'button_link', button_link
      ) AS row FROM public.homepage_hero_slider_items WHERE hero_id = $1 ORDER BY sort_order ASC`,
     [heroId], 'cms.home.hero_slides',
-  ))
-}
-
-export async function loadHomeTestimonialsRowsFromRds(sectionId: number) {
-  return cmsMany(await cmsRows(
-    'SELECT to_jsonb(t) AS row FROM public.testimonials_items t WHERE section_id = $1 ORDER BY sort_order ASC',
-    [sectionId], 'cms.home.testimonials_items',
   ))
 }
 

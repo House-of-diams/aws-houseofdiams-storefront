@@ -35,24 +35,3 @@ export async function loadCategoryFaqFromRds(categoryId: string) {
   )).rows
 }
 
-export async function loadDiamondInfoFeaturesFromRds() {
-  return (await query<{ id: number; sort_order: number; icon_svg: string | null; title: string | null; description: string | null; is_active: boolean | null }>(
-    `SELECT id, sort_order, icon_svg, title, description, is_active FROM public.diamond_info_feature_items
-     WHERE section_key = $1 AND is_active = $2 ORDER BY sort_order ASC`,
-    ['home_diamond_info', true], { operation: 'cms.diamond_info.features' },
-  )).rows
-}
-
-export async function findDiamondInfoConfigFromRds() {
-  const result = await query<{
-    video_enabled: boolean | null; video_path: string | null; video_poster_path: string | null
-    layout_mode: string | null; eyebrow: string | null; section_heading: string | null
-    section_subtext: string | null; cta_label: string | null; cta_link: string | null
-  }>(
-    `SELECT video_enabled, video_path, video_poster_path, layout_mode, eyebrow,
-      section_heading, section_subtext, cta_label, cta_link FROM public.diamond_info_config
-     WHERE section_key = $1 LIMIT 2`, ['home_diamond_info'], { operation: 'cms.diamond_info.config' },
-  )
-  if (result.rows.length > 1) throw new Error('Expected one diamond information configuration.')
-  return result.rows[0] ?? null
-}
