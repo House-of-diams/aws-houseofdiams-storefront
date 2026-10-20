@@ -17,6 +17,8 @@ export async function GET(request: Request) {
 
   try {
     const taxBySlug = await loadCheckoutTaxFromRds([slug])
+    // HOD-030: an unknown product is a 404, not an empty 200 body.
+    if (!taxBySlug[slug]) return NextResponse.json({ error: 'Product not found.' }, { status: 404 })
     return NextResponse.json(taxBySlug[slug])
   } catch {
     return NextResponse.json({ error: 'Unable to load checkout tax.' }, { status: 503 })

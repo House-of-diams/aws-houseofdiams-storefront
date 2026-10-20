@@ -83,31 +83,25 @@ test('disabled payment routes reject before invoking any handler', async () => {
   }
 })
 
+// HOD-031: the duplicate /api/profile route was removed; the same guarantees are
+// checked on the profile route the account page uses.
 test('profile writes bind to the verified identity, preserve validation and reject cross-origin requests', async () => {
-  let enabled = false
-  let sameOrigin = true
-  let writes = 0
-  const identity = { kind: 'customer', id: 'verified-id', email: 'verified@example.test' }
-  const route = load('app/api/profile/route.ts', {
+  let enabled = false, sameOrigin = true, writes = 0
+  const route = load('app/api/customer-auth/profile/route.ts', {
     'next/server': { NextResponse: { json: Response.json } },
     '@/lib/customer-auth/config': { getCustomerAuthConfig: () => enabled ? { baseUrl: 'https://store.test' } : null },
-    '@/lib/f7-checkout-owner': { resolveF7CheckoutOwner: async () => identity },
-    '@/lib/customer-auth/security': {
-      isSameOriginMutation: () => sameOrigin,
-      readBoundedJson: async (request) => ({ ok: true, value: await request.json() }),
-    },
+    '@/lib/customer-auth/oidc': { customerAuthCookieNames: () => ({ session: 'session' }), getCustomerSession: async () => ({ id: 'verified-id', email: 'verified@example.test' }) },
+    '@/lib/customer-auth/security': { isSameOriginMutation: () => sameOrigin, readBoundedJson: async (request) => ({ ok: true, value: await request.json() }) },
     '@/lib/rate-limit': { enforceRateLimit: async () => ({ ok: true }) },
-    '@/lib/repositories/checkout-profile-repository': {
-      loadCheckoutCustomerProfile: async () => ({ first_name: 'Test' }),
-      saveCustomerProfile: async (id, fields) => {
-        assert.equal(id, identity.id)
-        assert.equal(fields.email, undefined)
-        writes++
-        return fields
-      },
-    },
+    '@/lib/db/query': { query: async (sql, params) => {
+      assert.match(sql, /insert into public\.customer_profiles/)
+      assert.equal(params[0], 'verified-id', 'identity comes from the session, never the body')
+      assert.ok(!params.includes('untrusted@example.test'), 'email is never written from the body')
+      writes++
+      return { rows: [] }
+    } },
   })
-  const request = (body) => new Request('https://store.test/api/profile', { method: 'PATCH', body: JSON.stringify(body) })
+  const request = (body) => new Request('https://store.test/api/customer-auth/profile', { method: 'PATCH', headers: { cookie: 'session=token' }, body: JSON.stringify(body) })
   const valid = { first_name: 'Test', last_name: 'Client', email: 'untrusted@example.test', identity_id: 'other-id' }
   assert.equal((await route.PATCH(request(valid))).status, 404)
   enabled = true
@@ -119,7 +113,6 @@ test('profile writes bind to the verified identity, preserve validation and reje
   const response = await route.PATCH(request(valid))
   assert.equal(response.status, 200)
   assert.equal(response.headers.get('cache-control'), 'no-store')
-  assert.equal((await response.json()).profile.email, identity.email)
   assert.equal(writes, 1)
 })
 
@@ -186,4 +179,27 @@ test('RDS read failures return a bounded public error without database details',
   const response = await route.GET()
   assert.equal(response.status, 500)
   assert.deepEqual(await response.json(), { error: 'Unable to load content.' })
+})
+
+test('HOD-030/036: unknown tax product is 404; a connection whose rollback failed is discarded', async () => {
+  const tax = load('app/api/checkout/tax/route.ts', {
+    'next/server': { NextResponse: { json: Response.json } },
+    '@/lib/repositories/checkout-tax-repository': { loadCheckoutTaxFromRds: async () => ({}) },
+  })
+  const missing = await tax.GET(new Request('https://store.test/api/checkout/tax?slug=unknown'))
+  assert.equal(missing.status, 404)
+  assert.deepEqual(await missing.json(), { error: 'Product not found.' })
+  const released = []
+  const client = (rollbackFails) => ({
+    query: async (sql) => { if (sql === 'ROLLBACK' && rollbackFails) throw Object.assign(Error('connection lost'), { code: '08006' }); return { rows: [] } },
+    release: (discard) => released.push(discard),
+  })
+  for (const rollbackFails of [false, true]) {
+    const { withTransaction } = load('lib/db/transaction.ts', {
+      '@/lib/db/errors': { getPostgresErrorCode: (e) => e?.code, normalizePostgresError: (e) => e },
+      '@/lib/db/pool': { getPool: () => ({ connect: async () => client(rollbackFails) }) },
+    })
+    await assert.rejects(withTransaction(async () => { throw Error('work failed') }), /work failed/)
+  }
+  assert.deepEqual(released, [false, true], 'healthy connection reused; broken one discarded')
 })

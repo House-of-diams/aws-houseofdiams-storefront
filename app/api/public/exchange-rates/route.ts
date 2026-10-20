@@ -2,8 +2,9 @@ import { NextResponse } from 'next/server'
 import { CURRENCIES, normalizeCurrency, type SupportedCurrency } from '@/lib/currency'
 import { getUsdExchangeRates } from '@/lib/exchange-rates'
 
-export const dynamic = 'force-static'
-export const revalidate = 300
+// HOD-050: computed per request (rates are cached in memory for 30 minutes), so a
+// build without the Fixer key no longer serves prerendered fallback rates.
+export const dynamic = 'force-dynamic'
 
 export async function GET() {
   try {

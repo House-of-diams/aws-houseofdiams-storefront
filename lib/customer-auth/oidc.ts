@@ -100,6 +100,10 @@ export async function createCustomerSession(issuer: string, subject: string, ema
   const bearer = randomToken(32)
   const digest = createHash('sha256').update(bearer).digest()
   await query(`insert into public.customer_sessions (identity_id, token_hash, expires_at) values ($1, $2, now() + ($3 * interval '1 second'))`, [identity.rows[0].id, digest, maxAge], { operation: 'customer-auth-create-session' })
+  // HOD-032: each sign-in removes this customer's own expired sessions (one bounded
+  // statement, nothing scheduled). A failure here never blocks the sign-in.
+  await query('delete from public.customer_sessions where identity_id = $1 and expires_at < now()', [identity.rows[0].id], { operation: 'customer-auth-purge-expired-sessions' })
+    .catch(() => undefined)
   return bearer
 }
 
