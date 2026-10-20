@@ -37,6 +37,13 @@ const bodyRequest = (body, headers = {}) => new Request('https://store.test/api'
   body: JSON.stringify(body) })
 const queryResult = (rows = []) => ({ rows, rowCount: rows.length })
 
+test('signed-out checkout selects the guest path and still sends its owner token', () => {
+  const source = readFileSync(new URL('../components/checkout/CheckoutPageClient.tsx', import.meta.url), 'utf8')
+  assert.match(source, /const guestCheckout = !sessionReady;/)
+  assert.match(source, /const guestToken = hasCustomerSession \? null : \(guestCheckout \? getOrCreateGuestCheckoutToken\(\) : null\)/)
+  assert.match(source, /setSessionReady\(false\);\s*setSessionLoading\(false\);/)
+})
+
 test('write gate is OFF by default and requires both server flags', () => {
   for (const [auth, write, expected] of [['', '', false], ['false', 'true', false], ['true', '', false], ['true', 'TRUE', false], ['true', 'true', true]]) {
     process.env.HOD_CUSTOMER_AUTH_ENABLED = auth; process.env.HOD_F7_RDS_WRITE_PREPARED = write

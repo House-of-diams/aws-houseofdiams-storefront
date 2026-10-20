@@ -123,6 +123,59 @@ test('profile writes bind to the verified identity, preserve validation and reje
   assert.equal(writes, 1)
 })
 
+test('profile reads member-since from owned RDS identity and omits password data', async () => {
+  const route = load('app/api/customer-auth/profile/route.ts', {
+    'next/server': { NextResponse: { json: Response.json } },
+    '@/lib/customer-auth/config': { getCustomerAuthConfig: () => ({ baseUrl: 'https://store.test' }) },
+    '@/lib/customer-auth/oidc': { customerAuthCookieNames: () => ({ session: 'session' }), getCustomerSession: async () => ({ id: 'owned-id', email: 'member@example.test' }) },
+    '@/lib/customer-auth/security': { isSameOriginMutation: () => true, readBoundedJson: async () => ({ ok: true, value: {} }) },
+    '@/lib/db/query': { query: async (sql, params) => {
+      assert.match(sql, /from public\.customer_identities i left join public\.customer_profiles p/)
+      assert.deepEqual(params, ['owned-id'])
+      return { rows: [{ identity_created_at: '2026-01-02T00:00:00Z', first_name: 'Member' }] }
+    } },
+    '@/lib/rate-limit': { enforceRateLimit: async () => ({ ok: true }) },
+  })
+  const result = await route.GET(new Request('https://store.test/api/customer-auth/profile'))
+  assert.equal(result.status, 200)
+  assert.deepEqual(await result.json(), { identity: { id: 'owned-id', email: 'member@example.test', createdAt: '2026-01-02T00:00:00Z' }, profile: { first_name: 'Member' } })
+})
+
+test('password change starts an authenticated PKCE Keycloak action and returns to profile', async () => {
+  let authenticated = false
+  const route = load('app/api/customer-auth/start/route.ts', {
+    'next/server': { NextResponse: {
+      json: Response.json,
+      redirect: (url, status) => {
+        const response = new Response(null, { status, headers: { location: String(url) } })
+        response.cookies = { set: () => {} }
+        return response
+      },
+    } },
+    '@/lib/customer-auth/config': { getCustomerAuthConfig: () => ({ issuer: 'https://auth.test/realms/hod-customers', baseUrl: 'https://store.test', clientId: 'client' }), safeNextPath: () => '/' },
+    '@/lib/customer-auth/oidc': {
+      customerAuthCookieNames: () => ({ session: 'session', state: 'state' }),
+      getCustomerSession: async () => authenticated ? { id: 'owned-id' } : null,
+      getDiscovery: async () => ({ authorization_endpoint: 'https://auth.test/authorize' }),
+      makeState: (payload) => { assert.equal(payload.next, '/profile'); assert.ok(payload.nonce); assert.ok(payload.verifier); return 'signed-state' },
+      stateCookieOptions: () => ({}),
+    },
+    '@/lib/rate-limit': { enforceRateLimit: async () => ({ ok: true }) },
+  })
+  const request = new Request('https://store.test/api/customer-auth/start?flow=password&next=%2F%2Fevil.test', { headers: { cookie: 'session=owned-token' } })
+  assert.equal((await route.GET(request)).status, 401)
+  authenticated = true
+  const response = await route.GET(request)
+  assert.equal(response.status, 302)
+  const authorization = new URL(response.headers.get('location'))
+  assert.equal(authorization.searchParams.get('kc_action'), 'UPDATE_PASSWORD')
+  assert.equal(authorization.searchParams.get('code_challenge_method'), 'S256')
+  assert.ok(authorization.searchParams.get('state'))
+  assert.ok(authorization.searchParams.get('nonce'))
+  assert.equal(authorization.searchParams.get('redirect_uri'), 'https://store.test/api/customer-auth/callback')
+  assert.equal(authorization.searchParams.get('prompt'), null)
+})
+
 test('RDS read failures return a bounded public error without database details', async () => {
   const route = load('app/api/public/diamond-info/route.ts', {
     'next/server': { NextResponse: { json: Response.json } },

@@ -7,6 +7,14 @@ import { enforceRateLimit } from '@/lib/rate-limit'
 
 export const runtime = 'nodejs'
 const fields = ['first_name', 'last_name', 'phone', 'country', 'state', 'district', 'city', 'postal_code', 'address_line_1', 'address_line_2'] as const
+const dateFields = ['birth_date', 'anniversary_date'] as const
+
+function validOptionalDate(value: unknown): value is string | null | undefined {
+  if (value == null || value === '') return true
+  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false
+  const date = new Date(`${value}T00:00:00.000Z`)
+  return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value && value <= new Date().toISOString().slice(0, 10)
+}
 
 async function access(request: Request) {
   const name = customerAuthCookieNames().session
@@ -19,8 +27,13 @@ export async function GET(request: Request) {
   try {
     const identity = await access(request)
     if (!identity) return NextResponse.json({ error: 'Sign in to view your profile.' }, { status: 401 })
-    const result = await query(`select first_name, last_name, phone, country, state, district, city, postal_code, address_line_1, address_line_2 from public.customer_profiles where identity_id = $1`, [identity.id], { operation: 'customer-profile-read' })
-    return NextResponse.json({ identity: { id: identity.id, email: identity.email }, profile: result.rows[0] ?? {} }, { headers: { 'cache-control': 'no-store' } })
+    const result = await query(`select i.created_at as identity_created_at, p.first_name, p.last_name, p.phone,
+      p.birth_date::text, p.anniversary_date::text, p.country, p.state, p.district, p.city,
+      p.postal_code, p.address_line_1, p.address_line_2
+      from public.customer_identities i left join public.customer_profiles p on p.identity_id = i.id
+      where i.id = $1`, [identity.id], { operation: 'customer-profile-read' })
+    const { identity_created_at, ...profile } = (result.rows[0] ?? {}) as { identity_created_at?: string; [key: string]: unknown }
+    return NextResponse.json({ identity: { id: identity.id, email: identity.email, createdAt: identity_created_at ?? null }, profile }, { headers: { 'cache-control': 'no-store' } })
   } catch {
     return NextResponse.json({ error: 'Unable to load your profile.' }, { status: 503 })
   }
@@ -50,12 +63,17 @@ export async function PATCH(request: Request) {
       if (typeof value !== 'string' || value.length > 200 || /[\u0000-\u001f\u007f]/.test(value)) throw new Error('Invalid profile field.')
       return value.trim() || null
     })
-    await query(`insert into public.customer_profiles (identity_id, first_name, last_name, phone, country, state, district, city, postal_code, address_line_1, address_line_2)
-      values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
+    if (dateFields.some((field) => !validOptionalDate(body[field]))) {
+      return NextResponse.json({ error: 'Dates must be valid and cannot be in the future.' }, { status: 400 })
+    }
+    const dates = dateFields.map((field) => body[field] || null)
+    await query(`insert into public.customer_profiles (identity_id, first_name, last_name, phone, country, state, district, city, postal_code, address_line_1, address_line_2, birth_date, anniversary_date)
+      values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
       on conflict (identity_id) do update set first_name=excluded.first_name, last_name=excluded.last_name,
       phone=excluded.phone, country=excluded.country, state=excluded.state, district=excluded.district,
       city=excluded.city, postal_code=excluded.postal_code, address_line_1=excluded.address_line_1,
-      address_line_2=excluded.address_line_2, updated_at=now()`, [identity.id, ...values], { operation: 'customer-profile-update' })
+      address_line_2=excluded.address_line_2, birth_date=excluded.birth_date,
+      anniversary_date=excluded.anniversary_date, updated_at=now()`, [identity.id, ...values, ...dates], { operation: 'customer-profile-update' })
     return NextResponse.json({ ok: true }, { headers: { 'cache-control': 'no-store' } })
   } catch (error) {
     const invalid = error instanceof Error && error.message === 'Invalid profile field.'
