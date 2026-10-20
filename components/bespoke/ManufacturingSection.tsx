@@ -21,7 +21,7 @@ function RevealDiv({ children, className = '', delay = 0 }: { children: React.Re
 }
 
 export default function ManufacturingSection() {
-  const [items, setItems] = useState<any[]>([]);
+  const [items, setItems] = useState<Array<{ id?: string | number; eyebrow?: string; title?: string; description?: string; image_path?: string | null }>>([]);
 
   useEffect(() => {
     let active = true;

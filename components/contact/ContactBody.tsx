@@ -34,8 +34,11 @@ function iconFor(label: string) {
   return <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M9 16S15 11 15 7C15 3.7 12.3 1 9 1S3 3.7 3 7C3 11 9 16 9 16Z" stroke="#0A1628" strokeWidth="1.2" /><circle cx="9" cy="7" r="2" stroke="#0A1628" strokeWidth="1.2" /></svg>;
 }
 
+
+type ContactRow = { id?: string | number; label: string; value?: string; note?: string; href?: string | null; icon_path?: string | null }
+
 export default function ContactBody({ onSuccess }: ContactBodyProps) {
-  const [contactRows, setContactRows] = useState<any[]>([]);
+  const [contactRows, setContactRows] = useState<ContactRow[]>([]);
   const [form, setForm] = useState({ name: '', email: '', phone: '', topic: '', message: '' });
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -43,7 +46,7 @@ export default function ContactBody({ onSuccess }: ContactBodyProps) {
     let active = true;
     (async () => {
       try {
-        const { payload } = await fetchPublicJson<{ items?: unknown[] }>('/api/public/contact/info');
+        const { payload } = await fetchPublicJson<{ items?: ContactRow[] }>('/api/public/contact/info');
         if (!active) return;
         setContactRows(Array.isArray(payload?.items) ? payload.items : []);
       } catch {
