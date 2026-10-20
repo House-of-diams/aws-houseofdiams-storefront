@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import BlogPostPage from '@/components/pages/BlogPostPage'
-import { getPublishedBlogPostBySlug, getPublishedBlogPosts } from '@/lib/blog'
+import { getPublishedBlogPostBySlug, getPublishedBlogSummaries } from '@/lib/blog'
 import { createPageMetadata } from '@/lib/seo'
 import { getStorageImageUrl } from '@/lib/data/blog-posts'
 import JsonLd from '@/components/seo/JsonLd'
@@ -36,14 +36,14 @@ export async function generateMetadata({ params }: BlogPostRouteProps): Promise<
 
 export default async function BlogPostRoute({ params }: BlogPostRouteProps) {
   const { slug } = await params
-  const posts = await getPublishedBlogPosts()
-  const post = posts.find((entry) => entry.slug === slug)
+  // HOD-061: this post in full; related cards from the light summaries.
+  const [post, summaries] = await Promise.all([getPublishedBlogPostBySlug(slug), getPublishedBlogSummaries()])
 
   if (!post) {
     notFound()
   }
 
-  const relatedPosts = posts.filter((entry) => entry.id !== post.id).slice(0, 3)
+  const relatedPosts = summaries.filter((entry) => entry.id !== post.id).slice(0, 3)
   const faqItems = extractBlogFaqItems(post)
 
   return (

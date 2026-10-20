@@ -1,6 +1,6 @@
-import { getPublishedBlogPosts } from '@/lib/blog'
+import { getPublishedBlogSummaries } from '@/lib/blog'
 import { getStorefrontProductDiscoveryRows } from '@/lib/catalog-products'
-import { getPublishedEducationPosts } from '@/lib/education'
+import { getPublishedEducationSummaries } from '@/lib/education'
 import { getCanonicalUrl } from '@/lib/site-url'
 
 function cleanText(value: string | null | undefined) {
@@ -31,8 +31,8 @@ const corePages = [
 export async function buildLlmsText(full = false) {
   const [products, blogPosts, educationPosts] = await Promise.all([
     getStorefrontProductDiscoveryRows(),
-    getPublishedBlogPosts(),
-    getPublishedEducationPosts(),
+    getPublishedBlogSummaries(),
+    getPublishedEducationSummaries(),
   ])
 
   const lines = [

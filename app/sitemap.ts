@@ -1,6 +1,6 @@
 import type { MetadataRoute } from 'next'
-import { getPublishedBlogPosts } from '@/lib/blog'
-import { getPublishedEducationPosts } from '@/lib/education'
+import { getPublishedBlogSummaries } from '@/lib/blog'
+import { getPublishedEducationSummaries } from '@/lib/education'
 import { getStorefrontProductDiscoveryRows } from '@/lib/catalog-products'
 import { getCanonicalUrl } from '@/lib/site-url'
 import { buildCategoryPath, buildOptionPath, buildSubcategoryPath } from '@/lib/catalog-paths'
@@ -31,8 +31,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const [products, { categories, subcategories, options }, blogPosts, educationPosts] = await Promise.all([
     getStorefrontProductDiscoveryRows(),
     taxonomy,
-    getPublishedBlogPosts(),
-    getPublishedEducationPosts(),
+    getPublishedBlogSummaries(),
+    getPublishedEducationSummaries(),
   ])
 
   const staticEntries = staticRoutes.map((route) => ({
