@@ -31,3 +31,13 @@ test('storefront currency detection no longer reads Vercel country headers', asy
   assert.match(layout, /cloudfront-viewer-country/)
   assert.doesNotMatch(proxy + layout, /x-vercel-ip-country/)
 })
+
+test('HOD-011: without a trusted address, browsers get separate rate-limit keys', async () => {
+  const { clientIdentity } = await import('../lib/trusted-proxy.ts')
+  const a = clientIdentity(new Headers({ 'user-agent': 'Browser A', 'accept-language': 'en' }))
+  const b = clientIdentity(new Headers({ 'user-agent': 'Browser B', 'accept-language': 'en' }))
+  assert.match(a, /^unknown:[0-9a-f]{16}$/)
+  assert.notEqual(a, b)
+  assert.equal(clientIdentity(new Headers({ 'user-agent': 'Browser A', 'accept-language': 'en' })), a)
+  assert.equal(clientIdentity(new Headers({ 'cloudfront-viewer-address': '203.0.113.8:443', 'user-agent': 'x' })), '203.0.113.8')
+})

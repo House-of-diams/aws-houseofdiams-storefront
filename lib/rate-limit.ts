@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient, type RedisClientType } from 'redis'
-import { getTrustedClientIp } from '@/lib/trusted-proxy'
+import { clientIdentity } from '@/lib/trusted-proxy'
 
 type RateLimitConfig = {
   key: string
@@ -28,7 +28,15 @@ const memoryStore = globalThis as typeof globalThis & {
   __hodRedisClient?: RedisClientType | null
   __hodRedisConnectPromise?: Promise<RedisClientType | null> | null
   __hodMissingRedisWarningLogged?: boolean
+  __hodRedisRetryAt?: number
+  __hodRateLimitSweptAt?: number
 }
+
+// HOD-011: memory fallback is swept of expired entries at most once a minute and
+// never grows past MEMORY_MAX_ENTRIES; a failed Redis connect waits before retrying.
+const MEMORY_SWEEP_MS = 60_000
+const MEMORY_MAX_ENTRIES = 50_000
+const REDIS_RETRY_MS = 30_000
 
 function getMemoryStore() {
   if (!memoryStore.__hodRateLimitMemory) {
@@ -54,6 +62,7 @@ async function getRedisClient() {
   if (memoryStore.__hodRedisConnectPromise) {
     return memoryStore.__hodRedisConnectPromise
   }
+  if ((memoryStore.__hodRedisRetryAt ?? 0) > Date.now()) return null
 
   const redisUrl = process.env.REDIS_URL?.trim()
   if (!redisUrl) {
@@ -77,6 +86,7 @@ async function getRedisClient() {
       return client
     } catch (error) {
       console.error('Redis rate limit connection failed:', error)
+      memoryStore.__hodRedisRetryAt = Date.now() + REDIS_RETRY_MS
       return null
     } finally {
       memoryStore.__hodRedisConnectPromise = null
@@ -129,9 +139,17 @@ async function consumeRedisLimit(key: string, limit: number, windowSeconds: numb
   }
 }
 
+function sweepMemory(store: Map<string, MemoryEntry>, now: number) {
+  if (now - (memoryStore.__hodRateLimitSweptAt ?? 0) < MEMORY_SWEEP_MS && store.size < MEMORY_MAX_ENTRIES) return
+  memoryStore.__hodRateLimitSweptAt = now
+  for (const [key, entry] of store) if (entry.resetAt <= now) store.delete(key)
+  if (store.size >= MEMORY_MAX_ENTRIES) store.clear()
+}
+
 function consumeMemoryLimit(key: string, limit: number, windowSeconds: number): RateLimitResult {
   const store = getMemoryStore()
   const now = Date.now()
+  sweepMemory(store, now)
   const current = store.get(key)
 
   if (!current || current.resetAt <= now) {
@@ -165,8 +183,7 @@ function consumeMemoryLimit(key: string, limit: number, windowSeconds: number): 
 }
 
 export async function enforceRateLimit(request: Request, config: RateLimitConfig) {
-  const clientIp = getTrustedClientIp(request.headers) ?? 'unknown'
-  const key = `rate_limit:${config.key}:${clientIp}`
+  const key = `rate_limit:${config.key}:${clientIdentity(request.headers)}`
 
   try {
     const redisResult = await consumeRedisLimit(key, config.limit, config.windowSeconds)
