@@ -203,3 +203,23 @@ test('HOD-030/036: unknown tax product is 404; a connection whose rollback faile
   }
   assert.deepEqual(released, [false, true], 'healthy connection reused; broken one discarded')
 })
+
+test('HOD-071: a repeat newsletter signup answers exactly like a new one', async () => {
+  process.env.DATABASE_URL = process.env.DATABASE_URL || 'postgres://offline'
+  let error = null
+  const route = load('app/api/public/newsletter/submit/route.ts', {
+    'next/server': { NextResponse: { json: Response.json } },
+    '@/lib/db/errors': { getPostgresErrorCode: (e) => e?.code },
+    '@/lib/repositories/public-forms-repository': { insertNewsletterSubmission: async () => { if (error) throw error } },
+    '@/lib/rate-limit': { enforceRateLimit: async () => ({ ok: true }) },
+    '@/lib/validation': { isValidEmail: () => true },
+  })
+  const post = () => route.POST(new Request('https://store.test/api/public/newsletter/submit', { method: 'POST', body: JSON.stringify({ email: ' A@Example.test ' }) }))
+  const fresh = await post()
+  error = Object.assign(Error('duplicate key'), { code: '23505' })
+  const repeat = await post()
+  assert.equal(repeat.status, fresh.status)
+  assert.deepEqual(await repeat.json(), await fresh.json())
+  error = Object.assign(Error('boom'), { code: '08006' })
+  assert.equal((await post()).status, 500, 'other failures still report an error')
+})
