@@ -16,15 +16,16 @@ function formatAmount(offer: Offer) {
 }
 
 export default function SelectedCouponOffer() {
-  const [offer, setOffer] = useState<Offer>({ discountType: 'percentage', discountValue: 10, description: 'Enjoy an exclusive saving on your next House of Diams piece.', minimumOrderAmount: null })
+  // No invented fallback: a made-up '10%' would contradict a free-gift or inactive coupon.
+  const [offer, setOffer] = useState<Offer | null>(null)
 
   useEffect(() => {
     let active = true
     // One shared request per page; the server and CDN keep the offer fresh
     // within a minute, so tab focus does not need to trigger refetches.
     fetchPublicJson<{ offer?: Offer | null }>('/api/public/promotion-popup/offer')
-      .then(({ ok, payload }) => { if (active && ok && payload?.offer) setOffer(payload.offer) })
-      .catch(() => { /* Keep the visible fallback offer when the endpoint is unavailable. */ })
+      .then(({ ok, payload }) => { if (active) setOffer(ok && payload?.offer ? payload.offer : null) })
+      .catch(() => { /* Endpoint unavailable: show no offer rather than a wrong one. */ })
     return () => { active = false }
   }, [])
 
