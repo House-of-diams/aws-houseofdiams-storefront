@@ -33,6 +33,11 @@ type InitialShapeItem = {
   href?: string | null;
 };
 
+const NUMBER_WORDS = ['Zero', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten', 'Eleven', 'Twelve'];
+
+// A card with no link saved in the admin opens the shop filtered to that shape (like the built-in cards).
+const shapeHref = (name: string) => `/shop?shape=${encodeURIComponent(name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, ''))}`;
+
 export default function DiscoverShapes({ initialItems = [] }: { initialItems?: InitialShapeItem[] }) {
   const items: ShapeItem[] = initialItems.length > 0
     ? initialItems
@@ -44,7 +49,7 @@ export default function DiscoverShapes({ initialItems = [] }: { initialItems?: I
           description: item.description,
           imageSrc: item.image_path,
           imageAlt: item.image_alt || item.title,
-          href: item.href || '/shop',
+          href: item.href || shapeHref(item.title),
         }))
     : shapeItems;
 
@@ -62,7 +67,7 @@ export default function DiscoverShapes({ initialItems = [] }: { initialItems?: I
             Discover Shapes
           </h2>
           <p className="mx-auto mt-[var(--space-3)] max-w-[36rem] font-[family-name:var(--font-family-secondary)] text-sm leading-[1.5] text-[var(--color-brand-primary,#000)]/70 md:text-base">
-            Ten shapes. Each one cut differently. Pick what suits you.
+            {NUMBER_WORDS[items.length] ?? items.length} shapes. Each one cut differently. Pick what suits you.
           </p>
         </div>
 

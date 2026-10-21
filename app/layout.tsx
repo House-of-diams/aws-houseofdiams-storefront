@@ -27,6 +27,7 @@ import { cookies, headers } from "next/headers";
 import { currencyForCountry, normalizeCountryCode } from "@/lib/country-currency";
 import { getNavbarRenderItems } from "@/lib/navbar-server";
 import { loadPublicAnnouncementBar } from "@/lib/announcement-bar";
+import { loadPublicContactInfo } from "@/lib/contact-info-public";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -75,11 +76,13 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const [maintenanceMode, navItems, announcement, requestHeaders, requestCookies] = await Promise.all([
+  const [maintenanceMode, navItems, announcement, contactRows, requestHeaders, requestCookies] = await Promise.all([
     getMaintenanceMode(),
     getNavbarRenderItems().catch(() => []),
     // Real announcement text on the very first paint (null = fall back to the client fetch).
     loadPublicAnnouncementBar().catch(() => null),
+    // Real footer contact details on the first paint (null = fall back to the client fetch).
+    loadPublicContactInfo().catch(() => null),
     headers(),
     cookies(),
   ])
@@ -110,7 +113,7 @@ export default async function RootLayout({
               <ContactDrawerProvider>
                 <CartProvider>
                   <ToastProvider>
-                    <SiteChrome initialNavItems={navItems} initialAnnouncement={announcement} customerAuthEnabled={process.env.HOD_CUSTOMER_AUTH_ENABLED === 'true'}>{children}</SiteChrome>
+                    <SiteChrome initialNavItems={navItems} initialAnnouncement={announcement} initialContactRows={contactRows} customerAuthEnabled={process.env.HOD_CUSTOMER_AUTH_ENABLED === 'true'}>{children}</SiteChrome>
                   </ToastProvider>
                 </CartProvider>
               </ContactDrawerProvider>
