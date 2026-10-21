@@ -38,6 +38,7 @@ export default function BespokeShowcase({
         alt={section.imageAlt || section.heading || 'House of Diams bespoke jewellery showcase'}
         fill
         sizes="100vw"
+        quality={90}
         className="h-full w-full object-cover object-center"
       />
     );
