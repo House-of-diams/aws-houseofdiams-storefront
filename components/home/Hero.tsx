@@ -155,7 +155,7 @@ export default function Hero({ initialContent, onPrimaryVisualReady }: HeroProps
     const desktopImageUrl = getPublicImageUrl(primarySlide.image_path);
     const mobileImageUrl = getPublicImageUrl(primarySlide.mobile_image_path || primarySlide.image_path);
     const preloadImage = (src: string, media?: string) => {
-      const { props } = getImageProps({ src, alt: '', fill: true, sizes: '100vw' });
+      const { props } = getImageProps({ src, alt: '', fill: true, sizes: '100vw', quality: 90 });
       preload(String(props.src), {
         as: 'image',
         fetchPriority: 'high',
