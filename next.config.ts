@@ -65,6 +65,8 @@ const nextConfig: NextConfig = {
     return config
   },
   images: {
+    // Banners use quality 90; Next 16 only serves qualities listed here.
+    qualities: [75, 90],
     remotePatterns: imageHosts.map((hostname) => ({ protocol: 'https' as const, hostname })),
   },
   async headers() {

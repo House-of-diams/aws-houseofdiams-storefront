@@ -247,6 +247,7 @@ export default function Hero({ initialContent, onPrimaryVisualReady }: HeroProps
                   >
                     <Image
                       src={mobileImageUrl}
+                      quality={90}
                       alt={slide.button_text || `Hero slide ${index + 1}`}
                       fill
                       sizes="100vw"
@@ -272,6 +273,7 @@ export default function Hero({ initialContent, onPrimaryVisualReady }: HeroProps
                   >
                     <Image
                       src={desktopImageUrl}
+                      quality={90}
                       alt={slide.button_text || `Hero slide ${index + 1}`}
                       fill
                       sizes="100vw"
