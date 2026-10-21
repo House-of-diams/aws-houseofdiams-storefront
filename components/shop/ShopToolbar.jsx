@@ -59,7 +59,7 @@ export default function ShopToolbar({ count, sort, onSortChange, quickFilters })
           onValueChange={onSortChange}
           options={SORT_OPTIONS}
           validationLabel="Sort products"
-          triggerLabel="Sort By"
+          triggerLabel={sort && sort !== "best-matches" ? SORT_OPTIONS.find((option) => option.value === sort)?.label ?? "Sort By" : "Sort By"}
           showItemIndicator={false}
           avoidCollisions
           contentAlign="end"

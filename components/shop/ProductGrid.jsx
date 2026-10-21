@@ -9,6 +9,8 @@ import CategoryQuickFilters from "./CategoryQuickFilters";
 import { useWishlistStore } from "@/lib/hooks/useWishlistStore";
 import { getProductKey } from "@/lib/product-keys";
 
+const SORT_VALUES = ["best-matches", "price-low", "price-high", "best-sellers"];
+
 /**
  * @typedef {{ id: string; title: string; options: { value: string; label: string, iconUrl?: string | null }[] }} ProductGridFilterGroup
  */
@@ -35,7 +37,11 @@ export default function ProductGrid({ products, sourceProducts = products, initi
   const searchParams = useSearchParams();
   const [filters, setFilters] = useState(initialFilters);
   const [page, setPage] = useState(initialPage);
-  const [sort, setSort] = useState(searchParams?.get("sort") || "best-matches");
+  const [localSort, setSort] = useState(searchParams?.get("sort") || "best-matches");
+  // Server-paginated lists re-sort through the URL, so the URL is the source of truth;
+  // local state would stay on its first value after router.push.
+  const urlSort = searchParams?.get("sort");
+  const sort = serverPaginated ? (SORT_VALUES.includes(urlSort) ? urlSort : "best-matches") : localSort;
   const [loadedProducts, setLoadedProducts] = useState(products);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [loadMoreError, setLoadMoreError] = useState("");
