@@ -83,12 +83,12 @@ export default function CheckoutReviewStep({
         </p>
         <div className="mt-3 space-y-1 text-sm text-[#292727]">
           <div>
-            Catalog total: <span className="font-medium text-[#101828]">{format(totalAmount)}</span>
+            Catalog total: <span className="font-medium text-[#101828]">{format(totalAmount, { maximumFractionDigits: 2 })}</span>
           </div>
           <div>
             Amount to pay now:{' '}
             <span className="font-medium text-[#101828]">
-              {formatMoney(chargeQuote?.totalCharged ?? totalAmount, chargeQuote?.chargeCurrency || 'USD')}
+              {formatMoney(chargeQuote?.totalCharged ?? totalAmount, chargeQuote?.chargeCurrency || 'USD', { maximumFractionDigits: 2 })}
             </span>
           </div>
           {chargeQuote ? (

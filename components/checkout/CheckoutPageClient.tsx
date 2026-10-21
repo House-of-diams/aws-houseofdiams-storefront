@@ -1408,7 +1408,7 @@ export default function CheckoutPageClient({ customerAuthEnabled = false }: { cu
 
         <div className="sticky top-0 z-30 -mx-4 mb-5 flex min-h-12 w-[calc(100%+2rem)] items-center justify-between border-y border-black/10 bg-[#fbfbfb] px-4 font-[family-name:var(--font-family-secondary)] text-[13px] text-black shadow-[0_2px_8px_rgba(0,0,0,0.04)] sm:hidden">
           <span>{checkoutItems.reduce((sum, item) => sum + item.quantity, 0)} {checkoutItems.reduce((sum, item) => sum + item.quantity, 0) === 1 ? 'item' : 'items'}</span>
-          <span className="flex items-center gap-3 font-semibold"><ChevronDown size={14} aria-hidden="true" />{format(subtotal)}</span>
+          <span className="flex items-center gap-3 font-semibold"><ChevronDown size={14} aria-hidden="true" />{format(subtotal, { maximumFractionDigits: 2 })}</span>
         </div>
 
         <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(350px,420px)] lg:gap-8">

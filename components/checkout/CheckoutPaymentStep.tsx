@@ -13,8 +13,8 @@ export default function CheckoutPaymentStep({
 }) {
   const { format, currencyCode } = useCurrency();
   const payableLabel = chargeQuote
-    ? `${formatMoney(chargeQuote.totalCharged, chargeQuote.chargeCurrency)} charged at checkout`
-    : format(totalAmount)
+    ? `${formatMoney(chargeQuote.totalCharged, chargeQuote.chargeCurrency, { maximumFractionDigits: 2 })} charged at checkout`
+    : format(totalAmount, { maximumFractionDigits: 2 })
   return (
     <CheckoutSectionCard
       title="Payment"
@@ -24,7 +24,7 @@ export default function CheckoutPaymentStep({
         <CheckoutField label="Payment Method" value="Razorpay Checkout" />
         <CheckoutField label="Billing Address" value="Same as shipping" />
         <CheckoutField label="Gateway" value="Razorpay" />
-        <CheckoutField label="Catalog Total" value={format(totalAmount)} />
+        <CheckoutField label="Catalog Total" value={format(totalAmount, { maximumFractionDigits: 2 })} />
         <CheckoutField label="Payable Now" value={payableLabel} />
         <CheckoutField label="Payment Currency" value={chargeQuote?.chargeCurrency || currencyCode} />
       </div>
