@@ -57,7 +57,10 @@ export async function proxy(request: NextRequest) {
     const target = request.nextUrl.clone()
     target.pathname = decision.pathname
     target.search = ''
-    return addDetectedCurrency(request, NextResponse.redirect(target, decision.status))
+    const redirectResponse = NextResponse.redirect(target, decision.status)
+    // Slug redirects can be undone in the admin: a browser must not remember one forever (a cached 301 caused a redirect loop after a slug was restored).
+    redirectResponse.headers.set('cache-control', 'public, max-age=60')
+    return addDetectedCurrency(request, redirectResponse)
   }
 
   if (decision.type === 'not-found') {
