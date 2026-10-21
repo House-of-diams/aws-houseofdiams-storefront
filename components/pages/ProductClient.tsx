@@ -341,6 +341,9 @@ export default function ProductClient({ product, relatedProducts, serviceBanner,
     loveLetter: loveLetterDraft,
   });
 
+  // Same rule as the product buttons and the server checkout: collection products are enquiry-first.
+  const canAddToCart = storefrontProduct.productLane !== 'collection' && (storefrontProduct.productLane !== 'hiphop' || storefrontProduct.allowCheckout);
+
   const handleAddToCart = () => {
     if (!validateCustomSelections()) return;
     setLoveLetterIntent('cart');
@@ -457,13 +460,13 @@ export default function ProductClient({ product, relatedProducts, serviceBanner,
               </div>
             </div>
           </div>
-          <button
+          {canAddToCart ? (<button
             type="button"
             onClick={handleAddToCart}
             className="brand-button max-[700px]:w-full"
           >
             Add To Cart
-          </button>
+          </button>) : null}
         </div>
       </div>
 

@@ -73,7 +73,8 @@ export default function ProductCTAs({ product, ctaMode = 'both', ctaLabel, onEnq
     <div className="mb-4 flex flex-col gap-3 sm:mb-5">
       {showCheckout ? addToBagButton : (
         <div className="flex items-stretch gap-2">
-          {addToBagButton}
+          {/* Collection (and hip-hop without checkout) products are enquiry-first: no cart. */}
+          {canCheckoutDirectly ? addToBagButton : null}
           <WishlistButton wishlisted={wishlisted} onWishlist={onWishlist} />
         </div>
       )}
