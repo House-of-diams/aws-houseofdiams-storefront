@@ -75,6 +75,19 @@ export async function findPromotionPopupOfferFromRds() {
   return result.rows[0] ?? null
 }
 
+/** One-row copy for the offer section. Missing table or grant (database update not applied yet) = defaults. */
+export async function findOfferSectionFromRds() {
+  try {
+    const result = await query<Record<string, unknown>>(
+      'SELECT is_enabled, label, heading, gift_heading, description, button_text FROM public.home_offer_section WHERE section_key = $1 LIMIT 2',
+      ['selected_coupon_offer'], { operation: 'cms.offer_section' },
+    )
+    return result.rows.length === 1 ? result.rows[0] : null
+  } catch {
+    return null
+  }
+}
+
 export async function loadActiveCouponBannerRowsFromRds(now: string, rewardType: string | null = null) {
   const result = await query<{ row: Record<string, unknown> }>(
     `SELECT jsonb_build_object(
