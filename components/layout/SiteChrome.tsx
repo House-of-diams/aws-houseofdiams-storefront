@@ -10,6 +10,7 @@ import CartDrawer from '@/components/commerce/CartDrawer';
 import ContactDrawer from '@/components/contact/ContactDrawer';
 import ViewportDeferred from '@/components/home/ViewportDeferred';
 import type { NavbarRenderItem } from '@/lib/navbar';
+import type { InitialAnnouncement } from '@/components/common/Navbar';
 import DataSourceStatus from '@/components/layout/DataSourceStatus';
 
 const Footer = dynamic(() => import('@/components/common/Footer'), { loading: () => null });
@@ -20,7 +21,7 @@ const PromotionPopup = dynamic(() => import('@/components/layout/PromotionPopup'
 
 const AUTH_ROUTES = new Set(['/login', '/signup']);
 
-export default function SiteChrome({ children, initialNavItems, customerAuthEnabled = false }: { children: ReactNode; initialNavItems: NavbarRenderItem[]; customerAuthEnabled?: boolean }) {
+export default function SiteChrome({ children, initialNavItems, initialAnnouncement = null, customerAuthEnabled = false }: { children: ReactNode; initialNavItems: NavbarRenderItem[]; initialAnnouncement?: InitialAnnouncement | null; customerAuthEnabled?: boolean }) {
   const pathname = usePathname();
   const navItems = initialNavItems;
   const [showNonCriticalChrome, setShowNonCriticalChrome] = useState(false);
@@ -62,7 +63,7 @@ export default function SiteChrome({ children, initialNavItems, customerAuthEnab
       ) : (
         <>
           <div id="site-navbar-shell">
-            <Navbar navItems={navItems} customerAuthEnabled={customerAuthEnabled} />
+            <Navbar navItems={navItems} initialAnnouncement={initialAnnouncement} customerAuthEnabled={customerAuthEnabled} />
           </div>
           <CartDrawer />
           <ContactDrawer />
