@@ -237,7 +237,7 @@ export default function Hero({ initialContent, onPrimaryVisualReady }: HeroProps
       {content.slider_enabled && currentSlide ? (
         <div className="relative z-[2] w-full">
           <div className="relative overflow-hidden rounded-none border-0 bg-transparent shadow-none backdrop-blur-0">
-            <div className="relative h-[520px] sm:hidden">
+            <div className="relative aspect-[4/5] sm:hidden">
               {slides.map((slide, index) => {
                 const mobileImageUrl = getPublicImageUrl(slide.mobile_image_path || slide.image_path);
                 return (
@@ -262,7 +262,7 @@ export default function Hero({ initialContent, onPrimaryVisualReady }: HeroProps
                 );
               })}
             </div>
-            <div className="relative hidden aspect-[5/2] sm:block">
+            <div className="relative hidden aspect-[6336/2688] sm:block">
               {slides.map((slide, index) => {
                 const desktopImageUrl = getPublicImageUrl(slide.image_path);
                 return (
@@ -292,7 +292,6 @@ export default function Hero({ initialContent, onPrimaryVisualReady }: HeroProps
               currentSlide.subtitle.trim() ||
               (currentSlide.button_text.trim() && currentSlide.button_link.trim())) ? (
               <>
-                <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 h-full bg-gradient-to-t from-black/5 via-black/5 to-transparent" />
                 <div className="pointer-events-none absolute inset-0 z-20 flex items-end justify-start px-[var(--space-4)] pb-[var(--space-10)] text-left sm:items-end sm:justify-start sm:px-[var(--space-8)] sm:pb-[var(--space-10)] lg:px-[var(--space-12)] xl:px-[var(--space-16)]">
                   <div className="relative mx-auto w-full max-w-[calc(100vw-2rem)] py-[var(--space-6)] sm:mx-0 sm:max-w-[42rem] sm:py-[var(--space-10)]">
                     {currentSlide.headline.trim() ? (

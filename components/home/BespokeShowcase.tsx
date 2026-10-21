@@ -46,14 +46,13 @@ export default function BespokeShowcase({
     <section className="relative flex min-h-0 items-center justify-center overflow-hidden bg-[var(--color-brand-accent,#fff)] px-0 py-0">
       <div className="relative z-[2] w-full">
         <div className="relative overflow-hidden rounded-none border-0 bg-[var(--color-brand-primary,#000)] shadow-none backdrop-blur-0">
-          <div className="relative h-[520px] sm:hidden">
+          <div className="relative aspect-[4/5] sm:hidden">
             {mobileMediaUrl ? renderMedia(mobileMediaUrl, isMobileVideo) : null}
           </div>
-          <div className="relative hidden aspect-[5/2] sm:block">
+          <div className="relative hidden aspect-[6336/2688] sm:block">
             {mediaUrl ? renderMedia(mediaUrl, isVideo) : null}
           </div>
 
-          <div className="absolute inset-0 bg-gradient-to-r from-black/72 via-black/36 to-transparent" aria-hidden="true" />
 
           <div className="pointer-events-none absolute inset-0 z-10 flex items-end justify-start px-[var(--space-4)] pb-[var(--space-10)] text-left sm:items-end sm:justify-start sm:px-[var(--space-8)] sm:pb-[var(--space-10)] lg:px-[var(--space-12)] xl:px-[var(--space-16)]">
             <div className="relative mx-auto w-full max-w-[calc(100vw-2rem)] py-[var(--space-6)] text-[var(--color-brand-accent,#fff)] sm:mx-0 sm:max-w-[42rem] sm:py-[var(--space-10)]">
