@@ -15,6 +15,7 @@
     "test:f8-sql": "node --test scripts/test-f8-sql.mjs",
     "test:f9-aws-runtime": "node --test scripts/test-f9-aws-runtime.mjs",
     "test:payment-subunits": "node --experimental-strip-types --test scripts/test-payment-subunits.mjs",
+    "warm:banners": "node scripts/warm-banner-images.mjs",
     "warm:cache": "node scripts/warm-cache.mjs"
   },
   "dependencies": {
