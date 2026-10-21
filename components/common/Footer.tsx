@@ -43,6 +43,8 @@ type CollectionPageConfigRow = {
   showcase_cta_label?: string | null;
 };
 
+export type InitialContactRows = ContactInfoRow[];
+
 type ContactInfoRow = {
   id?: number | string | null;
   sort_order?: number | null;
@@ -198,10 +200,10 @@ function CurrencySelector() {
   );
 }
 
-export default function Footer({ navItems = [] }: { navItems?: NavbarRenderItem[] }) {
+export default function Footer({ navItems = [], initialContactRows = null }: { navItems?: NavbarRenderItem[]; initialContactRows?: InitialContactRows | null }) {
   const [serviceCategories, setServiceCategories] = useState<FooterCategory[]>([]);
   const [collectionConfig, setCollectionConfig] = useState<CollectionPageConfigRow | null>(null);
-  const [contactRows, setContactRows] = useState<ContactInfoRow[]>([]);
+  const [contactRows, setContactRows] = useState<ContactInfoRow[]>(initialContactRows ?? []);
   const visibleNavbarHrefs = useMemo(
     () => new Set(navItems.map((item) => item.href?.split('?')[0]?.replace(/\/$/, '') || '/').filter(Boolean)),
     [navItems]
@@ -213,7 +215,8 @@ export default function Footer({ navItems = [] }: { navItems?: NavbarRenderItem[
     const loadCategories = async () => {
       const [footerResult, contactResult] = await Promise.all([
         fetchPublicJson<{ categories?: FooterCategory[]; collectionConfig?: CollectionPageConfigRow | null }>('/api/public/footer-content').catch(() => null),
-        fetchPublicJson<{ items?: ContactInfoRow[] }>('/api/public/contact/info').catch(() => null),
+        // The server already rendered the admin's contact details; only fetch when it could not.
+        initialContactRows ? Promise.resolve(null) : fetchPublicJson<{ items?: ContactInfoRow[] }>('/api/public/contact/info').catch(() => null),
       ]);
 
       if (ignore) return;

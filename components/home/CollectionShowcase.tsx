@@ -3,6 +3,7 @@
 import Image from 'next/image';
 import type { CollectionPageConfig } from '@/lib/home-data';
 import { FindYourMatchQuiz } from '@/components/home/FindYourMatchQuiz';
+import BrandButton from '@/components/ui/BrandButton';
 
 export default function CollectionShowcase({ config }: { config: CollectionPageConfig }) {
   const desktopImage = config.showcaseImageUrl || config.showcaseMobileImageUrl || '';
@@ -27,7 +28,9 @@ export default function CollectionShowcase({ config }: { config: CollectionPageC
             {config.showcaseSubtitle || 'Browse House of Diams collection pieces in a dedicated enquiry-first showcase.'}
           </p>
           <div className="pointer-events-auto flex justify-center md:block">
-            <FindYourMatchQuiz />
+            {config.showcaseCtaLabel?.trim() && config.showcaseCtaHref?.trim()
+              ? <BrandButton href={config.showcaseCtaHref.trim()} className="banner-light-button mt-[var(--space-3)]">{config.showcaseCtaLabel.trim()}</BrandButton>
+              : <FindYourMatchQuiz />}
           </div>
         </div>
       </div>
