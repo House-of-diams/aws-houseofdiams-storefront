@@ -26,6 +26,7 @@ import { ToastProvider } from "@/components/home/Toast";
 import { cookies, headers } from "next/headers";
 import { currencyForCountry, normalizeCountryCode } from "@/lib/country-currency";
 import { getNavbarRenderItems } from "@/lib/navbar-server";
+import { loadPublicAnnouncementBar } from "@/lib/announcement-bar";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -74,9 +75,11 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const [maintenanceMode, navItems, requestHeaders, requestCookies] = await Promise.all([
+  const [maintenanceMode, navItems, announcement, requestHeaders, requestCookies] = await Promise.all([
     getMaintenanceMode(),
     getNavbarRenderItems().catch(() => []),
+    // Real announcement text on the very first paint (null = fall back to the client fetch).
+    loadPublicAnnouncementBar().catch(() => null),
     headers(),
     cookies(),
   ])
@@ -107,7 +110,7 @@ export default async function RootLayout({
               <ContactDrawerProvider>
                 <CartProvider>
                   <ToastProvider>
-                    <SiteChrome initialNavItems={navItems} customerAuthEnabled={process.env.HOD_CUSTOMER_AUTH_ENABLED === 'true'}>{children}</SiteChrome>
+                    <SiteChrome initialNavItems={navItems} initialAnnouncement={announcement} customerAuthEnabled={process.env.HOD_CUSTOMER_AUTH_ENABLED === 'true'}>{children}</SiteChrome>
                   </ToastProvider>
                 </CartProvider>
               </ContactDrawerProvider>

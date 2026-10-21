@@ -156,7 +156,9 @@ function getMobileSectionEntries(section: NavbarRenderSection) {
   return [...metalEntries, ...linkEntries];
 }
 
-export default function Navbar({ navItems = [], customerAuthEnabled = false }: { navItems?: NavbarRenderItem[]; customerAuthEnabled?: boolean }) {
+export type InitialAnnouncement = { active: boolean; autoplay: boolean; items: Array<{ message: string; linkUrl: string; openInNewTab: boolean }> };
+
+export default function Navbar({ navItems = [], customerAuthEnabled = false, initialAnnouncement = null }: { navItems?: NavbarRenderItem[]; customerAuthEnabled?: boolean; initialAnnouncement?: InitialAnnouncement | null }) {
   const router = useRouter();
   const { count: wishlistCount } = useWishlistStore();
   const { count: cartCount, openCart } = useCart();
@@ -179,14 +181,13 @@ export default function Navbar({ navItems = [], customerAuthEnabled = false }: {
     message: string;
     linkUrl: string;
     openInNewTab: boolean;
-  }>>([{
-    message: 'Free Worldwide Insured Shipping',
-    linkUrl: '',
-    openInNewTab: false,
-  }]);
+  }>>(() => initialAnnouncement
+    ? initialAnnouncement.items.filter((item) => typeof item?.message === 'string' && item.message.trim())
+    // Only if the server could not read it: one safe placeholder until the client fetch answers.
+    : [{ message: 'Free Worldwide Insured Shipping', linkUrl: '', openInNewTab: false }]);
   const [announcementIndex, setAnnouncementIndex] = useState(0);
-  const [announcementAutoplay, setAnnouncementAutoplay] = useState(true);
-  const [announcementActive, setAnnouncementActive] = useState(true);
+  const [announcementAutoplay, setAnnouncementAutoplay] = useState(initialAnnouncement ? initialAnnouncement.autoplay !== false : true);
+  const [announcementActive, setAnnouncementActive] = useState(initialAnnouncement ? Boolean(initialAnnouncement.active) : true);
   const [authUser, setAuthUser] = useState<{ id: string } | null>(null);
   const [authReady, setAuthReady] = useState(false);
   const lastScrollY = useRef(0);
@@ -341,6 +342,9 @@ export default function Navbar({ navItems = [], customerAuthEnabled = false }: {
   }, []);
 
   useEffect(() => {
+    // The server already rendered the real announcement; only fetch when it could not.
+    if (initialAnnouncement) return;
+
     let ignore = false;
 
     const loadAnnouncementBar = async () => {
@@ -363,7 +367,7 @@ export default function Navbar({ navItems = [], customerAuthEnabled = false }: {
 
     void loadAnnouncementBar();
     return () => { ignore = true; };
-  }, []);
+  }, [initialAnnouncement]);
 
   useEffect(() => {
     const root = document.documentElement;
