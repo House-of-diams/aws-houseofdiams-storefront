@@ -43,6 +43,12 @@ function ModelViewer({ src }: { src: string }) {
 
 function ProductVideo({ src }: { src: string }) {
   const [hasError, setHasError] = useState(false);
+  // Large product videos are not downloaded up front on phones or data-saver connections: the shopper presses play.
+  const [autoplay, setAutoplay] = useState(false);
+  useEffect(() => {
+    const connection = (navigator as Navigator & { connection?: { saveData?: boolean } }).connection;
+    setAutoplay(window.matchMedia('(min-width: 768px)').matches && !connection?.saveData);
+  }, []);
 
   return (
     <div className="absolute inset-0 flex items-center justify-center overflow-hidden bg-white">
@@ -50,11 +56,12 @@ function ProductVideo({ src }: { src: string }) {
         <video
           src={`${src}#t=0.1`}
           className="absolute inset-0 h-full w-full bg-white object-contain object-center"
-          autoPlay
+          autoPlay={autoplay}
+          controls={!autoplay}
           loop
           muted
           playsInline
-          preload="metadata"
+          preload={autoplay ? "metadata" : "none"}
           onError={() => setHasError(true)}
         />
       ) : null}

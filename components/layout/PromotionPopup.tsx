@@ -4,6 +4,7 @@ import { type FormEvent, useEffect, useRef, useState } from 'react'
 import { ArrowLeft, Check, Copy } from 'lucide-react'
 import { cinzelFont } from '@/app/fonts'
 import { mediaUrl } from '@/lib/media-url'
+import { promotionAnswerError } from '@/lib/promotion-validation'
 import { fetchPublicJson } from '@/lib/client/public-json'
 
 type PromotionOption = string | { id?: string | number; value?: string; label?: string }
@@ -168,6 +169,8 @@ export default function PromotionPopup() {
       setSubmitError(currentQuestion.validation_message || `${currentQuestion.question} is required.`)
       return
     }
+    const answerError = typeof currentAnswer === 'string' ? promotionAnswerError(currentQuestion, currentAnswer) : null
+    if (answerError) { setSubmitError(answerError); return }
     setSubmitError('')
     if (currentStep < questions.length - 1) { setCurrentStep((step) => step + 1); return }
     if (isSubmitting) return
