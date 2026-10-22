@@ -1098,6 +1098,7 @@ export default function Navbar({ navItems = [], customerAuthEnabled = false, ini
           fontFamily: 'var(--font-family-secondary, Arial, sans-serif)',
         }}
         aria-hidden={!menuOpen}
+        inert={!menuOpen}
       >
         <div
           className="flex h-full w-[200%] transition-transform duration-[600ms] ease-[cubic-bezier(0.77,0,0.18,1)] motion-reduce:transition-none"
