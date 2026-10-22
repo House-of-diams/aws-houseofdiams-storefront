@@ -490,6 +490,7 @@ export default function ProductClient({ product, relatedProducts, serviceBanner,
                 imageAlts={activeProduct.imageAlts}
                 videoUrl={activeProduct.videoUrl}
                 model3dUrl={activeProduct.model3dUrl}
+                hoverFrameUrls={activeProduct.hoverFrameUrls}
               />
             </div>
           )}

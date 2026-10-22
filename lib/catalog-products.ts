@@ -9,11 +9,13 @@ import {
   loadProductDiscoveryRowsFromRds,
   loadProductFilterGroupsFromRds,
   loadProductHydrationRowsFromRds,
+  loadProductMediaExtrasFromRds,
   loadProductPageIndexFromRds,
   loadProductPageReferencesFromRds,
   loadProductSearchReferencesFromRds,
   loadSearchProductsFromRds,
 } from '@/lib/repositories/product-repository'
+import { buildMediaExtrasIndex, withLibraryVideo } from '@/lib/product-media-extras'
 import {
   buildProductSearchDoc,
   searchProductDocs,
@@ -315,6 +317,8 @@ type MetalCompositionPartRow = {
 
 export type StorefrontProduct = Product & {
   dbId: string
+  /** HOD-090: the 24 frames of the hover rotation view; empty when the product has none. */
+  hoverFrameUrls?: string[]
   productLane: 'standard' | 'hiphop' | 'collection'
   detailTemplate: 'standard' | 'hiphop'
   mainCategoryId: string
@@ -620,6 +624,9 @@ const fetchStorefrontProducts = async (
   const [categoriesResult, subcategoriesResult, optionsResult, metalsResult, materialValuesResult, certificatesResult, stylesResult, ringCategoriesResult, ringCategorySizesResult, productContentRulesResult, metalSelectionsResult, materialValueSelectionsResult, shapeSelectionsResult, gstSlabsResult, purityPricesResult, metalMediaResult, metalCompositionPartsResult, subcategoryLinksResult, optionLinksResult, metalVariantsResult, variantMediaItemsResult, productFaqResult, customDropdownResult] =
     (await loadProductHydrationRowsFromRds(scope ? productIds : null))
 
+  const mediaExtras = await loadProductMediaExtrasFromRds(scope ? productIds : null)
+  const { videoByProductMetal: libraryVideoByProductMetal, hoverFramesByProduct } = buildMediaExtrasIndex(mediaExtras)
+
   const customDropdownIds = ((customDropdownResult.data || []) as ProductCustomDropdownRow[]).map((entry) => entry.id)
   const customDropdownOptionResult = await loadProductCustomDropdownOptionsFromRds(customDropdownIds)
 
@@ -765,6 +772,8 @@ const fetchStorefrontProducts = async (
             sortOrder: Number(mediaEntry.sort_order ?? 0),
           }))
           .filter((mediaEntry) => Boolean(mediaEntry.url))
+        // HOD-090: an option without a video of its own uses the library video chosen for it in the admin.
+        const mediaItemsWithLibraryVideo = withLibraryVideo(mediaItems, libraryVideoByProductMetal.get(`${product.id}:${entry.metal_id}`), toPublicUrl)
 
         return {
           id: entry.id,
@@ -780,7 +789,7 @@ const fetchStorefrontProducts = async (
           baseMetalName: metal.base_metal_name ?? metal.name,
           price: Number(entry.price ?? 0),
           isDefault: Boolean(entry.is_default),
-          mediaItems,
+          mediaItems: mediaItemsWithLibraryVideo,
         }
       })
       .filter(Boolean) as StorefrontProduct['metalPurityVariants']
@@ -910,6 +919,7 @@ const fetchStorefrontProducts = async (
       imageAlts: visibleImageAlts,
       videoUrl: visibleVideoUrl,
       model3dUrl: product.model_3d_url ?? undefined,
+      hoverFrameUrls: (hoverFramesByProduct.get(product.id) ?? []).map((path) => toPublicUrl(path) ?? path).filter(Boolean),
       mainCategoryId: product.main_category_id || '',
       mainCategoryCode: category?.code || '',
       mainCategoryName: category?.name || '',

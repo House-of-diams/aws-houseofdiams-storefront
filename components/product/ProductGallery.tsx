@@ -6,6 +6,7 @@ import { ChevronLeft, ChevronRight, Film, X } from 'lucide-react';
 import { createPortal } from 'react-dom';
 import type { GemStyle } from '@/lib/data/products';
 import GemSVG from '@/components/common/GemSVG';
+import HoverRotateView from '@/components/product/HoverRotateView';
 
 interface ProductGalleryProps {
   gemStyle: GemStyle;
@@ -16,12 +17,15 @@ interface ProductGalleryProps {
   imageAlts?: string[];
   videoUrl?: string;
   model3dUrl?: string;
+  /** The 24 frames of the hover rotation view (HOD-090). */
+  hoverFrameUrls?: string[];
 }
 
 type MediaAsset =
   | { type: 'image'; url: string; alt?: string }
   | { type: 'video'; url: string; alt?: string }
-  | { type: 'model'; url: string; alt?: string };
+  | { type: 'model'; url: string; alt?: string }
+  | { type: 'rotate'; url: string; frames: string[]; alt?: string };
 type ImageAsset = Extract<MediaAsset, { type: 'image' }>;
 type SlideAsset = Extract<MediaAsset, { type: 'image' | 'video' }>;
 type ThumbnailSlot = MediaAsset | { type: 'placeholder'; key: string };
@@ -88,6 +92,7 @@ export default function ProductGallery({
   imageAlts = [],
   videoUrl,
   model3dUrl,
+  hoverFrameUrls = [],
 }: ProductGalleryProps) {
   useEffect(() => {
     if (!model3dUrl || typeof document === 'undefined') return;
@@ -106,11 +111,12 @@ export default function ProductGallery({
       .map((url, index) => ({ type: 'image' as const, url, alt: imageAlts[index] }));
 
     const nonImageAssets: MediaAsset[] = [];
+    if (hoverFrameUrls.length === 24) nonImageAssets.push({ type: 'rotate', url: hoverFrameUrls[12], frames: hoverFrameUrls, alt: 'Product rotation view' });
     if (videoUrl) nonImageAssets.push({ type: 'video', url: videoUrl });
     if (model3dUrl) nonImageAssets.push({ type: 'model', url: model3dUrl });
 
     return [...imageAssets, ...nonImageAssets];
-  }, [imageUrl, galleryUrls, imageAlts, videoUrl, model3dUrl]);
+  }, [imageUrl, galleryUrls, imageAlts, videoUrl, model3dUrl, hoverFrameUrls]);
 
   const imageAssets = useMemo(
     () => assets.filter((asset): asset is ImageAsset => asset.type === 'image'),
@@ -491,6 +497,8 @@ export default function ProductGallery({
                 <div className="pointer-events-none absolute inset-0 z-[1] bg-[radial-gradient(circle_at_50%_42%,rgba(255,255,255,0.18),transparent_54%)]" />
                 {asset.type === 'model' ? (
                   <ModelViewer src={asset.url} />
+                ) : asset.type === 'rotate' ? (
+                  <HoverRotateView frames={asset.frames} alt={asset.alt || 'Product rotation view'} />
                 ) : asset.type === 'video' ? (
                   <ProductVideo key={asset.url} src={asset.url} />
                 ) : (
@@ -546,6 +554,8 @@ export default function ProductGallery({
           >
             {activeAsset?.type === 'model' ? (
               <div className="absolute inset-0 overflow-hidden"><ModelViewer src={activeAsset.url} /></div>
+            ) : activeAsset?.type === 'rotate' ? (
+              <HoverRotateView frames={activeAsset.frames} alt={activeAsset.alt || 'Product rotation view'} />
             ) : activeAsset?.type === 'video' ? (
               <div className="absolute inset-0 overflow-hidden">
                 <ProductVideo key={activeAsset.url} src={activeAsset.url} />
@@ -602,6 +612,12 @@ export default function ProductGallery({
                 >
                   {thumb.type === 'model' ? (
                     <div className="flex h-full w-full items-center justify-center bg-[#0A1628] text-[10px] font-semibold uppercase tracking-[0.18em] text-white">3D</div>
+                  ) : thumb.type === 'rotate' ? (
+                    <div className="relative flex h-full w-full items-center justify-center overflow-hidden">
+                      <img src={thumb.url} alt="" className={thumbMediaClass} loading="lazy" />
+                      <span className="pointer-events-none absolute inset-x-0 bottom-0 bg-[#0A1628]/80 py-0.5 text-center text-[9px] font-semibold uppercase tracking-[0.14em] text-white">360&deg;</span>
+                      <span className="sr-only">360 degree view</span>
+                    </div>
                   ) : thumb.type === 'video' ? (
                     <div className="relative flex h-full w-full items-center justify-center overflow-hidden">
                       <video

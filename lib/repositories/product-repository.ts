@@ -107,6 +107,23 @@ export async function loadProductHydrationRowsFromRds(scopedProductIds: string[]
   ] as const
 }
 
+/**
+ * HOD-090: the per-product video library, the video each metal option picked from it, and the 24-frame hover view.
+ * These tables are additive. If they are not installed yet (or cannot be read) every product renders exactly as before.
+ */
+export async function loadProductMediaExtrasFromRds(scopedProductIds: string[] | null) {
+  try {
+    const [library, links, hover] = await Promise.all([
+      rows('SELECT to_jsonb(t) AS row FROM public.product_media_library t WHERE ($1::uuid[] IS NULL OR product_id = ANY($1::uuid[])) ORDER BY sort_order ASC, id ASC', [scopedProductIds], 'product.media_library'),
+      rows('SELECT to_jsonb(t) AS row FROM public.product_variant_library_links t WHERE ($1::uuid[] IS NULL OR product_id = ANY($1::uuid[]))', [scopedProductIds], 'product.media_library_links'),
+      rows('SELECT to_jsonb(t) AS row FROM public.product_hover_views t WHERE ($1::uuid[] IS NULL OR product_id = ANY($1::uuid[]))', [scopedProductIds], 'product.hover_views'),
+    ])
+    return { library, links, hover }
+  } catch {
+    return { library: [] as JsonRow[], links: [] as JsonRow[], hover: [] as JsonRow[] }
+  }
+}
+
 export async function loadProductCustomDropdownOptionsFromRds(dropdownIds: string[]) {
   if (dropdownIds.length === 0) return result([])
   return result(await rows(
