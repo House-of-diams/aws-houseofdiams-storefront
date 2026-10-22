@@ -127,6 +127,7 @@ function CurrencySelector() {
                 countryCode={selected.countryCode}
                 svg
                 aria-label={selected.label}
+                alt=""
                 style={{ width: '18px', height: '18px', borderRadius: '999px' }}
               />
             </span>
@@ -172,6 +173,7 @@ function CurrencySelector() {
                       countryCode={option.countryCode}
                       svg
                       aria-label={option.label}
+                      alt=""
                       style={{ width: '18px', height: '18px', borderRadius: '999px' }}
                     />
                   </span>

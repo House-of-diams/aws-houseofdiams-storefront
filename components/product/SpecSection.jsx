@@ -37,7 +37,7 @@ export default function SpecSection({ title, rows, variant = 'piece', leftAlignV
             key={`${label}-${index}`}
             className="rounded-[18px] border border-[rgba(10,22,40,0.10)] bg-[#FAFBFD] p-5 shadow-[0_14px_34px_rgba(10,22,40,0.04)]"
           >
-            <div className="mb-2 font-sans text-[11px] font-medium uppercase tracking-[0.14em] text-[#8B94A5]">
+            <div className="mb-2 font-sans text-[11px] font-medium uppercase tracking-[0.14em] text-[#5F6878]">
               {label}
             </div>
             <div

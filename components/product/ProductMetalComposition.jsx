@@ -14,7 +14,7 @@ export default function ProductMetalComposition({ composition, fallbackColor = '
     <section className={compact ? 'mb-6 mt-2' : 'mb-10 mt-8'}>
       <div className={`grid items-stretch ${compact ? 'gap-4' : 'gap-6 lg:grid-cols-2'}`}>
         <div className={`${compact ? 'rounded-none border border-[rgba(10,22,40,0.08)] bg-[#FAFBFD]' : 'rounded-none bg-white shadow-[0_14px_32px_rgba(10,22,40,0.05)]'} h-full p-5`}>
-          <div className="mb-2 text-[11px] font-medium uppercase tracking-[0.16em] text-[#8B94A5]">Metal</div>
+          <div className="mb-2 text-[11px] font-medium uppercase tracking-[0.16em] text-[#5F6878]">Metal</div>
           <div className="flex items-center gap-4">
             <div className="relative flex h-[112px] w-[112px] items-center justify-center rounded-full border border-[rgba(10,22,40,0.08)] bg-[radial-gradient(circle_at_30%_30%,rgba(255,255,255,0.95),rgba(235,240,247,0.9)_45%,rgba(220,228,238,0.85)_100%)] shadow-[inset_0_1px_1px_rgba(255,255,255,0.9),0_16px_28px_rgba(10,22,40,0.08)]">
               <svg viewBox="0 0 112 112" className="h-[92px] w-[92px] -rotate-90">
@@ -67,7 +67,7 @@ export default function ProductMetalComposition({ composition, fallbackColor = '
         </div>
 
         <div className={`${compact ? 'rounded-none border border-[rgba(10,22,40,0.08)] bg-white' : 'rounded-none bg-white shadow-[0_14px_32px_rgba(10,22,40,0.05)]'} h-full p-5`}>
-          <div className="mb-3 text-[11px] font-medium uppercase tracking-[0.16em] text-[#8B94A5]">Composition</div>
+          <div className="mb-3 text-[11px] font-medium uppercase tracking-[0.16em] text-[#5F6878]">Composition</div>
           <div className={compact ? 'grid grid-cols-2 gap-2' : 'space-y-3'}>
             {(composition.parts ?? []).map((part, index) => (
               <div key={`${part.partName}-${index}`} className="flex items-center justify-between gap-4 rounded-none border border-[rgba(10,22,40,0.08)] bg-[#FBFCFE] px-4 py-3">

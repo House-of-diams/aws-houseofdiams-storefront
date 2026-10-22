@@ -197,7 +197,7 @@ body {
 
 /* Global safety: avoid tiny horizontal overflows from transforms/w-max marquees. */
 html, body {
-  overflow-x: visible;
+  overflow-x: clip;
 }
 
 img, video, canvas, svg {

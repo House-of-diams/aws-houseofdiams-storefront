@@ -216,6 +216,13 @@ export default function ProductCard({ product, wishlisted, onWishlist, onEnquire
     setMobileImageIndex(0);
   }, [activeImageUrl, visibleHoverImageUrl]);
 
+  const metalVariantPrices = selectedMetalSlug && Array.isArray(product.metalPurityVariants)
+    ? product.metalPurityVariants
+        .filter((variant) => variant.metalSlug === selectedMetalSlug && Number(variant.price) > 0)
+        .map((variant) => Number(variant.price))
+    : [];
+  const displayPrice = metalVariantPrices.length ? Math.min(...metalVariantPrices) : product.priceFrom;
+
   const materialLabel = activeMetal?.displayLabel || activeMetal?.name || product.shortMeta || "";
   const ink = isDark ? "#FFFFFF" : "#111111";
   const muted = isDark ? "rgba(255,255,255,.68)" : "#707070";
@@ -361,7 +368,7 @@ export default function ProductCard({ product, wishlisted, onWishlist, onEnquire
           {product.name}
         </div>
         <div className="shop-product-card-price" style={{ color: ink, fontSize: "13px", fontWeight: 700, lineHeight: 1.35 }}>
-          {format(product.priceFrom)}
+          {format(displayPrice)}
         </div>
         {materialLabel ? (
           <div className="shop-product-card-material" style={{ color: muted, fontSize: "11px", fontWeight: 400, lineHeight: 1.4 }}>

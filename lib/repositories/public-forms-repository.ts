@@ -12,7 +12,13 @@ type ContactSubmission = {
 
 export async function insertContactSubmission(input: ContactSubmission) {
   await query(
-    'INSERT INTO public.contact_submissions (full_name, email, phone, topic, message) VALUES ($1, $2, $3, $4, $5)',
+    // Idempotent: an identical enquiry from the same email within 30 seconds (a double-click or a retry) is stored once.
+    `INSERT INTO public.contact_submissions (full_name, email, phone, topic, message)
+     SELECT $1, $2, $3, $4, $5
+      WHERE NOT EXISTS (
+        SELECT 1 FROM public.contact_submissions c
+         WHERE lower(c.email) = lower($2) AND c.message = $5 AND c.topic IS NOT DISTINCT FROM $4
+           AND c.created_at > now() - interval '30 seconds')`,
     [input.full_name, input.email, input.phone, input.topic, input.message],
     { operation: 'forms.contact.insert' },
   )

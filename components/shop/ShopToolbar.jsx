@@ -50,7 +50,7 @@ export default function ShopToolbar({ count, sort, onSortChange, quickFilters })
       {quickFilters}
 
       <div className="shop-toolbar-count">
-        <strong style={{ color: "#0A1628", fontWeight: 600 }}>{count}</strong> pieces
+        <strong style={{ color: "#0A1628", fontWeight: 600 }}>{count}</strong> {count === 1 ? "piece" : "pieces"}
       </div>
 
       <div className="shop-toolbar-sort">

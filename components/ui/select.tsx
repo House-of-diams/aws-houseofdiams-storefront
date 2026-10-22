@@ -68,7 +68,7 @@ export function Select({
             "px-4 py-3.5 text-left shadow-[0_8px_24px_rgba(10,22,40,0.04)]",
             "transition-all duration-300 outline-none",
             "focus:border-[#0A1628] focus:bg-white focus:shadow-[0_14px_34px_rgba(10,22,40,0.08)]",
-            "data-[placeholder]:text-[#8B94A5] disabled:cursor-not-allowed disabled:opacity-70",
+            "data-[placeholder]:text-[#5F6878] disabled:cursor-not-allowed disabled:opacity-70",
             triggerClassName,
           ].join(" ")}
           aria-label={validationLabel}

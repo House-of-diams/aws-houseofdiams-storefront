@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useCurrency } from '@/context/CurrencyContext';
 import { fetchPublicJson } from '@/lib/client/public-json';
+import { normalizeWhatsappNumber } from '@/lib/whatsapp';
 
 /**
  * CTA button row: primary purchase and enquiry actions.
@@ -43,9 +44,7 @@ export default function ProductCTAs({ product, ctaMode = 'both', ctaLabel, onEnq
     let active = true;
     void fetchPublicJson('/api/public/settings')
       .then(({ payload }) => {
-        const savedNumber = typeof payload?.item?.whatsapp_number === 'string'
-          ? payload.item.whatsapp_number.replace(/[^\d]/g, '')
-          : '';
+        const savedNumber = normalizeWhatsappNumber(payload?.item?.whatsapp_number);
         if (active && savedNumber) setWhatsappNumber(savedNumber);
       })
       .catch(() => {});

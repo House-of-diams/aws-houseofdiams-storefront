@@ -58,21 +58,32 @@ export default function ContactBody({ onSuccess }: ContactBodyProps) {
 
   const set = (field: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => setForm(prev => ({ ...prev, [field]: e.target.value }));
 
+  // A ref changes synchronously, so a fast double-click cannot start two requests before the button re-renders as disabled.
+  const inFlight = useRef(false);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (inFlight.current) return;
+    inFlight.current = true;
     setIsSubmitting(true);
-    const response = await fetch('/api/public/contact/submit', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ full_name: form.name, email: form.email, phone: form.phone, topic: form.topic, message: form.message }),
-    });
-    if (response.ok) {
-      onSuccess?.('Thanks - your request was submitted successfully.');
-      setForm({ name: '', email: '', phone: '', topic: '', message: '' });
-    } else {
+    try {
+      const response = await fetch('/api/public/contact/submit', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ full_name: form.name, email: form.email, phone: form.phone, topic: form.topic, message: form.message }),
+      });
+      if (response.ok) {
+        onSuccess?.('Thanks - your request was submitted successfully.');
+        setForm({ name: '', email: '', phone: '', topic: '', message: '' });
+      } else {
+        onSuccess?.('Sorry, we could not submit your request just now.');
+      }
+    } catch {
       onSuccess?.('Sorry, we could not submit your request just now.');
+    } finally {
+      inFlight.current = false;
+      setIsSubmitting(false);
     }
-    setIsSubmitting(false);
   };
 
   return (
