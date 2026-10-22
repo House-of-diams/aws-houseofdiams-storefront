@@ -1,6 +1,7 @@
 import 'server-only'
 import { mediaUrl } from '@/lib/media-url'
 import { buildCombinedMetalLabel } from '@/lib/metal-label'
+import { MAX_CART_QUANTITY } from '@/lib/cart-limits'
 import {
   loadCheckoutProductsFromRds, loadCheckoutVariantsFromRds,
   loadCheckoutPurityPricesFromRds, loadCheckoutSettingsFromRds,
@@ -135,7 +136,7 @@ export async function resolveAuthoritativeCheckoutPricing({
     const productLane = product.product_lane ?? 'standard'
     const checkoutAllowed = productLane === 'standard' || (productLane === 'hiphop' && product.allow_checkout === true)
     if (product.status !== 'active' || !checkoutAllowed) pricingError = `${product.name} is not available for checkout.`
-    if (!Number.isInteger(quantity) || quantity < 1 || quantity > 10) pricingError = `Invalid quantity for ${product.name}.`
+    if (!Number.isInteger(quantity) || quantity < 1 || quantity > MAX_CART_QUANTITY) pricingError = `Invalid quantity for ${product.name}.`
     requestedQuantityByProduct.set(product.id, (requestedQuantityByProduct.get(product.id) || 0) + quantity)
 
     const requestedVariant = entry.metalVariantId ? metalVariantById.get(entry.metalVariantId) || null : null

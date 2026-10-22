@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import { getCanonicalUrl } from '@/lib/site-url'
+import { limitDescription } from '@/lib/seo-description'
 
 const defaultOgImage = '/logo.jpeg'
 
@@ -19,6 +20,7 @@ export function createPageMetadata({
   type = 'website',
 }: PageSeoInput): Metadata {
   const canonical = getCanonicalUrl(path)
+  description = limitDescription(description)
   const normalizedTitle = title.replace(/\s*\|\s*House of Diams\s*$/i, '').trim()
   const images = image ? [{ url: image, alt: `${normalizedTitle} - House of Diams` }] : undefined
 

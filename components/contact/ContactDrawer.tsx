@@ -30,6 +30,8 @@ export default function ContactDrawer() {
   const [rows, setRows] = useState<ContactRow[]>([])
   const [loaded, setLoaded] = useState(false)
   const [submitting, setSubmitting] = useState(false)
+  // A ref changes synchronously, so a fast double-click cannot start two requests before the button re-renders as disabled.
+  const inFlight = useRef(false)
   const [form, setForm] = useState({ name: '', email: '', phone: '', topic: '', message: '' })
 
   useEffect(() => {
@@ -67,7 +69,8 @@ export default function ContactDrawer() {
   const setField = (key: keyof typeof form, value: string) => setForm((current) => ({ ...current, [key]: value }))
   const submit = async (event: React.FormEvent) => {
     event.preventDefault()
-    if (submitting) return
+    if (inFlight.current) return
+    inFlight.current = true
     setSubmitting(true)
     try {
       const response = await fetch('/api/public/contact/submit', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ full_name: form.name, email: form.email, phone: form.phone, topic: form.topic, message: form.message }) })
@@ -77,6 +80,7 @@ export default function ContactDrawer() {
     } catch {
       showToast('Sorry, we could not submit your request just now.')
     } finally {
+      inFlight.current = false
       setSubmitting(false)
     }
   }

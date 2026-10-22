@@ -1086,17 +1086,24 @@ const getCachedRelatedStorefrontProducts = unstable_cache(
     productId: string,
     productLane: StorefrontProductLane,
     mainCategoryId: string,
-    limit: number
+    limit: number,
+    subcategoryKey: string
   ): Promise<StorefrontProduct[]> => {
     if (!productId || !mainCategoryId || limit < 1) return []
 
-    return fetchStorefrontProducts(productLane, {
+    // The main category (for example Fine Jewellery) mixes earrings, necklaces and bracelets, so
+    // fetch a wider set and put pieces from the same subcategory first, then fill with the rest.
+    const candidates = await fetchStorefrontProducts(productLane, {
       mainCategoryId,
       excludeProductId: productId,
-      limit,
+      limit: Math.max(limit * 8, 48),
     })
+    const wanted = new Set(subcategoryKey.split('|').filter(Boolean))
+    if (!wanted.size) return candidates.slice(0, limit)
+    const shares = (candidate: StorefrontProduct) => [candidate.subcategorySlug, ...(candidate.linkedSubcategorySlugs ?? [])].some((slug) => Boolean(slug) && wanted.has(String(slug)))
+    return [...candidates.filter(shares), ...candidates.filter((candidate) => !shares(candidate))].slice(0, limit)
   },
-  ['storefront-related-products-v1'],
+  ['storefront-related-products-v2'],
   { revalidate: 300, tags: ['storefront-products'] }
 )
 
@@ -1107,7 +1114,8 @@ export async function getRelatedStorefrontProducts(product: StorefrontProduct, l
     product.dbId,
     product.productLane,
     product.mainCategoryId,
-    limit
+    limit,
+    [...new Set([product.subcategorySlug, ...(product.linkedSubcategorySlugs ?? [])].filter(Boolean).map(String))].sort().join('|')
   )
 }
 

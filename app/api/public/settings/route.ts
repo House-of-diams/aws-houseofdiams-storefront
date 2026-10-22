@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { findPublicSiteSettingsFromRds } from '@/lib/repositories/settings-repository'
+import { normalizeWhatsappNumber } from '@/lib/whatsapp'
 import { cachePublicRead, publicCacheHeaders, PUBLIC_CACHE_SHORT_SECONDS } from '@/lib/public-cache'
 
 export const dynamic = 'force-dynamic'
@@ -13,7 +14,8 @@ async function readPublicContent() {
     const data = await readSiteSettings()
     return NextResponse.json({
       item: {
-        whatsapp_number: data?.whatsapp_number ?? '',
+        // Only a usable number is published; "91" alone is not a recipient.
+        whatsapp_number: normalizeWhatsappNumber(data?.whatsapp_number),
         maintenance_mode_enabled: Boolean(data?.maintenance_mode_enabled),
         maintenance_mode_message: data?.maintenance_mode_message ?? '',
         estimated_delivery_text: data?.estimated_delivery_text ?? 'Approximately 3 to 4 weeks',

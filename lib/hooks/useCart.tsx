@@ -1,6 +1,7 @@
 'use client'
 
 import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react'
+import { clampCartQuantity } from '@/lib/cart-limits'
 import { buildCartItemKey, getProductKey, type CartItemSelection, type CartProductSnapshot, type StoredCartItem } from '@/lib/product-keys'
 
 const STORAGE_KEY = 'hod_cart'
@@ -47,7 +48,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         const stored = localStorage.getItem(STORAGE_KEY)
         if (stored) {
           const parsed = JSON.parse(stored)
-          if (Array.isArray(parsed)) setItems(parsed)
+          if (Array.isArray(parsed)) setItems(parsed.map((entry) => ({ ...entry, quantity: clampCartQuantity(Number(entry?.quantity) || 1) })))
         }
       } catch {
         // Ignore unavailable or malformed browser storage and start with an empty cart.
@@ -73,7 +74,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
       try {
         const parsed = JSON.parse(event.newValue)
-        if (Array.isArray(parsed)) setItems(parsed)
+        if (Array.isArray(parsed)) setItems(parsed.map((entry) => ({ ...entry, quantity: clampCartQuantity(Number(entry?.quantity) || 1) })))
       } catch {
         // Ignore malformed changes from other tabs.
       }
@@ -105,7 +106,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
           recommendation: options?.recommendation,
         }
         if (existing) {
-          return currentItems.map((item) => (item.key === key ? { ...item, quantity: item.quantity + 1, snapshot } : item))
+          return currentItems.map((item) => (item.key === key ? { ...item, quantity: clampCartQuantity(item.quantity + 1), snapshot } : item))
         }
         return [
           ...currentItems,
@@ -130,7 +131,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         if (quantity <= 0) {
           return currentItems.filter((item) => item.key !== key)
         }
-        return currentItems.map((item) => (item.key === key ? { ...item, quantity } : item))
+        return currentItems.map((item) => (item.key === key ? { ...item, quantity: clampCartQuantity(quantity) } : item))
       })
     },
   }), [isHydrated, isOpen, items])

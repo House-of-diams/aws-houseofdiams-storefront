@@ -2,11 +2,10 @@
 
 import { useEffect, useState } from 'react';
 import { fetchPublicJson } from '@/lib/client/public-json';
-
-const fallbackWhatsappNumber = '919328536178';
+import { whatsappNumberOrFallback } from '@/lib/whatsapp';
 
 function buildWhatsappHref(number: string) {
-  const digits = number.replace(/[^\d]/g, '') || fallbackWhatsappNumber;
+  const digits = whatsappNumberOrFallback(number);
   return `https://wa.me/${digits}?text=${encodeURIComponent("Hi, I'd like to enquire about House of Diams")}`;
 }
 
@@ -14,7 +13,7 @@ export default function FloatingWidgets() {
   const [showBackTop, setShowBackTop] = useState(false);
   const [isScrolling, setIsScrolling] = useState(false);
   const [isFooterVisible, setIsFooterVisible] = useState(false);
-  const [whatsappHref, setWhatsappHref] = useState(buildWhatsappHref(fallbackWhatsappNumber));
+  const [whatsappHref, setWhatsappHref] = useState(buildWhatsappHref(''));
 
   useEffect(() => {
     const footer = document.querySelector('.site-footer');
@@ -55,7 +54,7 @@ export default function FloatingWidgets() {
 
         const nextNumber = typeof payload?.item?.whatsapp_number === 'string'
           ? payload.item.whatsapp_number
-          : fallbackWhatsappNumber;
+          : '';
 
         setWhatsappHref(buildWhatsappHref(nextNumber));
       } catch {}

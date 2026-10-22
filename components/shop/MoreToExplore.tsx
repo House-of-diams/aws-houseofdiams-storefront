@@ -11,7 +11,11 @@ export type MoreToExploreCategory = {
   imageAlt?: string | null
 }
 
-export default function MoreToExplore({ categories }: { categories: MoreToExploreCategory[] }) {
+// Hip Hop was retired as a storefront section; never offer it as a destination.
+const isRetiredSection = (category: MoreToExploreCategory) => /hip-?hop/i.test(category.name) || /hip-?hop/i.test(category.href)
+
+export default function MoreToExplore({ categories: allCategories }: { categories: MoreToExploreCategory[] }) {
+  const categories = allCategories.filter((category) => !isRetiredSection(category))
   const scrollerRef = useRef<HTMLDivElement>(null)
   if (!categories.length) return null
 

@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import { Gift, Minus, PackageCheck, Plus, RefreshCcw, X } from 'lucide-react'
 import { useCart } from '@/lib/hooks/useCart'
+import { MAX_CART_QUANTITY } from '@/lib/cart-limits'
 import { useCurrency } from '@/context/CurrencyContext'
 import { getProductKey, type CartProductSnapshot } from '@/lib/product-keys'
 
@@ -205,7 +206,7 @@ export default function CartDrawer() {
                               <Minus size={12} strokeWidth={1.5} />
                             </button>
                             <span className="flex items-center justify-center border-x border-black/15 text-[11px]">{item.quantity}</span>
-                            <button type="button" onClick={() => updateQuantity(item.key, item.quantity + 1)} aria-label="Increase quantity" className="flex items-center justify-center border-0 bg-white hover:bg-black hover:text-white">
+                            <button type="button" onClick={() => updateQuantity(item.key, item.quantity + 1)} aria-label="Increase quantity" disabled={item.quantity >= MAX_CART_QUANTITY} title={item.quantity >= MAX_CART_QUANTITY ? `Maximum ${MAX_CART_QUANTITY} per item` : undefined} className="disabled:cursor-not-allowed disabled:opacity-40 flex items-center justify-center border-0 bg-white hover:bg-black hover:text-white">
                               <Plus size={12} strokeWidth={1.5} />
                             </button>
                           </div>

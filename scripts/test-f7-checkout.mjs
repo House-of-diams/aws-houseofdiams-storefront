@@ -82,7 +82,7 @@ function pricingFixture(overrides = {}) {
     loadCheckoutGiftVariantFromRds: async () => overrides.giftVariant ?? null,
     countPendingCouponOrdersFromRds: async () => overrides.pendingCouponOrders ?? 0,
   }
-  return load('lib/checkout-pricing.ts', { '@/lib/media-url': { mediaUrl: (value) => value || '' }, '@/lib/metal-label': load('lib/metal-label.ts'),
+  return load('lib/checkout-pricing.ts', { '@/lib/media-url': { mediaUrl: (value) => value || '' }, '@/lib/cart-limits': load('lib/cart-limits.ts'), '@/lib/metal-label': load('lib/metal-label.ts'),
     '@/lib/repositories/checkout-pricing-repository': repository }).resolveAuthoritativeCheckoutPricing
 }
 const items = [{ slug: 'ring', name: 'Ring', quantity: 1 }]

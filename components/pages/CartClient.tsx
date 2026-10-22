@@ -5,6 +5,7 @@ import type { ReactNode } from 'react'
 import Link from 'next/link'
 import { Minus, Plus } from 'lucide-react'
 import { useCart } from '@/lib/hooks/useCart'
+import { MAX_CART_QUANTITY } from '@/lib/cart-limits'
 import { useCurrency } from '@/context/CurrencyContext'
 import { getProductKey, type CartItemSelection, type CartProductSnapshot } from '@/lib/product-keys'
 import type { StorefrontPromotion } from '@/components/commerce/PromotionBanner'
@@ -55,6 +56,7 @@ export default function CartClient({ summaryInfo }: { summaryInfo?: ReactNode })
   const [appliedCoupon, setAppliedCoupon] = useState<AppliedCoupon | null>(null)
   const [couponMessage, setCouponMessage] = useState('')
   const [couponLoading, setCouponLoading] = useState(false)
+  const [taxBySlug, setTaxBySlug] = useState<Record<string, { gstLabel?: string; gstPercentage?: number }>>({})
   const [requestedCouponCode, setRequestedCouponCode] = useState('')
   const [requestedCouponMinimumOrderAmount, setRequestedCouponMinimumOrderAmount] = useState<number | null>(null)
   const [requestedGiftPromotionId, setRequestedGiftPromotionId] = useState<number | null>(null)
@@ -152,6 +154,21 @@ export default function CartClient({ summaryInfo }: { summaryInfo?: ReactNode })
     [items, products]
   )
 
+  // Tax rates per product, from the same API the checkout uses, so the cart total matches checkout.
+  const cartSlugsKey = [...new Set(resolvedItems.map(({ product }) => product.slug))].sort().join('|')
+  useEffect(() => {
+    if (!cartSlugsKey) return
+    const controller = new AbortController()
+    void (async () => {
+      try {
+        const response = await fetch('/api/checkout/tax', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ slugs: cartSlugsKey.split('|') }), signal: controller.signal })
+        const payload = await response.json().catch(() => null)
+        if (response.ok) setTaxBySlug(payload?.taxBySlug ?? {})
+      } catch { /* aborted or offline: tax stays 'calculated at checkout' */ }
+    })()
+    return () => controller.abort()
+  }, [cartSlugsKey])
+
   const total = resolvedItems.reduce((sum, entry) => sum + ((entry.item.selection.resolvedPrice ?? entry.product?.priceFrom ?? 0) * entry.item.quantity), 0)
   const totalItems = items.reduce((sum, item) => sum + item.quantity, 0)
   const instantRecommendation = items.find((item) => item.snapshot?.recommendation)?.snapshot?.recommendation
@@ -171,6 +188,28 @@ export default function CartClient({ summaryInfo }: { summaryInfo?: ReactNode })
     setCouponMessage(`Add ${format(minimumOrderAmount - total, { maximumFractionDigits: 2 })} more to claim this offer.`)
     localStorage.removeItem(APPLIED_COUPON_KEY)
   }, [appliedCoupon, format, isHydrated, items.length, resolvedItems.length, total])
+
+  // Savings depend on quantity: ask the server again (it is the source of truth) whenever the cart changes.
+  const cartSignature = JSON.stringify(resolvedItems.map(({ item, product }) => [product.slug, item.selection.metalVariantId ?? '', item.quantity]))
+  const appliedCouponCode = appliedCoupon?.code
+  useEffect(() => {
+    if (!isHydrated || !appliedCouponCode || !cartSignature || cartSignature === '[]') return
+    const controller = new AbortController()
+    const timer = window.setTimeout(async () => {
+      try {
+        const response = await fetch('/api/checkout/coupon', { method: 'POST', headers: { 'content-type': 'application/json' }, signal: controller.signal, body: JSON.stringify({ code: appliedCouponCode, items: resolvedItems.map(({ item, product }) => ({ slug: product.slug, name: product.name, metalVariantId: item.selection.metalVariantId, metal: item.selection.metal, purity: item.selection.purity, quantity: item.quantity })) }) })
+        const payload = await response.json().catch(() => null)
+        if (response.ok && payload?.coupon) {
+          setAppliedCoupon(payload.coupon)
+          localStorage.setItem(APPLIED_COUPON_KEY, JSON.stringify(payload.coupon))
+          window.dispatchEvent(new Event(COUPON_STATE_EVENT))
+        }
+      } catch { /* aborted or offline: keep the current discount */ }
+    }, 350)
+    return () => { controller.abort(); window.clearTimeout(timer) }
+    // resolvedItems is covered by cartSignature
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cartSignature, appliedCouponCode, isHydrated])
 
   const applyCoupon = async (requestedCode?: string) => {
     const code = (requestedCode || couponCode).trim().toUpperCase()
@@ -226,7 +265,7 @@ export default function CartClient({ summaryInfo }: { summaryInfo?: ReactNode })
                   <div className="grid h-9 grid-cols-[34px_38px_34px] border border-black/25" aria-label={`Quantity for ${product.name}`}>
                     <button type="button" onClick={() => updateQuantity(item.key, item.quantity - 1)} aria-label="Decrease quantity" className="flex items-center justify-center border-0 bg-white text-black transition hover:bg-black hover:text-white"><Minus size={13} strokeWidth={1.5}/></button>
                     <span className="flex items-center justify-center border-x border-black/15 font-[family-name:var(--font-family-secondary)] text-[12px]">{item.quantity}</span>
-                    <button type="button" onClick={() => updateQuantity(item.key, item.quantity + 1)} aria-label="Increase quantity" className="flex items-center justify-center border-0 bg-white text-black transition hover:bg-black hover:text-white"><Plus size={13} strokeWidth={1.5}/></button>
+                    <button type="button" onClick={() => updateQuantity(item.key, item.quantity + 1)} aria-label="Increase quantity" disabled={item.quantity >= MAX_CART_QUANTITY} title={item.quantity >= MAX_CART_QUANTITY ? `Maximum ${MAX_CART_QUANTITY} per item` : undefined} className="disabled:cursor-not-allowed disabled:opacity-40 flex items-center justify-center border-0 bg-white text-black transition hover:bg-black hover:text-white"><Plus size={13} strokeWidth={1.5}/></button>
                   </div>
                 )
                 return (
@@ -284,6 +323,8 @@ export default function CartClient({ summaryInfo }: { summaryInfo?: ReactNode })
                   sizeOrFit: item.selection.sizeOrFit || item.selection.ringSize,
                   gemstone: item.selection.gemstone,
                   carat: item.selection.hiphopCarat,
+                  gstLabel: taxBySlug[product.slug]?.gstLabel ?? 'Taxes',
+                  gstPercentage: taxBySlug[product.slug]?.gstPercentage ?? 0,
                 })),
                 couponCode: appliedCoupon?.code,
                 couponDiscount: Number(appliedCoupon?.discountAmount ?? 0),

@@ -429,6 +429,21 @@ export default function Navbar({ navItems = [], customerAuthEnabled = false, ini
     }, 700);
   };
 
+  // Esc closes the mobile menu and hands keyboard focus back to the button that opened it.
+  const menuButtonRef = useRef<HTMLButtonElement | null>(null);
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return;
+      closeMenu();
+      menuButtonRef.current?.focus();
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+    // closeMenu only touches state setters and a timeout ref
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [menuOpen]);
+
   const openMobileMenu = () => {
     if (mobileMenuCloseTimeoutRef.current) {
       clearTimeout(mobileMenuCloseTimeoutRef.current);
@@ -583,6 +598,13 @@ export default function Navbar({ navItems = [], customerAuthEnabled = false, ini
       event.preventDefault();
       if (isShowingTextSuggestions && activeSearchIndex >= 0) {
         submitSearch(textSearchSuggestions[activeSearchIndex]);
+        return;
+      }
+      // Enter on an arrow-selected product result opens it, exactly like clicking it.
+      const selectedProduct = !isShowingTextSuggestions && activeSearchIndex >= 0 ? displayedSearchItems[activeSearchIndex] : undefined;
+      if (selectedProduct?.slug) {
+        router.push(`/shop/${selectedProduct.slug}`);
+        closeSearch();
         return;
       }
       submitSearch(searchQuery);
@@ -741,6 +763,7 @@ export default function Navbar({ navItems = [], customerAuthEnabled = false, ini
                 {cartCount ? <span className="absolute -right-1 -top-1 inline-flex min-w-[18px] items-center justify-center rounded-full bg-[#0A1628] px-1 text-[10px] text-white">{cartCount}</span> : null}
               </button>
               <button
+                ref={menuButtonRef}
                 onClick={() => {
                   if (menuOpen) closeMenu();
                   else openMobileMenu();

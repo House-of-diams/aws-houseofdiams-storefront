@@ -195,7 +195,7 @@ export default function ProductTabs({
                       key={`${row.label}-${index}`}
                       className="min-h-[150px] rounded-[14px] border border-[rgba(10,22,40,0.08)] bg-white p-5 shadow-[0_10px_28px_rgba(10,22,40,0.05)]"
                     >
-                      <div className="mb-3 font-sans text-[11px] font-semibold uppercase tracking-[0.14em] text-[#8B94A5]">
+                      <div className="mb-3 font-sans text-[11px] font-semibold uppercase tracking-[0.14em] text-[#5F6878]">
                         {row.label}
                       </div>
                       <div className="font-sans text-[22px] font-semibold leading-[1.25] text-[#0A1628]">
