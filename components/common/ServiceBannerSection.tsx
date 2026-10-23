@@ -1,7 +1,7 @@
 'use client';
 
-import Image from 'next/image';
 import { useState } from 'react';
+import BannerMedia from '@/components/common/BannerMedia';
 import { Plus } from 'lucide-react';
 
 export type ServiceBannerBlock = {
@@ -55,7 +55,7 @@ export default function ServiceBannerSection({ data }: { data: ServiceBannerData
         </div>
 
         <div className="order-first relative min-h-[360px] overflow-hidden bg-[var(--color-brand-secondary,#f9f9f9)] sm:min-h-[480px] lg:order-none lg:min-h-[620px]">
-          <Image src={data.imageUrl} alt={data.imageAlt} fill sizes="(min-width: 1024px) 50vw, 100vw" className="object-cover object-center" />
+          <BannerMedia src={data.imageUrl} alt={data.imageAlt} sizes="(min-width: 1024px) 50vw, 100vw" quality={75} className="object-cover object-center" />
         </div>
       </div>
     </section>

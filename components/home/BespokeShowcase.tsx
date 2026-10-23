@@ -2,10 +2,10 @@
 
 import Image from 'next/image';
 
+import BannerMedia from '@/components/common/BannerMedia';
 import BrandButton from '@/components/ui/BrandButton';
+import { isVideoUrl } from '@/lib/media-kind';
 import type { HomeBespokeShowcaseSection } from '@/lib/home-data';
-
-const VIDEO_FILE_PATTERN = /\.(?:mp4|webm|ogg|mov)(?:$|[?#])/i;
 
 export default function BespokeShowcase({
   section,
@@ -15,23 +15,13 @@ export default function BespokeShowcase({
   onEnquireClick: () => void;
 }) {
   const mediaUrl = section.imageUrl || section.mobileImageUrl || '';
-  const isVideo = VIDEO_FILE_PATTERN.test(mediaUrl);
+  const isVideo = isVideoUrl(mediaUrl);
   const mobileMediaUrl = section.mobileImageUrl || mediaUrl;
-  const isMobileVideo = VIDEO_FILE_PATTERN.test(mobileMediaUrl);
+  const isMobileVideo = isVideoUrl(mobileMediaUrl);
 
   const renderMedia = (src: string, video: boolean) =>
     video ? (
-      <video
-        className="absolute inset-0 h-full w-full object-cover object-center"
-        autoPlay
-        muted
-        loop
-        playsInline
-        preload="metadata"
-        aria-label={section.imageAlt || section.heading || 'House of Diams bespoke jewellery showcase'}
-      >
-        <source src={src} />
-      </video>
+      <BannerMedia src={src} alt={section.imageAlt || section.heading || 'House of Diams bespoke jewellery showcase'} />
     ) : (
       <Image
         src={src}
