@@ -7,7 +7,8 @@ import { validateIdentityToken } from './security'
 const STATE_COOKIE = '__Host-hod_customer_oidc_state'
 const SESSION_COOKIE = '__Host-hod_customer_session'
 const STATE_TTL_SECONDS = 600
-const SESSION_TTL_SECONDS = 60 * 60 * 8
+/** A signed-in customer stays signed in for 7 days. The identity token only proves who signed in; it does not set the session length. */
+export const SESSION_TTL_SECONDS = 60 * 60 * 24 * 7
 
 type Discovery = { authorization_endpoint: string; token_endpoint: string; jwks_uri: string; issuer: string; end_session_endpoint?: string }
 type StatePayload = { state: string; nonce: string; verifier: string; next: string; exp: number }

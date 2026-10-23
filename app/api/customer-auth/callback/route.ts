@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { getCustomerAuthConfig } from '@/lib/customer-auth/config'
-import { createCustomerSession, customerAuthCookieNames, exchangeAuthorizationCode, getDiscovery, readState, sessionCookieOptions, verifyIdToken } from '@/lib/customer-auth/oidc'
+import { SESSION_TTL_SECONDS, createCustomerSession, customerAuthCookieNames, exchangeAuthorizationCode, getDiscovery, readState, sessionCookieOptions, verifyIdToken } from '@/lib/customer-auth/oidc'
 
 export const runtime = 'nodejs'
 
@@ -21,7 +21,7 @@ export async function GET(request: Request) {
     const tokens = await exchangeAuthorizationCode(code, statePayload.verifier, discovery)
     if (!tokens.id_token) throw new Error('Identity provider did not return an identity token.')
     const identity = await verifyIdToken(tokens.id_token, discovery, statePayload.nonce)
-    const maxAge = Math.min(identity.expiresAt - Math.floor(Date.now() / 1000), 28800)
+    const maxAge = SESSION_TTL_SECONDS
     if (maxAge <= 0) throw new Error('Identity token expired during authentication.')
     const bearer = await createCustomerSession(config.issuer, identity.subject, identity.email, identity.emailVerified, maxAge)
     const response = NextResponse.redirect(new URL(statePayload.next, config.baseUrl), 303)
