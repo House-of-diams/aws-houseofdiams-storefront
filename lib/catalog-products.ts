@@ -1091,13 +1091,17 @@ export async function getStorefrontProductBySlug(slug: string) {
   return getRequestStorefrontProductBySlug(slug)
 }
 
+// Related pieces are ranked in memory, so the candidate set must cover the whole category, not just a few pages of it.
+const RELATED_CANDIDATE_LIMIT = 200
+
 const getCachedRelatedStorefrontProducts = unstable_cache(
   async (
     productId: string,
     productLane: StorefrontProductLane,
     mainCategoryId: string,
     limit: number,
-    subcategoryKey: string
+    subcategoryKey: string,
+    optionKey: string
   ): Promise<StorefrontProduct[]> => {
     if (!productId || !mainCategoryId || limit < 1) return []
 
@@ -1106,14 +1110,20 @@ const getCachedRelatedStorefrontProducts = unstable_cache(
     const candidates = await fetchStorefrontProducts(productLane, {
       mainCategoryId,
       excludeProductId: productId,
-      limit: Math.max(limit * 8, 48),
+      limit: RELATED_CANDIDATE_LIMIT,
     })
-    const wanted = new Set(subcategoryKey.split('|').filter(Boolean))
-    if (!wanted.size) return candidates.slice(0, limit)
-    const shares = (candidate: StorefrontProduct) => [candidate.subcategorySlug, ...(candidate.linkedSubcategorySlugs ?? [])].some((slug) => Boolean(slug) && wanted.has(String(slug)))
-    return [...candidates.filter(shares), ...candidates.filter((candidate) => !shares(candidate))].slice(0, limit)
+    const wantedSubcategories = new Set(subcategoryKey.split('|').filter(Boolean))
+    const wantedOptions = new Set(optionKey.split('|').filter(Boolean))
+    if (!wantedSubcategories.size && !wantedOptions.size) return candidates.slice(0, limit)
+    const sharesAny = (wanted: Set<string>, slugs: Array<string | null | undefined>) => slugs.some((slug) => Boolean(slug) && wanted.has(String(slug)))
+    // Tier 0: same subcategory, tier 1: same option (for example another bracelet type), tier 2: the rest of the category.
+    const tier = (candidate: StorefrontProduct) =>
+      sharesAny(wantedSubcategories, [candidate.subcategorySlug, ...(candidate.linkedSubcategorySlugs ?? [])]) ? 0
+        : sharesAny(wantedOptions, [candidate.optionSlug, ...(candidate.linkedOptionSlugs ?? [])]) ? 1 : 2
+    // Array.prototype.sort is stable, so the catalogue order is kept inside each tier.
+    return [...candidates].sort((left, right) => tier(left) - tier(right)).slice(0, limit)
   },
-  ['storefront-related-products-v2'],
+  ['storefront-related-products-v3'],
   { revalidate: 300, tags: ['storefront-products'] }
 )
 
@@ -1125,7 +1135,8 @@ export async function getRelatedStorefrontProducts(product: StorefrontProduct, l
     product.productLane,
     product.mainCategoryId,
     limit,
-    [...new Set([product.subcategorySlug, ...(product.linkedSubcategorySlugs ?? [])].filter(Boolean).map(String))].sort().join('|')
+    [...new Set([product.subcategorySlug, ...(product.linkedSubcategorySlugs ?? [])].filter(Boolean).map(String))].sort().join('|'),
+    [...new Set([product.optionSlug, ...(product.linkedOptionSlugs ?? [])].filter(Boolean).map(String))].sort().join('|')
   )
 }
 
