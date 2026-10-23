@@ -4,7 +4,7 @@ import {
   insertPromotionResponse, insertPromotionSubmission, type PromotionQuestionRow,
 } from '@/lib/repositories/promotion-submissions-repository'
 import { enforceRateLimit } from '@/lib/rate-limit'
-import { isValidEmail } from '@/lib/validation'
+import { isValidEmail, isValidPhone } from '@/lib/validation'
 
 type PromotionOption = string | { id?: string | number; value?: string; label?: string }
 type Question = {
@@ -42,7 +42,7 @@ function validateAnswer(question: Question, rawValue: unknown): { value: Answer 
   const value = values[0]
   if (value.length > 500) return { error: 'This answer is too long.' }
   if (question.input_type === 'email' && (value.length > 254 || !isValidEmail(value.toLowerCase()))) return { error: question.validation_message || 'Enter a valid email address.' }
-  if (question.input_type === 'phone' && !/^\+?[0-9][0-9\s\-()]{7,19}$/.test(value)) return { error: question.validation_message || 'Enter a valid phone number.' }
+  if (question.input_type === 'phone' && !isValidPhone(value)) return { error: question.validation_message || 'Enter a valid phone number.' }
   if (question.input_type === 'number' && !Number.isFinite(Number(value))) return { error: question.validation_message || 'Enter a valid number.' }
   if (question.validation_pattern) {
     try {
