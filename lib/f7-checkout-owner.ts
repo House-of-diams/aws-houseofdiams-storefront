@@ -8,7 +8,7 @@ export type F7CheckoutOwner =
   | { kind: 'guest'; hash: string }
 
 export async function resolveF7CheckoutOwner(request: Request): Promise<F7CheckoutOwner | null> {
-  // Legacy Supabase bearer tokens must never become Keycloak or guest identity.
+  // A bearer token must never become a customer or guest identity; only the session cookie or guest token counts.
   if (request.headers.get('authorization')) return null
   const cookieName = customerAuthCookieNames().session
   const token = (request.headers.get('cookie') || '').split(';').map((part) => part.trim())

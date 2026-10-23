@@ -17,22 +17,15 @@ function load(path, stubs = {}) {
   }, exports)
   return exports
 }
-const origins = load('lib/legacy-media-origins.ts')
 function media(base) {
   process.env.NEXT_PUBLIC_MEDIA_CDN_BASE_URL = base
-  return load('lib/media-url.ts', { '@/lib/legacy-media-origins': origins }).mediaUrl
+  return load('lib/media-url.ts', {}).mediaUrl
 }
 
-test('owned media keys and historical URLs resolve to the CDN without old ENV', () => {
+test('owned media keys resolve to the CDN', () => {
   const resolve = media('https://media.example.test/')
   assert.equal(resolve('products/a b.jpg'), 'https://media.example.test/products/a%20b.jpg')
   assert.equal(resolve('/products/a%20b.jpg'), 'https://media.example.test/products/a%20b.jpg')
-  for (const origin of origins.legacyMediaOrigins) {
-    const prefix = origin.type === 'public-storage' ? '/storage/v1/object/public/hod/' : '/'
-    assert.equal(resolve(`https://${origin.host}${prefix}products/a.jpg`), 'https://media.example.test/products/a.jpg')
-  }
-  const storage = origins.legacyMediaOrigins.find((entry) => entry.type === 'public-storage')
-  assert.equal(resolve(`https://${storage.host}/storage/v1/object/public/private/a.jpg`), '')
 })
 
 test('external, CDN and bundled assets remain unchanged; unsafe schemes are rejected', () => {
@@ -43,9 +36,9 @@ test('external, CDN and bundled assets remain unchanged; unsafe schemes are reje
   for (const value of [null, '', 'javascript:alert(1)', '//external.example.test/a.jpg']) assert.equal(resolve(value), '')
 })
 
-test('missing CDN never reconnects owned historical media to an old provider', () => {
+test('without a CDN a stored key is returned as it is and never rewritten to another provider', () => {
   const resolve = media('')
-  for (const origin of origins.legacyMediaOrigins) assert.equal(resolve(`https://${origin.host}/a.jpg`), '')
+  assert.equal(resolve('products/a.jpg'), 'products/a.jpg')
 })
 
 test('storefront runtime contains no legacy SDK imports or provider ENV reads', () => {

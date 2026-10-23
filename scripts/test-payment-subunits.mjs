@@ -22,7 +22,7 @@ test('rejects invalid payment amounts and currencies', () => {
 })
 
 test('database finalization uses the same JPY subunit rule', () => {
-  const migration = readFileSync(new URL('../supabase/migrations/202609280001_payment_currency_subunits.sql', import.meta.url), 'utf8')
+  const migration = readFileSync(new URL('../db/history/migrations/202609280001_payment_currency_subunits.sql', import.meta.url), 'utf8')
   assert.match(migration, /when 'JPY' then round\(coalesce\(v_order\.payment_amount, 0\)\)::bigint/i)
 })
 
