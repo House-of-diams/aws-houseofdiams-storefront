@@ -8,6 +8,7 @@ import {
   loadProductCustomDropdownOptionsFromRds,
   loadProductDiscoveryRowsFromRds,
   loadProductFilterGroupsFromRds,
+  loadUsedStoneShapeSlugsFromRds,
   loadProductHydrationRowsFromRds,
   loadProductMediaExtrasFromRds,
   loadProductPageIndexFromRds,
@@ -1277,7 +1278,11 @@ async function loadStorefrontProductCardPage({
 
 async function loadStorefrontFilterGroups(productLane?: StorefrontProductLane, categoryId?: string) {
 
-  const [categories, subcategories, options, shapes, metals, styles, certificates] = await loadProductFilterGroupsFromRds()
+  const [[categories, subcategories, options, shapes, metals, styles, certificates], usedShapeSlugs] = await Promise.all([
+    loadProductFilterGroupsFromRds(),
+    // Hide shapes no product uses; if this lookup fails keep the full list rather than break the filters.
+    loadUsedStoneShapeSlugsFromRds(productLane, categoryId).then((slugs) => new Set(slugs)).catch(() => null),
+  ])
   const visibleCategories = (categories.data ?? []).filter((entry) => !productLane || entry.category_lane === productLane)
   const visibleCategoryIds = new Set(categoryId ? [categoryId] : visibleCategories.map((entry) => entry.id))
   const visibleSubcategories = (subcategories.data ?? []).filter((entry) => visibleCategoryIds.has(entry.category_id))
@@ -1287,7 +1292,7 @@ async function loadStorefrontFilterGroups(productLane?: StorefrontProductLane, c
     ...(!categoryId ? [{ id: 'category', title: 'Category', options: visibleCategories.map((entry) => ({ value: entry.slug, label: entry.name })) }] : []),
     { id: 'subcategory', title: 'Type', options: visibleSubcategories.map((entry) => ({ value: entry.slug, label: entry.name })) },
     { id: 'option', title: 'Style', options: (options.data ?? []).filter((entry) => visibleSubcategoryIds.has(entry.subcategory_id)).map((entry) => ({ value: entry.slug, label: entry.name })) },
-    { id: 'shape', title: 'Shape', options: (shapes.data ?? []).map((entry) => ({ value: entry.slug, label: entry.name, iconUrl: entry.svg_asset_url })) },
+    { id: 'shape', title: 'Shape', options: (shapes.data ?? []).filter((entry) => !usedShapeSlugs || usedShapeSlugs.has(entry.slug)).map((entry) => ({ value: entry.slug, label: entry.name, iconUrl: entry.svg_asset_url })) },
     { id: 'metal', title: 'Metal', options: (metals.data ?? []).map((entry) => ({ value: entry.slug, label: entry.display_label || entry.name, color: entry.color_hex })) },
     { id: 'certificate', title: 'Certificate', options: (certificates.data ?? []).map((entry) => ({ value: entry.name, label: entry.name })) },
     { id: 'style', title: 'Design Style', options: (styles.data ?? []).map((entry) => ({ value: entry.slug, label: entry.name })) },
@@ -1311,7 +1316,7 @@ export async function getStorefrontProductCardPage(args: StorefrontProductCardPa
 const getCachedStorefrontFilterGroups = unstable_cache(
   (productLane: StorefrontProductLane | null, categoryId: string | null) =>
     loadStorefrontFilterGroups(productLane ?? undefined, categoryId ?? undefined),
-  ['storefront-filter-groups-v1'],
+  ['storefront-filter-groups-v2'],
   { revalidate: 300, tags: ['storefront-products'] }
 )
 

@@ -158,6 +158,8 @@ export async function CategoryCollectionPageContent({
   if (requestedPage > 1 && (totalPages === 0 || requestedPage > totalPages)) {
     notFound()
   }
+  // Shapes no product uses would only lead to an empty page, so offer just the ones filterGroups kept.
+  const usedShapeSlugs = new Set(filterGroups.find((group) => group.id === 'shape')?.options.map((option) => option.value) ?? [])
   const categoryFaqItems = categoryFaqResult.error ? [] : categoryFaqResult.data ?? []
   const [
     navbarItemsResult,
@@ -317,7 +319,7 @@ export async function CategoryCollectionPageContent({
         heroCtaLabel={category.banner_cta_label || undefined}
         heroCtaHref={category.banner_cta_link || undefined}
         heroBannerEnabled={Boolean(category.banner_enabled)}
-        masterShapeOptions={(stoneShapesResult.error ? [] : stoneShapesResult.data ?? []).map((shape) => ({
+        masterShapeOptions={(stoneShapesResult.error ? [] : stoneShapesResult.data ?? []).filter((shape) => usedShapeSlugs.has(shape.slug)).map((shape) => ({
           value: shape.slug,
           label: shape.name,
           iconUrl: toPublicUrl(shape.svg_asset_url) ?? shape.svg_asset_url ?? null,
