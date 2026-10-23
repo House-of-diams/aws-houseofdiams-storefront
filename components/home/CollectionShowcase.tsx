@@ -1,6 +1,6 @@
 'use client';
 
-import Image from 'next/image';
+import BannerMedia from '@/components/common/BannerMedia';
 import type { CollectionPageConfig } from '@/lib/home-data';
 import { FindYourMatchQuiz } from '@/components/home/FindYourMatchQuiz';
 
@@ -13,8 +13,8 @@ export default function CollectionShowcase({ config }: { config: CollectionPageC
       <div className="relative block aspect-[4/5] w-full sm:aspect-[6336/2688]">
         {desktopImage ? (
           <>
-            <Image src={mobileImage} alt={config.showcaseHeading || 'Collection showcase'} fill sizes="100vw" quality={90} className="object-cover object-center sm:hidden" />
-            <Image src={desktopImage} alt={config.showcaseHeading || 'Collection showcase'} fill sizes="100vw" quality={90} className="hidden object-cover object-center sm:block" />
+            <BannerMedia src={mobileImage} alt={config.showcaseHeading || 'Collection showcase'} className="object-cover object-center sm:hidden" />
+            <BannerMedia src={desktopImage} alt={config.showcaseHeading || 'Collection showcase'} className="hidden object-cover object-center sm:block" />
           </>
         ) : <span className="block size-full bg-black" />}
       </div>
