@@ -1,4 +1,5 @@
 'use client';
+import { useCurrency } from '@/context/CurrencyContext';
 import { useEffect, useMemo, useRef, useState, type AnchorHTMLAttributes, type KeyboardEvent as ReactKeyboardEvent } from 'react';
 import Link from 'next/link';
 import { createPortal } from 'react-dom';
@@ -162,6 +163,7 @@ export default function Navbar({ navItems = [], customerAuthEnabled = false, ini
   const router = useRouter();
   const { count: wishlistCount } = useWishlistStore();
   const { count: cartCount, openCart } = useCart();
+  const { format: formatPrice } = useCurrency();
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [mobileOpenItem, setMobileOpenItem] = useState<string | null>(null);
@@ -1064,6 +1066,7 @@ export default function Navbar({ navItems = [], customerAuthEnabled = false, ini
                         <Link key={item.dbId || item.slug} ref={(node) => { searchOptionRefs.current[index] = node; }} id={`navbar-search-option-${index}`} role="option" aria-selected={activeSearchIndex === index} href={`/shop/${item.slug}`} onMouseEnter={() => setActiveSearchIndex(index)} onClick={closeSearch} className="group min-w-0 rounded-sm text-center outline-none focus-visible:ring-2 focus-visible:ring-black/70">
                           <span className="relative mx-auto flex aspect-square w-full max-w-[112px] items-center justify-center overflow-hidden rounded-full border border-black/5 bg-[var(--color-brand-secondary,#F9F9F9)] text-[32px] text-black/15 transition-transform duration-200 group-hover:scale-[1.04]">◇{item.imageUrl ? <img src={item.imageUrl} alt="" loading={index < 3 ? 'eager' : 'lazy'} fetchPriority={index < 3 ? 'high' : 'auto'} decoding="async" onError={(event) => { event.currentTarget.style.display = 'none'; }} className="absolute inset-0 h-full w-full object-cover" /> : null}</span>
                           <span className="mt-3 block truncate text-[11px] font-medium text-[var(--color-brand-primary)] sm:text-[12px]" title={item.name}>{item.name}</span>
+                          {item.priceFrom > 0 ? <span className="mt-1 block text-[11px] text-black/70 sm:text-[12px]">{formatPrice(item.priceFrom)}</span> : null}
                         </Link>
                       ))}
                     </div>
