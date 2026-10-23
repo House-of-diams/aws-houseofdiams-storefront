@@ -127,6 +127,9 @@ function selection(metal?: string | null, purity?: string | null) {
       : metal;
 }
 
+// Catalog prices are shown in whole currency units; money already charged keeps its cents so it matches the receipt and Admin.
+const ORDER_AMOUNT_FORMAT = { maximumFractionDigits: 2 } as const
+
 export default function CustomerAccount({
   ordersEnabled = false,
 }: {
@@ -658,11 +661,11 @@ export default function CustomerAccount({
                               <p className="mt-1 text-[13px] font-semibold text-[#222222]">
                                 {order.total_amount == null
                                   ? "—"
-                                  : formatUsd(order.total_amount)}
+                                  : formatUsd(order.total_amount, ORDER_AMOUNT_FORMAT)}
                               </p>
                               {order.payment_amount != null && order.payment_currency ? (
                                 <p className="mt-1 text-[11px] text-[#767676]">
-                                  Charged: {formatMoney(order.payment_amount, order.payment_currency)} {order.payment_currency}
+                                  Charged: {formatMoney(order.payment_amount, order.payment_currency, ORDER_AMOUNT_FORMAT)} {order.payment_currency}
                                 </p>
                               ) : null}
                             </div>
@@ -716,7 +719,7 @@ export default function CustomerAccount({
                               <p className="shrink-0 text-[13px] font-semibold text-[#222222]">
                                 {item.line_total == null
                                   ? "—"
-                                  : formatUsd(item.line_total)}
+                                  : formatUsd(item.line_total, ORDER_AMOUNT_FORMAT)}
                               </p>
                             </div>
                           ))}

@@ -8,6 +8,7 @@ import {
   loadProductCustomDropdownOptionsFromRds,
   loadProductDiscoveryRowsFromRds,
   loadProductFilterGroupsFromRds,
+  loadUsedStoneShapeSlugsFromRds,
   loadProductHydrationRowsFromRds,
   loadProductMediaExtrasFromRds,
   loadProductPageIndexFromRds,
@@ -1091,13 +1092,17 @@ export async function getStorefrontProductBySlug(slug: string) {
   return getRequestStorefrontProductBySlug(slug)
 }
 
+// Related pieces are ranked in memory, so the candidate set must cover the whole category, not just a few pages of it.
+const RELATED_CANDIDATE_LIMIT = 200
+
 const getCachedRelatedStorefrontProducts = unstable_cache(
   async (
     productId: string,
     productLane: StorefrontProductLane,
     mainCategoryId: string,
     limit: number,
-    subcategoryKey: string
+    subcategoryKey: string,
+    optionKey: string
   ): Promise<StorefrontProduct[]> => {
     if (!productId || !mainCategoryId || limit < 1) return []
 
@@ -1106,14 +1111,20 @@ const getCachedRelatedStorefrontProducts = unstable_cache(
     const candidates = await fetchStorefrontProducts(productLane, {
       mainCategoryId,
       excludeProductId: productId,
-      limit: Math.max(limit * 8, 48),
+      limit: RELATED_CANDIDATE_LIMIT,
     })
-    const wanted = new Set(subcategoryKey.split('|').filter(Boolean))
-    if (!wanted.size) return candidates.slice(0, limit)
-    const shares = (candidate: StorefrontProduct) => [candidate.subcategorySlug, ...(candidate.linkedSubcategorySlugs ?? [])].some((slug) => Boolean(slug) && wanted.has(String(slug)))
-    return [...candidates.filter(shares), ...candidates.filter((candidate) => !shares(candidate))].slice(0, limit)
+    const wantedSubcategories = new Set(subcategoryKey.split('|').filter(Boolean))
+    const wantedOptions = new Set(optionKey.split('|').filter(Boolean))
+    if (!wantedSubcategories.size && !wantedOptions.size) return candidates.slice(0, limit)
+    const sharesAny = (wanted: Set<string>, slugs: Array<string | null | undefined>) => slugs.some((slug) => Boolean(slug) && wanted.has(String(slug)))
+    // Tier 0: same subcategory, tier 1: same option (for example another bracelet type), tier 2: the rest of the category.
+    const tier = (candidate: StorefrontProduct) =>
+      sharesAny(wantedSubcategories, [candidate.subcategorySlug, ...(candidate.linkedSubcategorySlugs ?? [])]) ? 0
+        : sharesAny(wantedOptions, [candidate.optionSlug, ...(candidate.linkedOptionSlugs ?? [])]) ? 1 : 2
+    // Array.prototype.sort is stable, so the catalogue order is kept inside each tier.
+    return [...candidates].sort((left, right) => tier(left) - tier(right)).slice(0, limit)
   },
-  ['storefront-related-products-v2'],
+  ['storefront-related-products-v3'],
   { revalidate: 300, tags: ['storefront-products'] }
 )
 
@@ -1125,7 +1136,8 @@ export async function getRelatedStorefrontProducts(product: StorefrontProduct, l
     product.productLane,
     product.mainCategoryId,
     limit,
-    [...new Set([product.subcategorySlug, ...(product.linkedSubcategorySlugs ?? [])].filter(Boolean).map(String))].sort().join('|')
+    [...new Set([product.subcategorySlug, ...(product.linkedSubcategorySlugs ?? [])].filter(Boolean).map(String))].sort().join('|'),
+    [...new Set([product.optionSlug, ...(product.linkedOptionSlugs ?? [])].filter(Boolean).map(String))].sort().join('|')
   )
 }
 
@@ -1266,7 +1278,11 @@ async function loadStorefrontProductCardPage({
 
 async function loadStorefrontFilterGroups(productLane?: StorefrontProductLane, categoryId?: string) {
 
-  const [categories, subcategories, options, shapes, metals, styles, certificates] = await loadProductFilterGroupsFromRds()
+  const [[categories, subcategories, options, shapes, metals, styles, certificates], usedShapeSlugs] = await Promise.all([
+    loadProductFilterGroupsFromRds(),
+    // Hide shapes no product uses; if this lookup fails keep the full list rather than break the filters.
+    loadUsedStoneShapeSlugsFromRds(productLane, categoryId).then((slugs) => new Set(slugs)).catch(() => null),
+  ])
   const visibleCategories = (categories.data ?? []).filter((entry) => !productLane || entry.category_lane === productLane)
   const visibleCategoryIds = new Set(categoryId ? [categoryId] : visibleCategories.map((entry) => entry.id))
   const visibleSubcategories = (subcategories.data ?? []).filter((entry) => visibleCategoryIds.has(entry.category_id))
@@ -1276,7 +1292,7 @@ async function loadStorefrontFilterGroups(productLane?: StorefrontProductLane, c
     ...(!categoryId ? [{ id: 'category', title: 'Category', options: visibleCategories.map((entry) => ({ value: entry.slug, label: entry.name })) }] : []),
     { id: 'subcategory', title: 'Type', options: visibleSubcategories.map((entry) => ({ value: entry.slug, label: entry.name })) },
     { id: 'option', title: 'Style', options: (options.data ?? []).filter((entry) => visibleSubcategoryIds.has(entry.subcategory_id)).map((entry) => ({ value: entry.slug, label: entry.name })) },
-    { id: 'shape', title: 'Shape', options: (shapes.data ?? []).map((entry) => ({ value: entry.slug, label: entry.name, iconUrl: entry.svg_asset_url })) },
+    { id: 'shape', title: 'Shape', options: (shapes.data ?? []).filter((entry) => !usedShapeSlugs || usedShapeSlugs.has(entry.slug)).map((entry) => ({ value: entry.slug, label: entry.name, iconUrl: entry.svg_asset_url })) },
     { id: 'metal', title: 'Metal', options: (metals.data ?? []).map((entry) => ({ value: entry.slug, label: entry.display_label || entry.name, color: entry.color_hex })) },
     { id: 'certificate', title: 'Certificate', options: (certificates.data ?? []).map((entry) => ({ value: entry.name, label: entry.name })) },
     { id: 'style', title: 'Design Style', options: (styles.data ?? []).map((entry) => ({ value: entry.slug, label: entry.name })) },
@@ -1300,7 +1316,7 @@ export async function getStorefrontProductCardPage(args: StorefrontProductCardPa
 const getCachedStorefrontFilterGroups = unstable_cache(
   (productLane: StorefrontProductLane | null, categoryId: string | null) =>
     loadStorefrontFilterGroups(productLane ?? undefined, categoryId ?? undefined),
-  ['storefront-filter-groups-v1'],
+  ['storefront-filter-groups-v2'],
   { revalidate: 300, tags: ['storefront-products'] }
 )
 

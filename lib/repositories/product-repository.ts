@@ -220,6 +220,24 @@ export async function loadProductFilterGroupsFromRds() {
   ] as const
 }
 
+// Slugs of the stone shapes assigned to at least one active product in scope, so a filter is never offered that can only return nothing.
+export async function loadUsedStoneShapeSlugsFromRds(productLane?: string, mainCategoryId?: string): Promise<string[]> {
+  const data = await rows(
+    `SELECT jsonb_build_object('slug', s.slug) AS row
+       FROM public.catalog_stone_shapes s
+      WHERE s.status = $1
+        AND EXISTS (
+          SELECT 1 FROM public.product_stone_shapes ps
+            JOIN public.products p ON p.id = ps.product_id
+           WHERE ps.shape_id = s.id AND p.status = $1
+             AND ($2::text IS NULL OR p.product_lane = $2)
+             AND ($3::uuid IS NULL OR p.main_category_id = $3))`,
+    ['active', productLane ?? null, mainCategoryId ?? null],
+    'product.filters.used_shapes',
+  )
+  return data.map((row) => String(row.slug))
+}
+
 export async function loadProductDiscoveryRowsFromRds() {
   type DiscoveryRow = {
     slug: string
