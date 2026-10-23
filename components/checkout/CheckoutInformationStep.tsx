@@ -1,5 +1,6 @@
 import CheckoutField from '@/components/checkout/CheckoutField'
 import type { CheckoutPostalAreaOption, CheckoutPostalLookupState, CheckoutProfileForm } from '@/components/checkout/types'
+import { sanitizePhoneInput } from '@/lib/validation'
 
 export default function CheckoutInformationStep({ form, onChange, errors = {}, postalLookup, onPostalBlur, postalAreaOptions = [], onPostalAreaSelect, isGuest }: { form: CheckoutProfileForm; onChange: (field: keyof CheckoutProfileForm, value: string) => void; errors?: Partial<Record<keyof CheckoutProfileForm, string>>; postalLookup?: CheckoutPostalLookupState | null; onPostalBlur?: () => void; postalAreaOptions?: CheckoutPostalAreaOption[]; onPostalAreaSelect?: (id: string) => void; isGuest: boolean }) {
   return (
@@ -10,7 +11,7 @@ export default function CheckoutInformationStep({ form, onChange, errors = {}, p
         <div className="md:col-span-2"><CheckoutField label="Email" value={form.email} onChange={(value) => onChange('email', value)} type="email" placeholder="Email" required error={errors.email} /></div>
         <CheckoutField label="First Name" value={form.first_name} onChange={(value) => onChange('first_name', value)} placeholder="First name" required error={errors.first_name} />
         <CheckoutField label="Last Name" value={form.last_name} onChange={(value) => onChange('last_name', value)} placeholder="Last name" required error={errors.last_name} />
-        <div className="md:col-span-2"><CheckoutField label="Phone Number" value={form.phone} onChange={(value) => onChange('phone', value)} placeholder="Phone number with country code" required error={errors.phone} /></div>
+        <div className="md:col-span-2"><CheckoutField label="Phone Number" value={form.phone} onChange={(value) => onChange('phone', sanitizePhoneInput(value))} inputMode="tel" type="tel" placeholder="Phone number with country code" required error={errors.phone} /></div>
         {isGuest ? <>
           <CheckoutField label="Birth Date" value={form.birth_date} onChange={(value) => onChange('birth_date', value)} type="date" placeholder="Birth date (optional)" error={errors.birth_date} />
           <CheckoutField label="Anniversary Date" value={form.anniversary_date} onChange={(value) => onChange('anniversary_date', value)} type="date" placeholder="Anniversary date (optional)" error={errors.anniversary_date} />

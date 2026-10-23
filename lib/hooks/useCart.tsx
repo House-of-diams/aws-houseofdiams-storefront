@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { clampCartQuantity } from '@/lib/cart-limits'
-import { buildCartItemKey, getProductKey, type CartItemSelection, type CartProductSnapshot, type StoredCartItem } from '@/lib/product-keys'
+import { buildCartItemKey, getProductKey, mergeDuplicateCartItems, type CartItemSelection, type CartProductSnapshot, type StoredCartItem } from '@/lib/product-keys'
 
 const STORAGE_KEY = 'hod_cart'
 
@@ -48,7 +48,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         const stored = localStorage.getItem(STORAGE_KEY)
         if (stored) {
           const parsed = JSON.parse(stored)
-          if (Array.isArray(parsed)) setItems(parsed.map((entry) => ({ ...entry, quantity: clampCartQuantity(Number(entry?.quantity) || 1) })))
+          if (Array.isArray(parsed)) setItems(mergeDuplicateCartItems(parsed.map((entry) => ({ ...entry, quantity: clampCartQuantity(Number(entry?.quantity) || 1) })), clampCartQuantity))
         }
       } catch {
         // Ignore unavailable or malformed browser storage and start with an empty cart.
@@ -74,7 +74,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
       try {
         const parsed = JSON.parse(event.newValue)
-        if (Array.isArray(parsed)) setItems(parsed.map((entry) => ({ ...entry, quantity: clampCartQuantity(Number(entry?.quantity) || 1) })))
+        if (Array.isArray(parsed)) setItems(mergeDuplicateCartItems(parsed.map((entry) => ({ ...entry, quantity: clampCartQuantity(Number(entry?.quantity) || 1) })), clampCartQuantity))
       } catch {
         // Ignore malformed changes from other tabs.
       }

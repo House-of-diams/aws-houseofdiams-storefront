@@ -15,6 +15,7 @@ import { findOwnedOrder, cancelOwnedOrder, type CheckoutOrder } from '@/lib/repo
 import { failRdsPayment } from '@/lib/repositories/payment-repository'
 import { finalizeF7Payment, recoverF7CapturedPayment } from '@/lib/f7-payment'
 import { REFUNDABLE_FINALIZATION_ERRORS } from '@/lib/payment-recovery'
+import { toPaymentContact } from '@/lib/validation'
 
 export const f7Json = (body: unknown, status = 200) => NextResponse.json(body, { status, headers: { 'cache-control': 'no-store' } })
 const uuid = (value: unknown): value is string => typeof value === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value)
@@ -35,7 +36,7 @@ function repeatCheckoutResponse(order: Omit<CheckoutOrder, 'payment_amount'> & {
       currency: order.payment_currency, name: 'House of Diams', description: 'Secure jewellery checkout',
       prefill: {
         name: `${order.customer_first_name || ''} ${order.customer_last_name || ''}`.trim(),
-        email: order.customer_email || '', contact: order.customer_phone || ''
+        email: order.customer_email || '', contact: toPaymentContact(order.customer_phone)
       },
       baseCurrency: totals.baseCurrency || 'USD', baseAmount: totals.totalAmount || 0,
       exchangeRate: totals.exchangeRate || 1, exchangeRateSource: totals.exchangeRateSource || 'fallback',
@@ -104,7 +105,7 @@ export async function handleF7Place(request: Request) {
         currency: gatewayOrder.currency, name: 'House of Diams', description: 'Secure jewellery checkout',
         prefill: {
           name: `${prepared.resolvedCustomer.first_name} ${prepared.resolvedCustomer.last_name}`.trim(),
-          email: prepared.resolvedCustomer.email, contact: prepared.resolvedCustomer.phone
+          email: prepared.resolvedCustomer.email, contact: toPaymentContact(prepared.resolvedCustomer.phone)
         },
         baseCurrency: prepared.chargeQuote.baseCurrency, baseAmount: prepared.chargeQuote.totalUsd,
         exchangeRate: prepared.chargeQuote.exchangeRate, exchangeRateSource: prepared.chargeQuote.exchangeRateSource

@@ -228,7 +228,7 @@ export default function PromotionPopup() {
 
   return (
     <div className="fixed inset-0 z-[1300] flex items-center justify-center bg-[rgba(10,22,40,0.48)] p-3 backdrop-blur-[6px] sm:p-5">
-      <div ref={dialogRef} role="dialog" aria-modal="true" aria-label="Promotion offer" className="relative max-h-[calc(100vh-24px)] w-full max-w-[calc(100vw-24px)] overflow-hidden rounded-none border border-black/12 bg-white sm:max-h-[calc(100vh-40px)] sm:max-w-[760px] sm:rounded-[12px]">
+      <div ref={dialogRef} role="dialog" aria-modal="true" aria-label="Promotion offer" className="relative max-h-[calc(100dvh-24px)] w-full max-w-[calc(100vw-24px)] overflow-y-auto overscroll-contain rounded-none border border-black/12 bg-white sm:max-h-[calc(100dvh-40px)] sm:max-w-[760px] sm:rounded-[12px]">
         <button
           type="button"
           onClick={close}
@@ -241,7 +241,7 @@ export default function PromotionPopup() {
         </button>
 
         {useTextOnlyLayout ? (
-          <div className="flex min-h-[380px] items-center justify-center overflow-y-auto bg-white px-7 py-14 sm:min-h-[480px] sm:px-16 sm:py-20">
+          <div className="flex items-center justify-center bg-white px-6 py-12 sm:min-h-[480px] sm:px-16 sm:py-20">
             <div className="w-full max-w-[480px] text-left">
               {item.label ? <p className="mb-4 text-[10px] uppercase tracking-[0.28em] text-[rgba(10,22,40,0.45)]">{item.label}</p> : null}
               <h2 className={`${cinzelFont.variable} font-primary-display text-left text-[clamp(1.5rem,4vw,2.35rem)] leading-[1.05] tracking-[-0.03em] text-[var(--theme-ink)]`}>{item.title}</h2>
@@ -250,8 +250,8 @@ export default function PromotionPopup() {
             </div>
           </div>
         ) : (
-          <div className="grid max-h-[calc(100vh-24px)] min-h-[250px] grid-cols-1 overflow-y-auto md:max-h-none md:grid-cols-[0.94fr_1.06fr] md:overflow-hidden sm:min-h-[420px]">
-            <div className="relative h-[46vh] max-h-[360px] min-h-[240px] bg-[radial-gradient(circle_at_top,#f7f8fa_0%,#e7eaee_46%,#cfd5dd_100%)] md:h-auto md:max-h-none md:min-h-full">
+          <div className="grid min-h-[250px] grid-cols-1 md:max-h-none md:grid-cols-[0.94fr_1.06fr] md:overflow-hidden sm:min-h-[420px]">
+            <div className="relative h-[26dvh] max-h-[300px] min-h-[150px] sm:h-[46vh] sm:min-h-[240px] sm:max-h-[360px] bg-[radial-gradient(circle_at_top,#f7f8fa_0%,#e7eaee_46%,#cfd5dd_100%)] md:h-auto md:max-h-none md:min-h-full">
               {imageSrc ? (
                 <picture>
                   <source media="(max-width: 767px)" srcSet={mobileImageSrc} />

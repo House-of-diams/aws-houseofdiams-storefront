@@ -430,7 +430,7 @@ export default function LoveLetterModal({ onClose, onContinue }: LoveLetterModal
 
         {step === 'preview' ? (
           <div className="grid gap-0 xl:grid-cols-[250px_1fr]">
-            <div className="border-b border-[rgba(10,22,40,0.08)] bg-[rgba(255,255,255,0.48)] px-4 pb-7 pt-14 sm:px-6 sm:py-7 xl:border-b-0 xl:border-r">
+            <div className="order-2 border-t border-[rgba(10,22,40,0.08)] bg-[rgba(255,255,255,0.48)] px-4 pb-7 pt-6 sm:px-6 sm:py-7 xl:order-1 xl:border-b-0 xl:border-t-0 xl:border-r">
               <SectionLabel>Final Review</SectionLabel>
               <h3 className="mt-4 font-display-title text-[24px] leading-[1.05] text-[#0A1628]">
                 Review the note
@@ -509,7 +509,7 @@ export default function LoveLetterModal({ onClose, onContinue }: LoveLetterModal
               </div>
             </div>
 
-            <div className="px-4 pb-8 pt-7 sm:px-6 sm:py-8">
+            <div className="order-1 px-4 pb-6 pt-14 sm:px-6 sm:py-8 xl:order-2 xl:pt-8">
               <div
                 className="mx-auto max-w-[410px] rounded-none border border-[rgba(10,22,40,0.1)] bg-white px-5 py-6 shadow-[0_14px_34px_rgba(10,22,40,0.08)] sm:px-6 sm:py-7"
                 style={{ fontFamily: 'Manrope, var(--font-geist-sans), sans-serif' }}
