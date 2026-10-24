@@ -21,8 +21,8 @@ import type {
   HomeInstagramReelsData,
 } from '@/lib/home-data';
 import type { ShopByCategoryData } from '@/lib/shop-by-category';
-import FreeGiftOfferBanner from '@/components/home/FreeGiftOfferBanner';
-import type { StorefrontPromotion } from '@/components/commerce/PromotionBanner';
+import HomeOfferBanner from '@/components/home/HomeOfferBanner';
+import type { HomeOffer } from '@/lib/home-offer';
 
 const DiscoverShapes = dynamic(() => import('@/components/home/DiscoverShapes'), { loading: () => null });
 const BestSellers = dynamic(() => import('@/components/home/BestSellers'), { loading: () => null });
@@ -70,7 +70,7 @@ export default function HomeClient({
   instagramReels,
   bestSellerSection,
   bestSellerProducts = [],
-  giftPromotion,
+  homeOffer,
 }: {
   heroContent?: HeroContent
   shopByCategory: ShopByCategoryData | null
@@ -81,7 +81,7 @@ export default function HomeClient({
   instagramReels: HomeInstagramReelsData
   bestSellerSection: HomeBestSellerSection
   bestSellerProducts?: HomeBestSellerProduct[]
-  giftPromotion: StorefrontPromotion | null
+  homeOffer: HomeOffer | null
 }) {
   const router = useRouter();
   const [isEnquireOpen, setIsEnquireOpen] = useState(false);
@@ -144,7 +144,7 @@ export default function HomeClient({
       <Hero initialContent={heroContent} />
       <HomeTrustStripe />
       <ShopByCategory data={shopByCategory} />
-      <FreeGiftOfferBanner promotion={giftPromotion} />
+      <HomeOfferBanner offer={homeOffer} />
       <>
           {collectionPageConfig.pageEnabled && collectionPageConfig.showHomeShowcase ? <CollectionShowcase config={collectionPageConfig} /> : null}
           <ViewportDeferred minHeight={620}>

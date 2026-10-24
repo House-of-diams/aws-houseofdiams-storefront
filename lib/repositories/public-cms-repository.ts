@@ -75,6 +75,26 @@ export async function findPromotionPopupOfferFromRds() {
   return result.rows[0] ?? null
 }
 
+/** The one active home-page offer with its coupon and gift. Missing table or grant (database update not applied yet) = no offer. */
+export async function findActiveHomeOfferFromRds() {
+  try {
+    const result = await query<Record<string, unknown>>(
+      `SELECT o.id::text AS id, o.button_label, o.home_image_path, o.home_image_alt, o.promo_image_left_path, o.promo_image_left_alt,
+              o.promo_image_right_path, o.promo_image_right_alt, o.coupon_id::text AS coupon_id,
+              c.code, c.is_active AS coupon_active, c.starts_at, c.ends_at, c.usage_limit, c.usage_count, c.gift_product_id::text AS gift_product_id,
+              p.slug AS gift_slug, p.name AS gift_name, p.status AS gift_status, p.stock_quantity AS gift_stock
+         FROM public.home_offers o
+         LEFT JOIN public.coupons c ON c.id = o.coupon_id
+         LEFT JOIN public.products p ON p.id = c.gift_product_id
+        WHERE o.is_active LIMIT 2`,
+      [], { operation: 'cms.home_offer' },
+    )
+    return result.rows.length === 1 ? result.rows[0] : null
+  } catch {
+    return null
+  }
+}
+
 /** One-row copy for the offer section. Missing table or grant (database update not applied yet) = defaults. */
 export async function findOfferSectionFromRds() {
   try {

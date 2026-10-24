@@ -1,3 +1,4 @@
+import { reelVideoUrl } from '@/lib/reel-video';
 import { unstable_cache } from 'next/cache';
 import { formatUsd } from '@/lib/money';
 import { mediaUrl } from '@/lib/media-url';
@@ -43,7 +44,8 @@ export type HomeInstagramReelsData = {
   isEnabled: boolean;
   marqueeDurationSeconds: number;
   pauseOnHover: boolean;
-  items: Array<{ id: string; instagramUrl: string; title: string; coverImageUrl: string | null }>;
+  // A reel is either an Instagram link or an uploaded video; the other one is null.
+  items: Array<{ id: string; instagramUrl: string | null; videoUrl: string | null; title: string; coverImageUrl: string | null }>;
 };
 export type HomeTrustedPartnersData = {
   heading: string;
@@ -798,9 +800,9 @@ async function getFreshInstagramReelsData(): Promise<HomeInstagramReelsData> {
     marqueeDurationSeconds: Math.min(180, Math.max(10, sectionResult.data?.marquee_duration_seconds ?? 40)),
     pauseOnHover: sectionResult.data?.pause_on_hover ?? true,
     items: (itemsResult.data ?? []).map((item) => {
-      const reel = item as { id: string; instagram_url: string; title?: string | null; cover_image_url?: string | null };
-      return { id: reel.id, instagramUrl: reel.instagram_url, title: reel.title ?? '', coverImageUrl: reel.cover_image_url ?? null };
-    }),
+      const reel = item as { id: string; instagram_url?: string | null; video_url?: string | null; title?: string | null; cover_image_url?: string | null };
+      return { id: reel.id, instagramUrl: reel.instagram_url ?? null, videoUrl: reelVideoUrl(reel.video_url), title: reel.title ?? '', coverImageUrl: reel.cover_image_url ?? null };
+    }).filter((reel) => reel.instagramUrl || reel.videoUrl),
   };
 }
 

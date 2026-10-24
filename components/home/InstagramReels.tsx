@@ -1,6 +1,6 @@
 'use client'
 
-import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Volume2, VolumeX } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { HomeInstagramReelsData } from '@/lib/home-data'
 
@@ -9,11 +9,60 @@ function toEmbedUrl(url: string) {
   return `${normalized}embed/`
 }
 
-function ReelCard({ item }: { item: HomeInstagramReelsData['items'][number] }) {
+const cardClass = 'group relative h-[400px] w-[255px] shrink-0 overflow-hidden bg-black sm:h-[440px] sm:w-[280px]'
+
+/** An uploaded reel: plays muted and looping while it is on screen, with a button to turn the sound on. */
+function VideoReelCard({ item, videoUrl }: { item: HomeInstagramReelsData['items'][number]; videoUrl: string }) {
   const title = item.title || 'House of Diams reel'
+  const cardRef = useRef<HTMLElement>(null)
+  const videoRef = useRef<HTMLVideoElement>(null)
+  const [muted, setMuted] = useState(true)
+
+  useEffect(() => {
+    const card = cardRef.current
+    const video = videoRef.current
+    if (!card || !video) return
+    const observer = new IntersectionObserver(([entry]) => {
+      if (entry.isIntersecting) void video.play().catch(() => undefined)
+      else video.pause()
+    }, { threshold: 0.4 })
+    observer.observe(card)
+    return () => observer.disconnect()
+  }, [])
 
   return (
-    <article className="group relative h-[400px] w-[255px] shrink-0 overflow-hidden bg-black sm:h-[440px] sm:w-[280px]">
+    <article ref={cardRef} className={cardClass}>
+      <video
+        ref={videoRef}
+        src={videoUrl}
+        poster={item.coverImageUrl ?? undefined}
+        muted={muted}
+        loop
+        playsInline
+        preload="none"
+        aria-label={title}
+        className="absolute inset-0 size-full object-cover"
+      />
+      <button
+        type="button"
+        onClick={() => setMuted((current) => !current)}
+        aria-label={muted ? `Turn sound on for ${title}` : `Turn sound off for ${title}`}
+        aria-pressed={!muted}
+        className="absolute bottom-3 right-3 z-10 grid size-9 place-items-center rounded-full bg-black/55 text-white backdrop-blur-sm transition-colors hover:bg-black/75 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+      >
+        {muted ? <VolumeX size={16} aria-hidden="true" /> : <Volume2 size={16} aria-hidden="true" />}
+      </button>
+    </article>
+  )
+}
+
+function ReelCard({ item }: { item: HomeInstagramReelsData['items'][number] }) {
+  const title = item.title || 'House of Diams reel'
+  if (item.videoUrl) return <VideoReelCard item={item} videoUrl={item.videoUrl} />
+  if (!item.instagramUrl) return null
+
+  return (
+    <article className={cardClass}>
       <iframe
         title={`Instagram: ${title}`}
         src={toEmbedUrl(item.instagramUrl)}
