@@ -1,11 +1,13 @@
 import type { Metadata } from 'next';
+import { createFixedPageMetadata } from '@/lib/page-seo'
 import AboutClient from '@/components/pages/AboutClient';
-import { createPageMetadata } from '@/lib/seo';
 import { loadAboutPageRowsFromRds } from '@/lib/repositories/about-repository';
 import { mediaUrl } from '@/lib/media-url';
 import { cachePublicRead, PUBLIC_CACHE_LONG_SECONDS } from '@/lib/public-cache';
 
-export const metadata: Metadata = createPageMetadata({ title: 'About', description: 'Learn about House of Diams: our founders, milestones, and values.', path: '/about' });
+export function generateMetadata(): Promise<Metadata> {
+  return createFixedPageMetadata('about', { title: 'About', description: 'Learn about House of Diams: our founders, milestones, and values.', path: '/about' })
+}
 export const revalidate = 300;
 
 // The site layout is per-request, so cache the page data itself.

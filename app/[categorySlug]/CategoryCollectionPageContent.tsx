@@ -11,6 +11,7 @@ import { getCatalogCategoryPageBySlug as getCategoryBySlug, type ResolvedCatalog
 import { parseCatalogPage } from '@/lib/catalog-metadata'
 import { loadNavbarRowsFromRds } from '@/lib/repositories/navbar-repository'
 import { mediaUrl } from '@/lib/media-url'
+import { getCatalogSeoCopy } from '@/lib/catalog-seo'
 
 function slugifyValue(value: string) {
   return value
@@ -142,7 +143,9 @@ export async function CategoryCollectionPageContent({
     metalSlug: typeof query.metal === 'string' ? query.metal : null,
     certificate: typeof query.certificate === 'string' ? query.certificate : null,
   }
-  const [productPage, filterGroups, referenceData, categoryFaqResult] = await Promise.all([
+  // SEO copy comes from the most specific page record: option, then subcategory, then category.
+  const seoRecord = taxonomy?.option ?? taxonomy?.subcategory ?? category
+  const [productPage, filterGroups, referenceData, categoryFaqResult, seoCopy] = await Promise.all([
     getStorefrontProductCardPage({
       productLane: resolvedProductLane,
       filters: productFilters,
@@ -153,6 +156,7 @@ export async function CategoryCollectionPageContent({
     getStorefrontFilterGroups(resolvedProductLane, category.id),
     getCategoryReferenceData(),
     getCategoryFaq(category.id).then((data) => ({ data, error: null as { code?: string; message: string } | null })),
+    getCatalogSeoCopy(seoRecord),
   ])
   const totalPages = Math.ceil(productPage.totalCount / productPage.pageSize)
   if (requestedPage > 1 && (totalPages === 0 || requestedPage > totalPages)) {
@@ -312,6 +316,7 @@ export async function CategoryCollectionPageContent({
         categoryFaqItems={categoryFaqItems}
         moreToExploreCategories={moreToExploreCategories}
         heroTitle={taxonomy?.option?.name ?? taxonomy?.subcategory.name ?? category.banner_title ?? category.name}
+        heroHeading={seoCopy.heading ?? undefined}
         heroSubtitle={category.banner_subtitle || `Browse ${category.name} from the live catalog.`}
         heroDesktopImageUrl={toPublicUrl(category.banner_desktop_image_path) || undefined}
         heroMobileImageUrl={toPublicUrl(category.banner_mobile_image_path) || undefined}
@@ -339,6 +344,9 @@ export async function CategoryCollectionPageContent({
           ...(certificateFilterValue ? { certificate: [certificateFilterValue] } : {}),
         }}
         initialPage={productPage.page}
+        seoIntroHtml={requestedPage === 1 ? seoCopy.introHtml : null}
+        seoBodyHtml={requestedPage === 1 ? seoCopy.bodyHtml : null}
+        seoGuide={seoCopy.guide}
       />
     </>
   )

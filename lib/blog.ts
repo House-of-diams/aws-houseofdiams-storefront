@@ -43,6 +43,10 @@ type BlogPostRow = {
   updated_at: string | null
   catalog_category_id: string | null
   catalog_category: { id: string; name: string; slug: string } | { id: string; name: string; slug: string }[] | null
+  seo_title?: string | null
+  seo_description?: string | null
+  seo_indexable?: boolean | null
+  published_at?: string | null
   blog_post_tags: BlogTagRow[] | null
   blog_post_content_blocks: BlogContentBlockRow[] | null
   blog_post_products: { product_id: string; sort_order: number | null }[] | null

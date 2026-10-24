@@ -28,6 +28,7 @@ import { currencyForCountry, normalizeCountryCode } from "@/lib/country-currency
 import { getNavbarRenderItems } from "@/lib/navbar-server";
 import { loadPublicAnnouncementBar } from "@/lib/announcement-bar";
 import { loadPublicContactInfo } from "@/lib/contact-info-public";
+import { getSiteSeoSettings } from "@/lib/page-seo";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -53,7 +54,7 @@ const manrope = Manrope({
   preload: false,
 });
 
-export const metadata: Metadata = {
+const baseMetadata: Metadata = {
   metadataBase: new URL(getSiteUrl()),
   title: {
     default: "House of Diams",
@@ -71,12 +72,29 @@ export const metadata: Metadata = {
   },
 };
 
+// Search Console / Bing verification codes can be set in the admin (Site settings).
+export async function generateMetadata(): Promise<Metadata> {
+  const settings = await getSiteSeoSettings();
+  const google = settings?.google_site_verification?.trim();
+  const bing = settings?.bing_site_verification?.trim();
+  return {
+    ...baseMetadata,
+    verification: {
+      ...(google ? { google } : {}),
+      other: {
+        ...baseMetadata.verification?.other,
+        ...(bing ? { 'msvalidate.01': bing } : {}),
+      },
+    },
+  };
+}
+
 export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const [maintenanceMode, navItems, announcement, contactRows, requestHeaders, requestCookies] = await Promise.all([
+  const [maintenanceMode, navItems, announcement, contactRows, requestHeaders, requestCookies, siteSeoSettings] = await Promise.all([
     getMaintenanceMode(),
     getNavbarRenderItems().catch(() => []),
     // Real announcement text on the very first paint (null = fall back to the client fetch).
@@ -85,6 +103,7 @@ export default async function RootLayout({
     loadPublicContactInfo().catch(() => null),
     headers(),
     cookies(),
+    getSiteSeoSettings(),
   ])
   const detectedCountry = normalizeCountryCode(
     requestHeaders.get('cloudfront-viewer-country') || requestCookies.get('detected_country')?.value
@@ -100,7 +119,7 @@ export default async function RootLayout({
       suppressHydrationWarning
     >
       <body className="min-h-full flex flex-col" suppressHydrationWarning>
-        <JsonLd data={createOrganizationSchema()} />
+        <JsonLd data={createOrganizationSchema(siteSeoSettings)} />
         <Suspense fallback={null}>
           <ConsentedAnalytics />
         </Suspense>

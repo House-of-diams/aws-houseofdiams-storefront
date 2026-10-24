@@ -32,13 +32,14 @@ export async function generateMetadata({
   }
 
   const metadata = createPageMetadata({
-    title: category.name,
-    description: category.banner_subtitle || `Browse ${category.name} from the live catalog.`,
+    title: category.seo_title?.trim() || category.name,
+    description: category.seo_description?.trim() || category.banner_subtitle || `Browse ${category.name} from the live catalog.`,
     path: getCatalogCanonicalPath(buildCategoryPath(category), query),
     image: toPublicUrl(category.banner_desktop_image_path),
   })
 
-  if (!hasCatalogFilterQuery(query)) return metadata
+  // Filtered views never index; an editor can also hide the page itself from search.
+  if (!hasCatalogFilterQuery(query) && category.seo_indexable !== false) return metadata
 
   return {
     ...metadata,

@@ -35,14 +35,16 @@ export async function generateCatalogMetadata(
   const path = taxonomy.option
     ? buildOptionPath(taxonomy.category, taxonomy.subcategory, taxonomy.option)
     : buildSubcategoryPath(taxonomy.category, taxonomy.subcategory)
-  const title = taxonomy.option?.name ?? taxonomy.subcategory.name
+  const record = taxonomy.option ?? taxonomy.subcategory
+  const title = record.name
   const metadata = createPageMetadata({
-    title: `${title} | ${taxonomy.category.name}`,
-    description: `Browse ${title} in ${taxonomy.category.name}.`,
+    title: record.seo_title?.trim() || `${title} | ${taxonomy.category.name}`,
+    description: record.seo_description?.trim() || `Browse ${title} in ${taxonomy.category.name}.`,
     path: getCatalogCanonicalPath(path, query),
   })
 
-  return hasCatalogFilterQuery(query)
+  // Filtered views never index; an editor can also hide the page itself from search.
+  return hasCatalogFilterQuery(query) || record.seo_indexable === false
     ? { ...metadata, robots: { index: false, follow: true } }
     : metadata
 }

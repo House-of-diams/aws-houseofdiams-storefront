@@ -7,6 +7,11 @@ import { buildCategoryPath, buildOptionPath, buildSubcategoryPath } from '@/lib/
 import { isPublicCatalogTaxonomy } from '@/lib/catalog-publication'
 import { loadActiveCatalogTaxonomy } from '@/lib/repositories/catalog-repository'
 
+// Pages an editor marked "hide from search" stay reachable but leave the sitemap.
+function isIndexable(record: { seo_indexable?: boolean | null }) {
+  return record.seo_indexable !== false
+}
+
 export const dynamic = 'force-dynamic'
 
 const staticRoutes = [
@@ -41,6 +46,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   const categoryEntries = categories
     .filter(isPublicCatalogTaxonomy)
+    .filter(isIndexable)
     .filter((category) => category.slug && category.slug !== 'hiphop')
     .filter((category) => !staticRoutes.includes(buildCategoryPath(category)))
     .map((category) => ({
@@ -51,6 +57,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   const subcategoryEntries = subcategories
     .filter(isPublicCatalogTaxonomy)
+    .filter(isIndexable)
     .filter((subcategory) => subcategory.slug)
     .flatMap((subcategory) => {
       const category = categories.find((entry) => entry.id === subcategory.category_id)
@@ -64,6 +71,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   const optionEntries = options
     .filter(isPublicCatalogTaxonomy)
+    .filter(isIndexable)
     .filter((option) => option.slug)
     .flatMap((option) => {
       const subcategory = subcategories.find((entry) => entry.id === option.subcategory_id)
@@ -87,7 +95,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     }))
 
   const blogEntries = blogPosts
-    .filter((post) => post.slug)
+    .filter((post) => post.slug && post.seoIndexable !== false)
     .map((post) => ({
       url: getCanonicalUrl(`/blog/${post.slug}`).toString(),
       changeFrequency: 'weekly' as const,
@@ -95,7 +103,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     }))
 
   const educationEntries = educationPosts
-    .filter((post) => post.slug)
+    .filter((post) => post.slug && post.seoIndexable !== false)
     .filter((post) => post.slug !== 'education-copy')
     .map((post) => ({
       url: getCanonicalUrl(`/education/${post.slug}`).toString(),

@@ -35,6 +35,17 @@ export function sanitizeRichText(html: string) {
   })
 }
 
+/** Editor copy placed on a page that already has its own H1: any H1 becomes an H2. */
+export function sanitizePageCopy(html: string) {
+  return sanitizeHtml(html, {
+    allowedTags: RICH_TEXT_TAGS,
+    allowedAttributes: { '*': RICH_TEXT_ATTRIBUTES },
+    allowedSchemes: ['http', 'https', 'mailto', 'tel'],
+    allowProtocolRelative: false,
+    transformTags: { h1: 'h2' },
+  })
+}
+
 export function sanitizeEmphasisTitle(html: string) {
   return sanitizeHtml(html, {
     allowedTags: ['em'],

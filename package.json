@@ -15,6 +15,7 @@
     "test:f8-sql": "node --test scripts/test-f8-sql.mjs",
     "test:f9-aws-runtime": "node --test scripts/test-f9-aws-runtime.mjs",
     "test:product-media-extras": "node --experimental-strip-types --test scripts/test-product-media-extras.mjs",
+    "test:seo-phase1": "node --import ./scripts/seo-alias-register.mjs --experimental-strip-types --test scripts/test-seo-phase1.mjs",
     "test:media-kind": "node --experimental-strip-types --test scripts/test-media-kind.mjs",
     "test:offer-section": "node --experimental-strip-types --test scripts/test-offer-section.mjs",
     "test:payment-subunits": "node --experimental-strip-types --test scripts/test-payment-subunits.mjs",

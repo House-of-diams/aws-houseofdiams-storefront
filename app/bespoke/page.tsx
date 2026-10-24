@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
+import { createFixedPageMetadata } from '@/lib/page-seo'
 import type { ComponentProps } from 'react';
 import BespokeClient from '@/components/pages/BespokeClient';
-import { createPageMetadata } from '@/lib/seo';
 import { buildCategoryPath } from '@/lib/catalog-paths';
 import {
   findBespokeHeroFromRds, loadBespokeFormConfigFromRds, loadBespokeHeroSlidesFromRds,
@@ -11,11 +11,13 @@ import { loadBespokeExploreCategoriesFromRds } from '@/lib/repositories/catalog-
 import { mediaUrl } from '@/lib/media-url';
 import { cachePublicRead, PUBLIC_CACHE_SHORT_SECONDS } from '@/lib/public-cache';
 
-export const metadata: Metadata = createPageMetadata({
+export function generateMetadata(): Promise<Metadata> {
+  return createFixedPageMetadata('bespoke', {
   title: 'Bespoke',
   description: 'Commission a bespoke piece. From CAD to setting, crafted in Surat with certified lab-grown diamonds.',
   path: '/bespoke',
-});
+})
+}
 
 // This content is administered in real time; do not serve a five-minute-old form.
 export const dynamic = 'force-dynamic';

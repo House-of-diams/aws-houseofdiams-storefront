@@ -1,9 +1,9 @@
 import type { Metadata } from 'next';
+import { createFixedPageMetadata } from '@/lib/page-seo'
 
 export const dynamic = 'force-dynamic'
 import ShopClient from '@/components/pages/ShopClient';
 import { getStorefrontFilterGroups, getStorefrontProductCardPage, type StorefrontProductSort } from '@/lib/catalog-products';
-import { createPageMetadata } from '@/lib/seo';
 import JsonLd from '@/components/seo/JsonLd';
 import { createBreadcrumbSchema } from '@/lib/structured-data';
 import { getCatalogCanonicalPath, hasCatalogFilterQuery, parseCatalogPage } from '@/lib/catalog-metadata';
@@ -20,7 +20,7 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const params = await searchParams
   const isFiltered = hasShopFilterQuery(params)
-  const metadata = createPageMetadata({
+  const metadata = await createFixedPageMetadata('shop', {
     title: 'Shop',
     description: 'Browse our collection of fine jewellery and hip hop jewellery with certified lab-grown diamonds.',
     path: isFiltered ? '/shop' : getCatalogCanonicalPath('/shop', params),

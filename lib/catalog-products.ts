@@ -159,6 +159,7 @@ type ProductRow = {
   seo_title?: string | null
   seo_description?: string | null
   h1_title?: string | null
+  sku?: string | null
   base_price: number | null
   gst_slab_id?: string | null
   stock_quantity?: number | null
@@ -318,6 +319,8 @@ type MetalCompositionPartRow = {
 
 export type StorefrontProduct = Product & {
   dbId: string
+  /** The catalog SKU an editor entered; falls back to dbId where an identifier is required. */
+  sku?: string
   /** HOD-090: the 24 frames of the hover rotation view; empty when the product has none. */
   hoverFrameUrls?: string[]
   productLane: 'standard' | 'hiphop' | 'collection'
@@ -913,6 +916,7 @@ const fetchStorefrontProducts = async (
       seoTitle: product.seo_title ?? undefined,
       seoDescription: product.seo_description ?? undefined,
       h1Title: product.h1_title ?? undefined,
+      sku: product.sku?.trim() || undefined,
       gemColor: '#D4A840',
       gemStyle: 'round',
       imageUrl: visibleImages[0],

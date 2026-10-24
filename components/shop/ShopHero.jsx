@@ -12,6 +12,7 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 /**
  * @param {{
  *   title?: string
+ *   heading?: string
  *   subtitle?: string
  *   desktopImageUrl?: string
  *   mobileImageUrl?: string
@@ -27,6 +28,7 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
  */
 export default function ShopHero({
   title = 'Our Collection',
+  heading = '',
   desktopImageUrl = '',
   mobileImageUrl = '',
   imageAlt = '',
@@ -216,7 +218,7 @@ export default function ShopHero({
             id="shop-collection-heading"
             className="section-title text-left text-[clamp(1.35rem,2.2vw,2rem)] font-medium uppercase leading-none tracking-[0.025em] text-[var(--color-brand-primary,#000)]"
           >
-            Explore {title}
+            {heading || `Explore ${title}`}
           </h1>
         </div>
 

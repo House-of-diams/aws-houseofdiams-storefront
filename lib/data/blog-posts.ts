@@ -26,6 +26,10 @@ export interface BlogPost {
   updatedAt?: string;
   catalogCategoryId?: string;
   catalogCategory?: { id: string; name: string; slug: string };
+  seoTitle?: string;
+  seoDescription?: string;
+  seoIndexable?: boolean;
+  publishedAt?: string;
 }
 
 export type BlogPostContentBlock = {
@@ -183,6 +187,10 @@ export function mapBlogPostRecord(record: {
   updated_at?: string
   catalog_category_id?: string | null
   catalog_category?: { id: string; name: string; slug: string } | Array<{ id: string; name: string; slug: string }> | null
+  seo_title?: string | null
+  seo_description?: string | null
+  seo_indexable?: boolean | null
+  published_at?: string | null
 }): BlogPost {
   const catalogCategory = Array.isArray(record.catalog_category) ? record.catalog_category[0] : record.catalog_category
   return {
@@ -218,5 +226,9 @@ export function mapBlogPostRecord(record: {
     updatedAt: record.updated_at,
     catalogCategoryId: record.catalog_category_id ?? undefined,
     catalogCategory: catalogCategory ? { id: catalogCategory.id, name: catalogCategory.name, slug: catalogCategory.slug } : undefined,
+    seoTitle: record.seo_title?.trim() || undefined,
+    seoDescription: record.seo_description?.trim() || undefined,
+    seoIndexable: record.seo_indexable !== false,
+    publishedAt: record.published_at ?? undefined,
   }
 }

@@ -1,16 +1,18 @@
 import type { Metadata } from 'next'
+import { createFixedPageMetadata } from '@/lib/page-seo'
 import JsonLd from '@/components/seo/JsonLd'
 import FaqClient from '@/components/pages/FaqClient'
-import { createPageMetadata } from '@/lib/seo'
 import { createFaqSchema } from '@/lib/structured-data'
 import { findFaqSectionFromRds, loadFaqCategoriesFromRds, loadFaqItemsFromRds } from '@/lib/repositories/support-repository'
 import { cachePublicRead, PUBLIC_CACHE_LONG_SECONDS } from '@/lib/public-cache'
 
-export const metadata: Metadata = createPageMetadata({
+export function generateMetadata(): Promise<Metadata> {
+  return createFixedPageMetadata('faq', {
   title: 'FAQ',
   description: 'Frequently asked questions about House of Diams orders, diamonds, shipping, and support.',
   path: '/faq',
 })
+}
 
 const fallbackFaqs = [
   {

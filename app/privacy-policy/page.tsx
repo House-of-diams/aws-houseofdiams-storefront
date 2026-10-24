@@ -1,13 +1,15 @@
 import type { Metadata } from 'next'
-import { createPageMetadata } from '@/lib/seo'
+import { createFixedPageMetadata } from '@/lib/page-seo'
 import { getDocsPageContent } from '@/lib/docs-pages'
 import { sanitizeRichText } from '@/lib/sanitize-html'
 
-export const metadata: Metadata = createPageMetadata({
+export function generateMetadata(): Promise<Metadata> {
+  return createFixedPageMetadata('privacy-policy', {
   title: 'Privacy Policy',
   description: 'Privacy policy for House of Diams.',
   path: '/privacy-policy',
 })
+}
 
 export default async function PrivacyPolicyPage() {
   const { blocks } = await getDocsPageContent('privacy-policy')

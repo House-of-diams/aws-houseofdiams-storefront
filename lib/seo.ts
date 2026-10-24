@@ -12,6 +12,22 @@ type PageSeoInput = {
   type?: 'website' | 'article'
 }
 
+/** Blog and Education articles: editor SEO fields first, then the article's own title and intro. */
+export function createArticleMetadata(
+  post: { titleRaw: string; subtitle: string; seoTitle?: string; seoDescription?: string; seoIndexable?: boolean },
+  path: string,
+  image?: string | null
+): Metadata {
+  const metadata = createPageMetadata({
+    title: post.seoTitle || post.titleRaw,
+    description: post.seoDescription || post.subtitle,
+    path,
+    image,
+    type: 'article',
+  })
+  return post.seoIndexable === false ? { ...metadata, robots: { index: false, follow: true } } : metadata
+}
+
 export function createPageMetadata({
   title,
   description,

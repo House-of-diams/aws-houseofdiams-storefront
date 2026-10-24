@@ -28,6 +28,11 @@ type EducationPostRow = {
   sort_order: number
   created_at?: string | null
   updated_at?: string | null
+  seo_title?: string | null
+  seo_description?: string | null
+  seo_indexable?: boolean | null
+  published_at?: string | null
+  hub_id?: number | null
   education_post_tags: Array<{ tag: string; sort_order: number }> | null
   education_post_content_blocks: Array<{
     id: number

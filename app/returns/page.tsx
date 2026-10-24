@@ -1,18 +1,20 @@
 import type { Metadata } from 'next'
+import { createFixedPageMetadata } from '@/lib/page-seo'
 import DocsPage from '@/components/docs/DocsPage'
 import ReturnsFaqPage, { type ReturnsContactRow } from '@/components/docs/ReturnsFaqPage'
 import JsonLd from '@/components/seo/JsonLd'
 import { createFaqSchema } from '@/lib/structured-data'
-import { createPageMetadata } from '@/lib/seo'
 import { getDocsPageContent } from '@/lib/docs-pages'
 import { loadContactInfoFromRds } from '@/lib/repositories/support-repository'
 import { cachePublicRead, PUBLIC_CACHE_LONG_SECONDS } from '@/lib/public-cache'
 
-export const metadata: Metadata = createPageMetadata({
+export function generateMetadata(): Promise<Metadata> {
+  return createFixedPageMetadata('returns', {
   title: 'Returns',
   description: 'Returns and exchange information from House of Diams.',
   path: '/returns',
 })
+}
 
 const fallbackContactRows: ReturnsContactRow[] = [
   { id: 'fallback-email', label: 'Email', value: 'info@houseofdiams.com', note: null, href: 'mailto:info@houseofdiams.com', icon_path: null },

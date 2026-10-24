@@ -5,6 +5,7 @@ import ShopHero from '@/components/shop/ShopHero';
 import ProductGrid from '@/components/shop/ProductGrid';
 import CategoryFaqSection, { type CategoryFaqItem } from '@/components/shop/CategoryFaqSection';
 import MoreToExplore, { type MoreToExploreCategory } from '@/components/shop/MoreToExplore';
+import { CategorySeoBody, CategorySeoIntro } from '@/components/shop/CategorySeoCopy';
 import EnquireModal from '@/components/home/EnquireModal';
 import type { StorefrontProductCard } from '@/lib/catalog-products';
 
@@ -45,6 +46,7 @@ export default function ShopClient({
   products,
   sourceProducts,
   heroTitle,
+  heroHeading,
   heroSubtitle,
   heroDesktopImageUrl,
   heroMobileImageUrl,
@@ -63,10 +65,14 @@ export default function ShopClient({
   categoryName,
   categoryFaqItems = [],
   moreToExploreCategories = [],
+  seoIntroHtml = null,
+  seoBodyHtml = null,
+  seoGuide = null,
 }: {
   products: StorefrontProductCard[]
   sourceProducts?: StorefrontProductCard[]
   heroTitle?: string
+  heroHeading?: string
   heroSubtitle?: string
   heroDesktopImageUrl?: string
   heroMobileImageUrl?: string
@@ -84,6 +90,9 @@ export default function ShopClient({
   categoryName?: string
   categoryFaqItems?: CategoryFaqItem[]
   moreToExploreCategories?: MoreToExploreCategory[]
+  seoIntroHtml?: string | null
+  seoBodyHtml?: string | null
+  seoGuide?: { href: string; title: string } | null
   headerBrowseSections?: {
     id: string
     title: string
@@ -134,6 +143,7 @@ export default function ShopClient({
     <div className="min-h-screen bg-(--bg) text-(--ink) mt-0 lg:-mt-[146px]">
       <ShopHero
         title={heroTitle}
+        heading={heroHeading}
         subtitle={heroSubtitle}
         desktopImageUrl={heroDesktopImageUrl}
         mobileImageUrl={heroMobileImageUrl}
@@ -146,6 +156,7 @@ export default function ShopClient({
         onBrowseNavigate={applyClientBrowseHref}
         wideGutter={Boolean(categoryName)}
       />
+      {seoIntroHtml ? <CategorySeoIntro html={seoIntroHtml} wideGutter={Boolean(categoryName)} /> : null}
       <ProductGrid
         key={`${JSON.stringify(resolvedFilters)}:${resolvedPage}`}
         products={serverPaginated ? products : clientProducts}
@@ -160,6 +171,7 @@ export default function ShopClient({
         onEnquire={handleEnquire}
         wideGutter={Boolean(categoryName)}
       />
+      <CategorySeoBody html={seoBodyHtml} guide={seoGuide} />
       {categoryName && categoryFaqItems.length ? <CategoryFaqSection categoryName={categoryName} items={categoryFaqItems} /> : null}
       <MoreToExplore categories={moreToExploreCategories} />
       <EnquireModal open={isEnquireOpen} piece={enquirePiece} onClose={() => setIsEnquireOpen(false)} />

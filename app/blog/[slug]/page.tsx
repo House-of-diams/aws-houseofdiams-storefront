@@ -2,10 +2,10 @@ import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import BlogPostPage from '@/components/pages/BlogPostPage'
 import { getPublishedBlogPostBySlug, getPublishedBlogSummaries } from '@/lib/blog'
-import { createPageMetadata } from '@/lib/seo'
+import { createArticleMetadata, createPageMetadata } from '@/lib/seo'
 import { getStorageImageUrl } from '@/lib/data/blog-posts'
 import JsonLd from '@/components/seo/JsonLd'
-import { createBlogPostingSchema, createFaqSchema } from '@/lib/structured-data'
+import { createBlogPostingSchema, createBreadcrumbSchema, createFaqSchema } from '@/lib/structured-data'
 import { extractBlogFaqItems } from '@/lib/blog-faq'
 
 type BlogPostRouteProps = {
@@ -25,13 +25,7 @@ export async function generateMetadata({ params }: BlogPostRouteProps): Promise<
     })
   }
 
-  return createPageMetadata({
-    title: post.titleRaw,
-    description: post.subtitle,
-    path: `/blog/${post.slug}`,
-    image: getStorageImageUrl(post.heroImagePath),
-    type: 'article',
-  })
+  return createArticleMetadata(post, `/blog/${post.slug}`, getStorageImageUrl(post.heroImagePath))
 }
 
 export default async function BlogPostRoute({ params }: BlogPostRouteProps) {
@@ -49,6 +43,11 @@ export default async function BlogPostRoute({ params }: BlogPostRouteProps) {
   return (
     <>
       <JsonLd data={createBlogPostingSchema(post, getStorageImageUrl(post.heroImagePath))} />
+      <JsonLd data={createBreadcrumbSchema([
+        { name: 'Home', path: '/' },
+        { name: 'Blog', path: '/blog' },
+        { name: post.titleRaw, path: `/blog/${post.slug}` },
+      ])} />
       {faqItems.length ? <JsonLd data={createFaqSchema(faqItems)} /> : null}
       <BlogPostPage post={post} relatedPosts={relatedPosts} />
     </>

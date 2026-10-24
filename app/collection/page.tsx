@@ -1,17 +1,19 @@
 import type { Metadata } from 'next';
+import { createFixedPageMetadata } from '@/lib/page-seo'
 
 export const dynamic = 'force-dynamic'
 import { notFound } from 'next/navigation';
 import ShopClient from '@/components/pages/ShopClient';
 import { getStorefrontFilterGroups, getStorefrontProductCardPage, type StorefrontProductSort } from '@/lib/catalog-products';
 import { getHomePageData } from '@/lib/home-data';
-import { createPageMetadata } from '@/lib/seo';
 
-export const metadata: Metadata = createPageMetadata({
+export function generateMetadata(): Promise<Metadata> {
+  return createFixedPageMetadata('collection', {
   title: 'Collection',
   description: 'Explore House of Diams collection pieces in a dedicated browse-only experience.',
   path: '/collection',
-});
+})
+}
 
 export default async function CollectionPage({
   searchParams,

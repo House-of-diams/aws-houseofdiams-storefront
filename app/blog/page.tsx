@@ -1,8 +1,8 @@
 import type { Metadata } from 'next'
+import { createFixedPageMetadata } from '@/lib/page-seo'
 
 export const dynamic = 'force-dynamic'
 import BlogClient from '@/components/pages/BlogClient'
-import { createPageMetadata } from '@/lib/seo'
 import { getBlogPageHero, getLiveBlogCategories, getPublishedBlogSummaries } from '@/lib/blog'
 
 const legacyQueryKeys = ['post', 'slug'] as const
@@ -17,7 +17,7 @@ export async function generateMetadata({
   searchParams: Promise<Record<string, string | string[] | undefined>>
 }): Promise<Metadata> {
   const params = await searchParams
-  const metadata = createPageMetadata({
+  const metadata = await createFixedPageMetadata('blog', {
     title: 'Blog',
     description: 'Read House of Diams journal articles on diamonds, jewellery craft, buying guides, and design inspiration.',
     path: '/blog',

@@ -1,5 +1,6 @@
 import type { StorefrontProduct } from '@/lib/catalog-products'
 import type { BlogPost } from '@/lib/data/blog-posts'
+import { mediaUrl } from '@/lib/media-url'
 import { getCanonicalUrl, getSiteUrl } from '@/lib/site-url'
 
 type FaqSchemaItem = {
@@ -7,15 +8,23 @@ type FaqSchemaItem = {
   answer: string
 }
 
-export function createOrganizationSchema() {
+type OrganizationSettings = {
+  org_name?: string | null
+  org_logo_path?: string | null
+  org_same_as?: string[] | null
+}
+
+export function createOrganizationSchema(settings?: OrganizationSettings | null) {
   const siteUrl = getSiteUrl()
+  const sameAs = (settings?.org_same_as ?? []).map((url) => url.trim()).filter((url) => /^https:\/\//i.test(url))
 
   return {
     '@context': 'https://schema.org',
     '@type': 'Organization',
-    name: 'House of Diams',
+    name: settings?.org_name?.trim() || 'House of Diams',
     url: siteUrl,
-    logo: getCanonicalUrl('/logo.jpeg').toString(),
+    logo: mediaUrl(settings?.org_logo_path) || getCanonicalUrl('/logo.jpeg').toString(),
+    ...(sameAs.length ? { sameAs } : {}),
     contactPoint: [
       {
         '@type': 'ContactPoint',
@@ -64,7 +73,7 @@ export function createProductSchema(product: StorefrontProduct) {
     '@type': 'Product',
     name: product.name,
     description: product.descriptionText || product.shortMeta,
-    sku: product.dbId,
+    sku: product.sku || product.dbId,
     category: product.mainCategoryName || product.category,
     brand: {
       '@type': 'Brand',
@@ -120,8 +129,12 @@ export function createBlogPostingSchema(
   imageUrl?: string | null,
   canonicalPath = `/blog/${post.slug ?? ''}`
 ) {
-  const datePublished = toIsoDate(post.createdAt)
+  // published_at is the first publish; older posts only have created_at.
+  const datePublished = toIsoDate(post.publishedAt) ?? toIsoDate(post.createdAt)
   const dateModified = toIsoDate(post.updatedAt) ?? datePublished
+  // Brand bylines ("House of Diams", "HOD Team", ...) are the organization, not a person.
+  const authorName = post.author?.trim() || 'House of Diams'
+  const isBrandAuthor = /^(house of diams|hod)\b/i.test(authorName) && !authorName.includes(',')
 
   return {
     '@context': 'https://schema.org',
@@ -131,10 +144,9 @@ export function createBlogPostingSchema(
     image: imageUrl ? [imageUrl] : undefined,
     datePublished,
     dateModified,
-    author: {
-      '@type': 'Person',
-      name: post.author,
-    },
+    author: isBrandAuthor
+      ? { '@type': 'Organization', name: 'House of Diams', url: getSiteUrl() }
+      : { '@type': 'Person', name: authorName },
     publisher: {
       '@type': 'Organization',
       name: 'House of Diams',

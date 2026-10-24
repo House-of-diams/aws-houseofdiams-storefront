@@ -5,6 +5,7 @@ import {
   findActiveCatalogCategoryPageBySlug,
   findActiveCatalogOptionBySlug,
   findActiveCatalogSubcategoryBySlug,
+  type CatalogSeoFields,
 } from '@/lib/repositories/catalog-repository'
 
 export type ResolvedCatalogTaxonomy = {
@@ -12,19 +13,19 @@ export type ResolvedCatalogTaxonomy = {
     id: string
     name: string
     slug: string
-  }
+  } & CatalogSeoFields
   subcategory: {
     id: string
     category_id: string
     name: string
     slug: string
-  }
-  option: {
+  } & CatalogSeoFields
+  option: ({
     id: string
     subcategory_id: string
     name: string
     slug: string
-  } | null
+  } & CatalogSeoFields) | null
 }
 
 // Keyed by slugs (not object identity) so page metadata and page body share
@@ -40,7 +41,7 @@ const getCachedCatalogTaxonomy = unstable_cache(
     const option = await findActiveCatalogOptionBySlug(subcategory.id, optionSlug)
     return option ? { category, subcategory, option } : null
   },
-  ['catalog-taxonomy-v1'],
+  ['catalog-taxonomy-v2'],
   { revalidate: 300, tags: ['storefront-products'] }
 )
 
@@ -54,7 +55,7 @@ export const resolveCatalogTaxonomy = cache((args: {
 
 const getCachedCatalogCategoryPage = unstable_cache(
   (slug: string) => findActiveCatalogCategoryPageBySlug(slug),
-  ['catalog-category-page-v1'],
+  ['catalog-category-page-v2'],
   { revalidate: 300, tags: ['storefront-products'] }
 )
 
