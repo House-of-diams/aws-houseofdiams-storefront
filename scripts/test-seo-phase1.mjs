@@ -39,3 +39,33 @@ test('Organization: only https profile links reach structured data; defaults fil
   assert.equal(org.name, 'House of Diams')
   assert.equal(createOrganizationSchema(null).sameAs, undefined)
 })
+
+const { getSiteUrl, getCanonicalUrl } = await import('../lib/site-url.ts')
+function withEnv(env, run) {
+  const keys = ['NEXT_PUBLIC_SITE_URL', 'SITE_URL', 'NODE_ENV']
+  const saved = Object.fromEntries(keys.map((key) => [key, process.env[key]]))
+  try {
+    for (const key of keys) delete process.env[key]
+    Object.assign(process.env, env)
+    return run()
+  } finally {
+    for (const key of keys) saved[key] === undefined ? delete process.env[key] : (process.env[key] = saved[key])
+  }
+}
+
+test('site address: a test-environment host is never used in production', () => {
+  for (const configured of ['https://uat.houseofdiams.com', 'uat.houseofdiams.com/', 'HTTPS://UAT.HOUSEOFDIAMS.COM', 'https://uat.houseofdiams.com:443/path']) {
+    withEnv({ NODE_ENV: 'production', NEXT_PUBLIC_SITE_URL: configured }, () => assert.equal(getSiteUrl(), 'https://houseofdiams.com', configured))
+    withEnv({ NODE_ENV: 'production', SITE_URL: configured }, () => assert.equal(getSiteUrl(), 'https://houseofdiams.com', configured))
+  }
+  withEnv({ NODE_ENV: 'production', NEXT_PUBLIC_SITE_URL: 'https://uat.houseofdiams.com' }, () => assert.equal(getCanonicalUrl('/shop').toString(), 'https://houseofdiams.com/shop'))
+})
+
+test('site address: real production, www and local development addresses are left alone', () => {
+  withEnv({ NODE_ENV: 'production', NEXT_PUBLIC_SITE_URL: 'https://houseofdiams.com/' }, () => assert.equal(getSiteUrl(), 'https://houseofdiams.com'))
+  withEnv({ NODE_ENV: 'production', NEXT_PUBLIC_SITE_URL: 'https://www.houseofdiams.com' }, () => assert.equal(getSiteUrl(), 'https://www.houseofdiams.com'))
+  withEnv({ NODE_ENV: 'production', NEXT_PUBLIC_SITE_URL: 'https://notuat.houseofdiams.com' }, () => assert.equal(getSiteUrl(), 'https://notuat.houseofdiams.com'))
+  withEnv({ NODE_ENV: 'development', NEXT_PUBLIC_SITE_URL: 'https://uat.houseofdiams.com' }, () => assert.equal(getSiteUrl(), 'https://uat.houseofdiams.com'))
+  withEnv({ NODE_ENV: 'development', NEXT_PUBLIC_SITE_URL: 'http://localhost:3000/' }, () => assert.equal(getSiteUrl(), 'http://localhost:3000'))
+  withEnv({ NODE_ENV: 'production' }, () => assert.equal(getSiteUrl(), 'https://houseofdiams.com'))
+})
