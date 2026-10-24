@@ -5,7 +5,7 @@ import localFont from 'next/font/local'
 export const cinzelFont = localFont({
   src: '../public/fonts/Cinzel-VariableFont_wght.woff2',
   variable: '--font-cinzel',
-  preload: false, // used below the fold; keeps the Link header small (HOD-074)
+  // The header logo is set in Cinzel, so it must be preloaded or the logo flashes in a fallback serif on every load.
   display: 'swap',
   weight: '100 900',
   style: 'normal',
