@@ -2,20 +2,11 @@
 
 const trustItems = [
   {
-    label: 'IGI & GIA Certified',
+    label: 'Lab-Grown Diamonds',
     icon: (
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
         <polygon points="12,3 19,7 19,17 12,21 5,17 5,7" stroke="#FFFFFF" strokeWidth="1" />
         <path d="M9 12L11 14L15 10" stroke="#FFFFFF" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
-      </svg>
-    ),
-  },
-  {
-    label: '100% Conflict Free',
-    icon: (
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-        <circle cx="12" cy="12" r="8" stroke="#FFFFFF" strokeWidth="1" />
-        <path d="M12 7L13.5 10.5L17 11L14 13.5L15 17L12 15L9 17L10 13.5L7 11L10.5 10.5Z" stroke="#FFFFFF" strokeWidth=".8" />
       </svg>
     ),
   },
@@ -29,7 +20,7 @@ const trustItems = [
     ),
   },
   {
-    label: 'Certified Lab-Grown Diamonds',
+    label: 'Bespoke Orders Accepted',
     icon: (
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
         <polygon points="12,3 21,8 21,16 12,21 3,16 3,8" stroke="#FFFFFF" strokeWidth="1" />

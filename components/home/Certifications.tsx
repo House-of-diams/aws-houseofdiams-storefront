@@ -86,43 +86,6 @@ function FreeReturnIcon() {
   )
 }
 
-function CertificateIcon() {
-  return (
-    <svg width="49" height="48" viewBox="0 0 49 48" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <path d="M40.2613 39.807H36.2466C36.2466 38.7426 36.6699 37.7208 37.4225 36.9681C38.1751 36.2155 39.197 35.7922 40.2613 35.7922V39.807Z" stroke="#0A1628" strokeLinejoin="round"/>
-      <path d="M8.73865 39.807V35.7922C9.80302 35.7922 10.8249 36.2155 11.5775 36.9681C12.3301 37.7208 12.7534 38.7426 12.7534 39.807H8.73865Z" stroke="#0A1628" strokeLinejoin="round"/>
-      <path d="M40.2613 8.19299V12.2078C39.197 12.2078 38.1751 11.7845 37.4225 11.0319C36.6699 10.2792 36.2466 9.25736 36.2466 8.19299H40.2613Z" stroke="#0A1628" strokeLinejoin="round"/>
-      <path d="M8.73865 8.19299H12.7534C12.7534 9.25736 12.3301 10.2792 11.5775 11.0319C10.8249 11.7845 9.80302 12.2078 8.73865 12.2078V8.19299Z" stroke="#0A1628" strokeLinejoin="round"/>
-      <path d="M40.2613 8.19299H8.73865V39.8071H40.2613V8.19299Z" stroke="#0A1628" strokeLinecap="round" strokeLinejoin="round"/>
-      <path d="M34.7791 30.537H14.2208" stroke="#0A1628" strokeLinejoin="round"/>
-      <path d="M28.6116 34.2922H20.3883" stroke="#0A1628" strokeLinejoin="round"/>
-      <path d="M31.6116 26.7817H17.3883" stroke="#0A1628" strokeLinejoin="round"/>
-      <path d="M17.6064 16.3137L20.957 12.953H28.0428L31.3934 16.3137L24.4966 22.4477L17.6064 16.3137Z" fill="white" stroke="#0A1628" strokeMiterlimit="10"/>
-      <path d="M23.2445 18.3235L21.0099 16.3347L22.3111 15.0299" fill="white"/>
-      <path d="M23.2445 18.3235L21.0099 16.3347L22.3111 15.0299" stroke="#0A1628" strokeMiterlimit="10" strokeLinecap="round"/>
-      <path d="M24.4966 22.3633L27.5655 16.3436L25.2123 12.9633" fill="white"/>
-      <path d="M24.4966 22.3633L27.5655 16.3436L25.2123 12.9633" stroke="#0A1628" strokeMiterlimit="10"/>
-    </svg>
-  )
-}
-
-function ConflictFreeIcon() {
-  return (
-    <svg width="49" height="48" viewBox="0 0 49 48" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <path d="M15.4414 18.6961L19.8441 14.2802H29.1548L33.5575 18.6961L24.4951 26.7562L15.4414 18.6961Z" fill="white" stroke="#0A1628" strokeMiterlimit="10"/>
-      <path d="M22.851 21.3371L19.9148 18.7238L21.6246 17.0093" fill="white"/>
-      <path d="M22.851 21.3371L19.9148 18.7238L21.6246 17.0093" stroke="#0A1628" strokeMiterlimit="10" strokeLinecap="round"/>
-      <path d="M24.4965 26.6453L28.5291 18.7353L25.437 14.2936" fill="white"/>
-      <path d="M24.4965 26.6453L28.5291 18.7353L25.437 14.2936" stroke="#0A1628" strokeMiterlimit="10"/>
-      <path d="M24.5007 3.58362L28.9218 5.63863L33.7064 6.57474L36.0753 10.8359L39.3959 14.4056L38.8076 19.2454L39.3959 24.0851L36.0753 27.6548L33.7064 31.916L28.9218 32.8521L24.5007 34.9071L20.0796 32.8521L15.2949 31.916L12.9261 27.6548L9.60547 24.0851L10.1937 19.2454L9.60547 14.4056L12.9261 10.8359L15.2949 6.57474L20.0796 5.63863L24.5007 3.58362Z" stroke="#0A1628" strokeMiterlimit="10"/>
-      <path d="M31.1817 36.1914L29.393 33.0216" stroke="#0A1628" strokeMiterlimit="10" strokeLinecap="round"/>
-      <path d="M26.0594 34.3899L29.7304 42.6121L32.7719 38.7981L37.6432 39.4043L34.4463 33.6522" stroke="#0A1628" strokeMiterlimit="10" strokeLinecap="round"/>
-      <path d="M15.4964 31.9552L11.3593 39.4043L16.2306 38.7982L19.2721 42.6122L22.2369 35.9716" stroke="#0A1628" strokeMiterlimit="10" strokeLinecap="round"/>
-      <path d="M17.6857 35.9129L19.3162 32.9989" stroke="#0A1628" strokeMiterlimit="10" strokeLinecap="round"/>
-    </svg>
-  )
-}
-
 function PackagingIcon() {
   return (
     <svg width="49" height="48" viewBox="0 0 49 48" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -143,8 +106,6 @@ const certificationItems = [
   { title: ['Free', 'Resizing'], icon: <FreeResizingIcon /> },
   { title: ['Overnight', 'Shipping'], icon: <OvernightShippingIcon /> },
   { title: ['15 Days', 'Free Return'], icon: <FreeReturnIcon /> },
-  { title: ['Certificate', '& Appraisal'], icon: <CertificateIcon /> },
-  { title: ['Conflict Free', 'Diamonds'], icon: <ConflictFreeIcon /> },
   { title: ['Elegant', 'Packaging'], icon: <PackagingIcon /> },
 ]
 
@@ -164,7 +125,7 @@ export default function Certifications() {
       </RevealDiv>
 
       <RevealDiv delay={150}>
-        <div className="grid grid-cols-6 max-xl:grid-cols-3 max-md:grid-cols-3">
+        <div className="grid grid-cols-4 max-xl:grid-cols-2 max-md:grid-cols-2">
           {certificationItems.map((item) => (
             <div
               key={item.title.join('-')}

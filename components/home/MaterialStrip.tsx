@@ -25,10 +25,8 @@ function fallbackIcon() {
 }
 
 const defaultMaterials: MaterialItem[] = [
-  { sort_order: 1, title: 'Natural Diamonds', description: 'Ethically sourced · All cuts · D-Z colour · FL-SI', icon_path: '' },
-  { sort_order: 2, title: 'Precious Gems', description: 'Emeralds · Rubies · Sapphires · Alexandrite', icon_path: '' },
-  { sort_order: 3, title: 'Precious Metals', description: 'Platinum · 22K · 18K · 14K · 10K · 925 Silver', icon_path: '' },
-  { sort_order: 4, title: 'Lab-Grown Diamonds', description: 'Type IIA lab-grown · All cuts · Conflict-free', icon_path: '' },
+  { sort_order: 1, title: 'Lab-Grown Diamonds', description: 'Lab-grown diamonds in a range of cuts', icon_path: '' },
+  { sort_order: 2, title: 'Bespoke Jewelry', description: 'Designed with you · Made to order', icon_path: '' },
 ]
 
 export default function MaterialStrip({ items = [] }: { items?: HomeMaterialItem[] }) {

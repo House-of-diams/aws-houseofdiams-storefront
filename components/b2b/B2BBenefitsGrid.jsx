@@ -5,9 +5,9 @@ import B2BBenefitCard from "./B2BBenefitCard";
 
 const BENEFITS = [
   {
-    title: "Certified Supply",
+    title: "Consistent Quality",
     description:
-      "IGI as standard, GIA on request. Every stone shipped with matching reports and internal QC checks.",
+      "Every order goes through internal quality checks before it ships.",
     icon: (
       <svg width="36" height="36" viewBox="0 0 24 24" fill="none" aria-hidden="true">
         <polygon points="12,3 19,7 19,17 12,21 5,17 5,7" stroke="#0A1628" strokeWidth="1" />
@@ -39,9 +39,9 @@ const BENEFITS = [
     ),
   },
   {
-    title: "Lab-Grown and Natural",
+    title: "Lab-Grown Diamonds",
     description:
-      "Conflict-free lab-grown options plus ethically sourced natural diamonds for every market segment.",
+      "Lab-grown diamonds for retailers, designers and wholesalers.",
     icon: (
       <svg width="36" height="36" viewBox="0 0 24 24" fill="none" aria-hidden="true">
         <polygon points="12,3 21,8 18,21 6,21 3,8" stroke="#0A1628" strokeWidth="1" />

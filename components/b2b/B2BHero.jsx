@@ -34,8 +34,8 @@ export default function B2BHero() {
         </h1>
 
         <p className="text-[13px] font-light leading-[2] text-[#292727] tracking-[0.06em] max-w-[720px] mx-auto mb-10">
-          IGI and GIA certified stones, consistent parcels, and fast global
-          fulfilment from Surat. Built for retailers, designers, and wholesalers
+          Lab-grown diamonds, consistent parcels, and fast global
+          fulfillment from Surat. Built for retailers, designers, and wholesalers
           who need reliable quality at scale.
         </p>
 
