@@ -1,6 +1,6 @@
 "use client";
 
-import { Select } from "@/components/ui/select";
+import { useEffect, useRef, useState } from "react";
 
 const SORT_OPTIONS = [
   { value: "best-matches", label: "Best Matches" },
@@ -8,6 +8,65 @@ const SORT_OPTIONS = [
   { value: "price-high", label: "Price: High to Low" },
   { value: "best-sellers", label: "Best Sellers" },
 ];
+
+// The sort list opens inside the toolbar, the same way the Metal and Shape panels do. A portal-based select locked page scrolling
+// and jumped the page while the toolbar was stuck to the top on phones.
+function SortMenu({ sort, onSortChange }) {
+  const [open, setOpen] = useState(false);
+  const rootRef = useRef(null);
+
+  useEffect(() => {
+    if (!open) return undefined;
+    const closeOnOutside = (event) => {
+      if (!rootRef.current?.contains(event.target)) setOpen(false);
+    };
+    const closeOnEscape = (event) => {
+      if (event.key === "Escape") setOpen(false);
+    };
+    document.addEventListener("pointerdown", closeOnOutside);
+    document.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.removeEventListener("pointerdown", closeOnOutside);
+      document.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [open]);
+
+  const label = sort && sort !== "best-matches" ? SORT_OPTIONS.find((option) => option.value === sort)?.label ?? "Sort By" : "Sort By";
+
+  return (
+    <div className="shop-sort" ref={rootRef}>
+      <button
+        type="button"
+        className="shop-sort-trigger"
+        aria-label="Sort products"
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        aria-controls="shop-sort-list"
+        onClick={() => setOpen((current) => !current)}
+      >
+        <span className="shop-sort-trigger-label">{label}</span>
+        <svg width="16" height="10" viewBox="0 0 16 10" fill="none" aria-hidden="true" style={{ flex: "none", transform: open ? "rotate(180deg)" : "none", transition: "transform .2s ease" }}><path d="m1 1 7 7 7-7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
+      </button>
+
+      {open && (
+        <div id="shop-sort-list" className="shop-sort-list" role="listbox" aria-label="Sort products">
+          {SORT_OPTIONS.map((option) => (
+            <button
+              key={option.value}
+              type="button"
+              role="option"
+              aria-selected={sort === option.value}
+              className="shop-sort-option"
+              onClick={() => { onSortChange(option.value); setOpen(false); }}
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function ShopToolbar({ count, sort, onSortChange, quickFilters }) {
   return (
@@ -27,6 +86,23 @@ export default function ShopToolbar({ count, sort, onSortChange, quickFilters })
           color: #6A6A6A;
           white-space: nowrap;
         }
+        .shop-sort { position: relative; }
+        .shop-sort-trigger {
+          min-width: 122px; height: 42px; padding: 0 16px; border: 1px solid rgba(0,0,0,.15); border-radius: 0; background: #fff; color: #0A1628;
+          display: flex; align-items: center; justify-content: space-between; gap: 12px; cursor: pointer;
+          font-family: var(--font-family-montserrat); font-size: 11px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase;
+        }
+        .shop-sort-trigger-label { min-width: 0; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left; }
+        .shop-sort-trigger:focus-visible { outline: 2px solid #0A1628; outline-offset: 2px; }
+        .shop-sort-list {
+          position: absolute; right: 0; top: calc(100% + 10px); z-index: 40; min-width: 238px; padding: 0;
+          border: 1px solid rgba(0,0,0,.1); background: #fff; box-shadow: 0 10px 26px rgba(0,0,0,.16);
+        }
+        .shop-sort-option {
+          display: block; width: 100%; padding: 12px 20px; border: 0; border-radius: 0; background: #fff; color: #111; cursor: pointer; text-align: left;
+          font-family: var(--font-family-montserrat); font-size: 12px; font-weight: 600; letter-spacing: .03em; text-transform: uppercase;
+        }
+        .shop-sort-option:hover, .shop-sort-option:focus-visible, .shop-sort-option[aria-selected="true"] { background: #F5F5F5; outline: none; }
         @media (max-width: 768px) {
           .shop-toolbar {
             grid-template-columns: minmax(0, 1fr) auto;
@@ -38,6 +114,7 @@ export default function ShopToolbar({ count, sort, onSortChange, quickFilters })
             grid-row: 2;
             font-size: 10px;
           }
+          .shop-sort-trigger { min-width: 110px; height: 40px; padding: 0 12px; }
         }
       `}</style>
 
@@ -48,20 +125,7 @@ export default function ShopToolbar({ count, sort, onSortChange, quickFilters })
       </div>
 
       <div className="shop-toolbar-sort">
-        <Select
-          value={sort}
-          onValueChange={onSortChange}
-          options={SORT_OPTIONS}
-          validationLabel="Sort products"
-          triggerLabel={sort && sort !== "best-matches" ? SORT_OPTIONS.find((option) => option.value === sort)?.label ?? "Sort By" : "Sort By"}
-          showItemIndicator={false}
-          avoidCollisions={false}
-          contentSide="bottom"
-          contentAlign="end"
-          triggerClassName="shop-sort-trigger !h-[40px] md:!h-[42px] !min-w-[110px] md:!min-w-[122px] !rounded-none !border-black/15 !bg-white !px-3 md:!px-4 !py-0 !font-[family-name:var(--font-family-montserrat)] !text-[11px] !font-semibold !uppercase !tracking-[0.08em] !text-[#0A1628] !shadow-none [&>span:last-child]:!h-auto [&>span:last-child]:!w-auto [&>span:last-child]:!rounded-none [&>span:last-child]:!border-0 [&>span:last-child]:!bg-transparent [&>span:last-child]:!text-[#0A1628]"
-          contentClassName="!min-w-[238px] !max-h-none !rounded-none !border-black/10 !bg-white !shadow-[0_10px_26px_rgba(0,0,0,0.16)]"
-          itemClassName="!rounded-none !bg-white !px-5 !py-3 !font-[family-name:var(--font-family-montserrat)] !text-[12px] !font-semibold !uppercase !tracking-[0.03em] !text-[#111] focus:!bg-[#F5F5F5] data-[state=checked]:!bg-[#F5F5F5] data-[state=checked]:!text-[#111]"
-        />
+        <SortMenu sort={sort} onSortChange={onSortChange} />
       </div>
     </div>
   );

@@ -745,7 +745,7 @@ export default function Navbar({ navItems = [], customerAuthEnabled = false, ini
         <div
           className="nav-desktop-row relative h-[var(--hod-navbar-height)] py-0 lg:pb-[34px] lg:pt-0"
         >
-          <div className="relative flex h-full items-center border-b border-black/[0.06] bg-white px-3 lg:hidden">
+          <div className="relative flex h-full items-center border-b border-black/[0.06] bg-white px-1.5 lg:hidden">
             <div className="order-2 ml-auto flex items-center gap-2" aria-label="Header actions">
               <button
                 type="button"
@@ -793,7 +793,7 @@ export default function Navbar({ navItems = [], customerAuthEnabled = false, ini
               className="order-1 flex min-w-0 items-center no-underline cursor-pointer"
             >
               <span
-                className="whitespace-nowrap text-[17px] min-[360px]:text-[19px] min-[390px]:text-[20px] sm:text-[27px] font-bold"
+                className="whitespace-nowrap text-[19.5px] min-[360px]:text-[22px] min-[390px]:text-[23px] sm:text-[27px] font-bold"
                 style={{ color: 'var(--color-brand-primary, #000000)', fontFamily: 'var(--font-family-logo1, Cinzel, serif)', fontWeight: 600, fontVariationSettings: '"wght" 600', fontSynthesis: 'none' }}
               >
                 House of Diams
