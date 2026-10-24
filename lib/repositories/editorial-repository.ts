@@ -47,6 +47,16 @@ export async function loadPublishedEducationRowsFromRds(options: EditorialPostQu
     summary ? [true] : [true, options.slug], summary ? 'editorial.education.summaries' : 'editorial.education.by-slug')
 }
 
+/** Published education hubs. Before the hubs table exists (file 11) there are simply none. */
+export async function loadPublishedEducationHubsFromRds() {
+  try {
+    return await rows(`SELECT to_jsonb(h) AS row FROM public.education_hubs h WHERE h.is_published ORDER BY h.sort_order ASC, h.id ASC`, [], 'editorial.education.hubs')
+  } catch (error) {
+    if ((error as { code?: string })?.code === '42P01') return []
+    throw error
+  }
+}
+
 export async function findEditorialHeroFromRds(kind: 'blog' | 'education') {
   const result = kind === 'blog'
     ? await rows<{ is_enabled: boolean; heading: string | null; paragraph: string | null; button_label: string | null; button_link: string | null; desktop_image_path: string | null; mobile_image_path: string | null; desktop_image_alt: string | null; mobile_image_alt: string | null }>('SELECT to_jsonb(t) AS row FROM public.blog_page_hero t WHERE id = $1 LIMIT 2', [1], 'editorial.blog.hero')

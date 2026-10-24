@@ -3,7 +3,8 @@ import { createFixedPageMetadata } from '@/lib/page-seo'
 
 export const dynamic = 'force-dynamic'
 import EducationClient from '@/components/pages/EducationClient'
-import { getEducationPageHero, getPublishedEducationSummaries } from '@/lib/education'
+import { getEducationPageHero, getPublishedEducationHubs, getPublishedEducationSummaries } from '@/lib/education'
+import { educationPostPath } from '@/lib/education-hubs'
 
 export function generateMetadata(): Promise<Metadata> {
   return createFixedPageMetadata('education', {
@@ -14,6 +15,7 @@ export function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function EducationPage() {
-  const [posts, hero] = await Promise.all([getPublishedEducationSummaries(), getEducationPageHero()])
+  const [summaries, hero, hubs] = await Promise.all([getPublishedEducationSummaries(), getEducationPageHero(), getPublishedEducationHubs()])
+  const posts = summaries.map((post) => ({ ...post, href: educationPostPath(post, hubs) }))
   return <EducationClient posts={posts} hero={hero} />
 }

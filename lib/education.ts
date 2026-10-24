@@ -1,7 +1,8 @@
 import { mapBlogPostRecord, getStorageImageUrl, type BlogPost } from '@/lib/data/blog-posts'
 import type { BlogPageHero } from '@/lib/blog'
 import { getStorefrontProductsByIds } from '@/lib/catalog-products'
-import { findEditorialHeroFromRds, loadPublishedEducationRowsFromRds } from '@/lib/repositories/editorial-repository'
+import { findEditorialHeroFromRds, loadPublishedEducationHubsFromRds, loadPublishedEducationRowsFromRds } from '@/lib/repositories/editorial-repository'
+import { mapEducationHubRow, type EducationHub } from '@/lib/education-hubs'
 import { unstable_cache } from 'next/cache'
 import { cachePublicRead, PUBLIC_CACHE_LONG_SECONDS, PUBLIC_CONTENT_TAG } from '@/lib/public-cache'
 
@@ -71,6 +72,20 @@ const getCachedEducationSummaries = unstable_cache(
   ['education-published-summaries-v2'],
   { revalidate: PUBLIC_CACHE_LONG_SECONDS, tags: [PUBLIC_CONTENT_TAG] }
 )
+
+const getCachedEducationHubs = unstable_cache(
+  async (): Promise<EducationHub[]> => ((await loadPublishedEducationHubsFromRds()) as Array<Record<string, unknown>>).map(mapEducationHubRow),
+  ['education-published-hubs-v1'],
+  { revalidate: PUBLIC_CACHE_LONG_SECONDS, tags: [PUBLIC_CONTENT_TAG] }
+)
+
+/**
+ * Published hubs. A read failure is thrown, not hidden: answering "no hubs" during a database blip would send
+ * hubbed articles to the wrong address with a permanent redirect. (The sitemap catches it for itself.)
+ */
+export async function getPublishedEducationHubs(): Promise<EducationHub[]> {
+  return getCachedEducationHubs()
+}
 
 export async function getPublishedEducationSummaries(): Promise<BlogPost[]> {
   return getCachedEducationSummaries()

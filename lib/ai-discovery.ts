@@ -1,6 +1,7 @@
 import { getPublishedBlogSummaries } from '@/lib/blog'
 import { getStorefrontProductDiscoveryRows } from '@/lib/catalog-products'
-import { getPublishedEducationSummaries } from '@/lib/education'
+import { getPublishedEducationHubs, getPublishedEducationSummaries } from '@/lib/education'
+import { educationPostPath } from '@/lib/education-hubs'
 import { getCanonicalUrl } from '@/lib/site-url'
 
 function cleanText(value: string | null | undefined) {
@@ -29,10 +30,11 @@ const corePages = [
 ] as const
 
 export async function buildLlmsText(full = false) {
-  const [products, blogPosts, educationPosts] = await Promise.all([
+  const [products, blogPosts, educationPosts, educationHubs] = await Promise.all([
     getStorefrontProductDiscoveryRows(),
     getPublishedBlogSummaries(),
     getPublishedEducationSummaries(),
+    getPublishedEducationHubs(),
   ])
 
   const lines = [
@@ -62,7 +64,7 @@ export async function buildLlmsText(full = false) {
     '',
     ...educationPosts
       .filter((post) => post.slug && post.slug !== 'education-copy')
-      .map((post) => link(`/education/${post.slug}`, cleanText(post.title), full ? post.subtitle : null)),
+      .map((post) => link(educationPostPath(post, educationHubs), cleanText(post.title), full ? post.subtitle : null)),
     '',
     '## Journal',
     '',

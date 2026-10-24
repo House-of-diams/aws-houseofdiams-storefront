@@ -1,6 +1,7 @@
 import type { MetadataRoute } from 'next'
 import { getPublishedBlogSummaries } from '@/lib/blog'
-import { getPublishedEducationSummaries } from '@/lib/education'
+import { getPublishedEducationHubs, getPublishedEducationSummaries } from '@/lib/education'
+import { educationHubPath, educationPostPath } from '@/lib/education-hubs'
 import { getStorefrontProductDiscoveryRows } from '@/lib/catalog-products'
 import { getCanonicalUrl } from '@/lib/site-url'
 import { buildCategoryPath, buildOptionPath, buildSubcategoryPath } from '@/lib/catalog-paths'
@@ -33,11 +34,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   const taxonomy = loadActiveCatalogTaxonomy()
 
-  const [products, { categories, subcategories, options }, blogPosts, educationPosts] = await Promise.all([
+  const [products, { categories, subcategories, options }, blogPosts, educationPosts, educationHubs] = await Promise.all([
     getStorefrontProductDiscoveryRows(),
     taxonomy,
     getPublishedBlogSummaries(),
     getPublishedEducationSummaries(),
+    getPublishedEducationHubs(),
   ])
 
   const staticEntries = staticRoutes.map((route) => ({
@@ -106,9 +108,17 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     .filter((post) => post.slug && post.seoIndexable !== false)
     .filter((post) => post.slug !== 'education-copy')
     .map((post) => ({
-      url: getCanonicalUrl(`/education/${post.slug}`).toString(),
+      url: getCanonicalUrl(educationPostPath(post, educationHubs)).toString(),
       changeFrequency: 'weekly' as const,
       priority: 0.7,
+    }))
+
+  const educationHubEntries = educationHubs
+    .filter((hub) => hub.seoIndexable)
+    .map((hub) => ({
+      url: getCanonicalUrl(educationHubPath(hub)).toString(),
+      changeFrequency: 'weekly' as const,
+      priority: 0.8,
     }))
 
   return [
@@ -118,6 +128,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     ...optionEntries,
     ...productEntries,
     ...blogEntries,
+    ...educationHubEntries,
     ...educationEntries,
   ]
 }

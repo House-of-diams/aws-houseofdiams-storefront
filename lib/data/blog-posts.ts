@@ -30,6 +30,9 @@ export interface BlogPost {
   seoDescription?: string;
   seoIndexable?: boolean;
   publishedAt?: string;
+  hubId?: number | null;
+  /** Where this post lives, when it is not simply /<section>/<slug> (an education article under a hub). */
+  href?: string;
 }
 
 export type BlogPostContentBlock = {
@@ -191,6 +194,7 @@ export function mapBlogPostRecord(record: {
   seo_description?: string | null
   seo_indexable?: boolean | null
   published_at?: string | null
+  hub_id?: number | string | null
 }): BlogPost {
   const catalogCategory = Array.isArray(record.catalog_category) ? record.catalog_category[0] : record.catalog_category
   return {
@@ -230,5 +234,6 @@ export function mapBlogPostRecord(record: {
     seoDescription: record.seo_description?.trim() || undefined,
     seoIndexable: record.seo_indexable !== false,
     publishedAt: record.published_at ?? undefined,
+    hubId: record.hub_id == null ? null : Number(record.hub_id),
   }
 }

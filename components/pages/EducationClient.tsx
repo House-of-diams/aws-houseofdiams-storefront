@@ -12,7 +12,7 @@ function EducationCard({ post }: { post: BlogPost }) {
   const imageUrl = getStorageImageUrl(post.cardImagePath || post.heroImagePath)
   return (
     <article className="min-w-0 bg-white">
-      <Link href={post.slug ? `/education/${post.slug}` : '/education'} className="group block focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#111] focus-visible:ring-offset-4">
+      <Link href={post.href ?? (post.slug ? `/education/${post.slug}` : '/education')} className="group block focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#111] focus-visible:ring-offset-4">
         <div className="relative aspect-[4/5] overflow-hidden bg-[#f1f1ef]">
           {imageUrl ? <Image src={imageUrl} alt={post.heroImageAlt || post.titleRaw} fill sizes="(max-width: 639px) 92vw, (max-width: 1023px) 46vw, 30vw" className="object-cover transition-transform duration-500 group-hover:scale-[1.03]" /> : null}
         </div>
