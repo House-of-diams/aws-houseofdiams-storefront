@@ -2,6 +2,7 @@ import 'server-only'
 
 import { findAnnouncementBarFromRds } from '@/lib/repositories/public-cms-repository'
 import { cachePublicRead, PUBLIC_CACHE_SHORT_SECONDS } from '@/lib/public-cache'
+import { toSiteLink } from '@/lib/site-links'
 
 export type PublicAnnouncementBar = {
   active: boolean
@@ -20,6 +21,6 @@ export async function loadPublicAnnouncementBar(): Promise<PublicAnnouncementBar
     active: Boolean(result.section.is_active),
     autoplay: Boolean(result.section.autoplay),
     intervalMs: 3000,
-    items: result.items.map((item) => ({ message: item.message, linkUrl: item.link_url ?? '', openInNewTab: Boolean(item.open_in_new_tab) })),
+    items: result.items.map((item) => ({ message: item.message, linkUrl: toSiteLink(item.link_url), openInNewTab: Boolean(item.open_in_new_tab) })),
   }
 }
