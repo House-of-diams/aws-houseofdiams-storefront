@@ -69,6 +69,17 @@ const nextConfig: NextConfig = {
     qualities: [75, 90],
     remotePatterns: imageHosts.map((hostname) => ({ protocol: 'https' as const, hostname })),
   },
+  async redirects() {
+    // Sign-in cookies belong to one address; a visitor on www would lose them when the sign-in returns to the main address.
+    return [
+      {
+        source: '/:path*',
+        has: [{ type: 'host' as const, value: 'www.houseofdiams.com' }],
+        destination: 'https://houseofdiams.com/:path*',
+        permanent: true,
+      },
+    ];
+  },
   async headers() {
     return [
       {
