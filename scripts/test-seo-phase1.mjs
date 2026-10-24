@@ -69,3 +69,12 @@ test('site address: real production, www and local development addresses are lef
   withEnv({ NODE_ENV: 'development', NEXT_PUBLIC_SITE_URL: 'http://localhost:3000/' }, () => assert.equal(getSiteUrl(), 'http://localhost:3000'))
   withEnv({ NODE_ENV: 'production' }, () => assert.equal(getSiteUrl(), 'https://houseofdiams.com'))
 })
+
+test('email links: the safe site address is used whenever a site address is configured; local development keeps localhost', async () => {
+  const { getEmailSiteUrl } = await import('../lib/site-url.ts')
+  withEnv({ NODE_ENV: 'production', NEXT_PUBLIC_SITE_URL: 'https://uat.houseofdiams.com' }, () => assert.equal(getEmailSiteUrl(), 'https://houseofdiams.com'))
+  withEnv({ NODE_ENV: 'production', SITE_URL: 'uat.houseofdiams.com/' }, () => assert.equal(getEmailSiteUrl(), 'https://houseofdiams.com'))
+  withEnv({ NODE_ENV: 'production', NEXT_PUBLIC_SITE_URL: 'https://houseofdiams.com/' }, () => assert.equal(getEmailSiteUrl(), 'https://houseofdiams.com'))
+  withEnv({ NODE_ENV: 'development' }, () => assert.equal(getEmailSiteUrl(), 'http://localhost:3000'))
+  withEnv({ NODE_ENV: 'development', NEXT_PUBLIC_SITE_URL: 'http://localhost:4000' }, () => assert.equal(getEmailSiteUrl(), 'http://localhost:4000'))
+})

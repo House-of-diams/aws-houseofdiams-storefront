@@ -1,7 +1,9 @@
 import type { Metadata } from 'next'
 import { createPageMetadata } from '@/lib/seo'
 import { buildOptionPath, buildSubcategoryPath } from '@/lib/catalog-paths'
-import type { ResolvedCatalogTaxonomy } from '@/lib/catalog-taxonomy'
+import { getCatalogCategoryPageBySlug, type ResolvedCatalogTaxonomy } from '@/lib/catalog-taxonomy'
+import { countListingProducts } from '@/lib/catalog-listing'
+import { shouldIndexListing } from '@/lib/catalog-listing-rules'
 
 const filterQueryKeys = ['subcategory', 'option', 'shape', 'style', 'metal', 'certificate', 'sort'] as const
 export const MAX_CATALOG_PAGE = 100000
@@ -44,7 +46,15 @@ export async function generateCatalogMetadata(
   })
 
   // Filtered views never index; an editor can also hide the page itself from search.
-  return hasCatalogFilterQuery(query) || record.seo_indexable === false
-    ? { ...metadata, robots: { index: false, follow: true } }
-    : metadata
+  if (hasCatalogFilterQuery(query) || record.seo_indexable === false) return { ...metadata, robots: { index: false, follow: true } }
+
+  // A listing with no products is a thin page ("No pieces match"): keep it out of search until it has some.
+  const category = await getCatalogCategoryPageBySlug(taxonomy.category.slug).catch(() => null)
+  const totalCount = await countListingProducts({
+    categorySlug: taxonomy.category.slug,
+    subcategorySlug: taxonomy.subcategory.slug,
+    optionSlug: taxonomy.option?.slug ?? null,
+    lane: category?.category_lane,
+  })
+  return shouldIndexListing({ totalCount }) ? metadata : { ...metadata, robots: { index: false, follow: true } }
 }

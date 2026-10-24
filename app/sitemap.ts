@@ -3,6 +3,8 @@ import { getPublishedBlogSummaries } from '@/lib/blog'
 import { getPublishedEducationHubs, getPublishedEducationSummaries } from '@/lib/education'
 import { educationHubPath, educationPostPath } from '@/lib/education-hubs'
 import { getStorefrontProductDiscoveryRows } from '@/lib/catalog-products'
+import { countListingProducts } from '@/lib/catalog-listing'
+import { filterNonEmpty } from '@/lib/catalog-listing-rules'
 import { getCanonicalUrl } from '@/lib/site-url'
 import { buildCategoryPath, buildOptionPath, buildSubcategoryPath } from '@/lib/catalog-paths'
 import { isPublicCatalogTaxonomy } from '@/lib/catalog-publication'
@@ -57,35 +59,33 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       priority: 0.8,
     }))
 
-  const subcategoryEntries = subcategories
+  // Pages that list no products stay out of the sitemap (their own robots tag says noindex too).
+  const subcategoryCandidates = subcategories
     .filter(isPublicCatalogTaxonomy)
     .filter(isIndexable)
     .filter((subcategory) => subcategory.slug)
     .flatMap((subcategory) => {
       const category = categories.find((entry) => entry.id === subcategory.category_id)
-      if (!category) return []
-      return [{
-        url: getCanonicalUrl(buildSubcategoryPath(category, subcategory)).toString(),
-        changeFrequency: 'daily' as const,
-        priority: 0.7,
-      }]
+      return category ? [{ category, subcategory, url: getCanonicalUrl(buildSubcategoryPath(category, subcategory)).toString() }] : []
     })
+  const subcategoryEntries = (await filterNonEmpty(
+    subcategoryCandidates,
+    (entry) => countListingProducts({ categorySlug: entry.category.slug, subcategorySlug: entry.subcategory.slug, optionSlug: null, lane: entry.category.category_lane }),
+  )).map((entry) => ({ url: entry.url, changeFrequency: 'daily' as const, priority: 0.7 }))
 
-  const optionEntries = options
+  const optionCandidates = options
     .filter(isPublicCatalogTaxonomy)
     .filter(isIndexable)
     .filter((option) => option.slug)
     .flatMap((option) => {
       const subcategory = subcategories.find((entry) => entry.id === option.subcategory_id)
-      if (!subcategory) return []
-      const category = categories.find((entry) => entry.id === subcategory.category_id)
-      if (!category) return []
-      return [{
-        url: getCanonicalUrl(buildOptionPath(category, subcategory, option)).toString(),
-        changeFrequency: 'daily' as const,
-        priority: 0.6,
-      }]
+      const category = subcategory ? categories.find((entry) => entry.id === subcategory.category_id) : undefined
+      return subcategory && category ? [{ category, subcategory, option, url: getCanonicalUrl(buildOptionPath(category, subcategory, option)).toString() }] : []
     })
+  const optionEntries = (await filterNonEmpty(
+    optionCandidates,
+    (entry) => countListingProducts({ categorySlug: entry.category.slug, subcategorySlug: entry.subcategory.slug, optionSlug: entry.option.slug, lane: entry.category.category_lane }),
+  )).map((entry) => ({ url: entry.url, changeFrequency: 'daily' as const, priority: 0.6 }))
 
   const productEntries = products
     .filter((product) => product.slug)

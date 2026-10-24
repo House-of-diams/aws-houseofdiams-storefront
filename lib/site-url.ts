@@ -26,6 +26,14 @@ export function getSiteUrl() {
   return normalizedUrl.replace(/\/+$/, '')
 }
 
+/**
+ * The address used in links inside emails. Same safety as getSiteUrl() when a site address is configured;
+ * with none configured (local development) emails point at the local server, as before.
+ */
+export function getEmailSiteUrl() {
+  return process.env.NEXT_PUBLIC_SITE_URL || process.env.SITE_URL ? getSiteUrl() : 'http://localhost:3000'
+}
+
 export function getCanonicalUrl(path = '/') {
   const normalizedPath = path.startsWith('/') ? path : `/${path}`
   return new URL(normalizedPath, getSiteUrl())

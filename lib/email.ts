@@ -1,6 +1,7 @@
 import nodemailer from 'nodemailer'
 import { formatMoney as formatCurrencyAmount } from '@/lib/currency'
 import { escapeHtml } from '@/lib/escape-html'
+import { getEmailSiteUrl } from '@/lib/site-url'
 
 type OrderEmailItem = {
   product_name: string
@@ -36,7 +37,7 @@ const emailPort = Number(process.env.EMAIL_PORT || 587)
 const emailUser = process.env.EMAIL_USER
 const emailPass = process.env.EMAIL_PASS
 const emailFrom = process.env.EMAIL_FROM
-const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.SITE_URL || 'http://localhost:3000'
+const siteUrl = getEmailSiteUrl()
 const logoUrl = `${siteUrl.replace(/\/$/, '')}/logo.jpeg`
 
 let cachedTransporter: ReturnType<typeof nodemailer.createTransport> | null = null
