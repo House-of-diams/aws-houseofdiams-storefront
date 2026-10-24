@@ -745,8 +745,8 @@ export default function Navbar({ navItems = [], customerAuthEnabled = false, ini
         <div
           className="nav-desktop-row relative h-[var(--hod-navbar-height)] py-0 lg:pb-[34px] lg:pt-0"
         >
-          <div className="relative flex h-full items-center border-b border-black/[0.06] bg-white px-1.5 lg:hidden">
-            <div className="order-2 ml-auto flex items-center gap-2" aria-label="Header actions">
+          <div className="relative flex h-full items-center border-b border-black/[0.06] bg-white px-[3px] lg:hidden">
+            <div className="order-2 -mr-1.5 ml-auto flex items-center gap-2" aria-label="Header actions">
               <button
                 type="button"
                 onClick={openSearch}
@@ -772,7 +772,7 @@ export default function Navbar({ navItems = [], customerAuthEnabled = false, ini
                 }}
                 aria-label="Menu"
                 aria-expanded={menuOpen}
-                className="relative flex h-11 w-11 cursor-pointer items-center justify-center border-none bg-transparent p-1"
+                className="relative flex h-11 w-9 cursor-pointer items-center justify-center border-none bg-transparent p-1"
               >
                 <img
                   src="/menu-09-stroke-rounded.svg"
