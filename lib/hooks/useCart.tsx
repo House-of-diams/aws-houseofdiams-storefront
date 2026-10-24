@@ -2,7 +2,8 @@
 
 import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { clampCartQuantity } from '@/lib/cart-limits'
-import { buildCartItemKey, getProductKey, mergeDuplicateCartItems, type CartItemSelection, type CartProductSnapshot, type StoredCartItem } from '@/lib/product-keys'
+import type { LoveLetterDraft } from '@/lib/love-letter'
+import { addToCartLines, buildCartItemKey, getProductKey, mergeDuplicateCartItems, setLineLetter, type CartItemSelection, type CartProductSnapshot, type StoredCartItem } from '@/lib/product-keys'
 
 const STORAGE_KEY = 'hod_cart'
 
@@ -15,6 +16,8 @@ type CartContextValue = {
   removeItem: (key: string) => void
   clearCart: () => void
   updateQuantity: (key: string, quantity: number) => void
+  /** Adds, replaces (draft) or removes (null) the love letter of one cart line. */
+  setLoveLetter: (key: string, draft: LoveLetterDraft | null) => void
   openCart: () => void
   closeCart: () => void
 }
@@ -93,37 +96,22 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       const key = buildCartItemKey(product, selection)
       const productKey = getProductKey(product)
       if (options?.openCart !== false) setIsOpen(true)
-      setItems((currentItems) => {
-        const existing = currentItems.find((item) => item.key === key)
-        const snapshot = {
-          id: String(product.id ?? product.dbId ?? product.slug ?? ''),
-          dbId: product.dbId || undefined,
-          slug: product.slug || '',
-          name: product.name || 'Selected piece',
-          shortMeta: product.shortMeta || '',
-          imageUrl: selection.resolvedImageUrl || product.imageUrl || '',
-          priceFrom: Number(selection.resolvedPrice ?? product.priceFrom ?? 0),
-          recommendation: options?.recommendation,
-        }
-        if (existing) {
-          return currentItems.map((item) => (item.key === key ? { ...item, quantity: clampCartQuantity(item.quantity + 1), snapshot } : item))
-        }
-        return [
-          ...currentItems,
-          {
-            key,
-            productKey,
-            productSlug: product.slug || '',
-            quantity: 1,
-            selection,
-            addedAt: Date.now(),
-            snapshot,
-          },
-        ]
-      })
+      const snapshot = {
+        id: String(product.id ?? product.dbId ?? product.slug ?? ''),
+        dbId: product.dbId || undefined,
+        slug: product.slug || '',
+        name: product.name || 'Selected piece',
+        shortMeta: product.shortMeta || '',
+        imageUrl: selection.resolvedImageUrl || product.imageUrl || '',
+        priceFrom: Number(selection.resolvedPrice ?? product.priceFrom ?? 0),
+        recommendation: options?.recommendation,
+      }
+      // The same piece with the same choices raises the quantity of its line; it never makes a second line.
+      setItems((currentItems) => addToCartLines(currentItems, { key, productKey, productSlug: product.slug || '', selection, addedAt: Date.now(), snapshot }, clampCartQuantity))
     },
     removeItem: (key) => setItems((currentItems) => currentItems.filter((item) => item.key !== key)),
     clearCart: () => setItems([]),
+    setLoveLetter: (key, draft) => setItems((currentItems) => setLineLetter(currentItems, key, draft)),
     openCart: () => setIsOpen(true),
     closeCart: () => setIsOpen(false),
     updateQuantity: (key, quantity) => {

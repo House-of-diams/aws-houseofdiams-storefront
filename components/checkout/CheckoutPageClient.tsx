@@ -380,8 +380,9 @@ export default function CheckoutPageClient({ customerAuthEnabled = false }: { cu
   }, [cartMode, resolvedCartItems, taxMap]);
 
   const cartModeLoveLetterDraft = useMemo<LoveLetterDraft | null>(() => {
-    if (!cartMode || resolvedCartItems.length !== 1) return null
-    return resolvedCartItems[0]?.entry.selection.loveLetter ?? null
+    // An order carries one letter; the cart allows it on only one line, whatever the number of lines.
+    if (!cartMode) return null
+    return resolvedCartItems.find((item) => item.entry.selection.loveLetter?.wantsLetter)?.entry.selection.loveLetter ?? null
   }, [cartMode, resolvedCartItems])
 
   const loveLetterDraft = useMemo<LoveLetterDraft | null>(() => {

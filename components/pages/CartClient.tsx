@@ -5,6 +5,7 @@ import type { ReactNode } from 'react'
 import Link from 'next/link'
 import { Minus, Plus } from 'lucide-react'
 import { useCart } from '@/lib/hooks/useCart'
+import CartLetterAction from '@/components/commerce/CartLetterAction'
 import { MAX_CART_QUANTITY } from '@/lib/cart-limits'
 import { useCurrency } from '@/context/CurrencyContext'
 import { getProductKey, type CartItemSelection, type CartProductSnapshot } from '@/lib/product-keys'
@@ -277,11 +278,11 @@ export default function CartClient({ summaryInfo }: { summaryInfo?: ReactNode })
                     <div className="flex min-w-0 flex-col">
                       <Link href={`/shop/${product.slug}`} className="font-[family-name:var(--font-family-primary)] text-[16px] font-semibold leading-[1.4] text-black no-underline sm:text-[18px]">{product.name}</Link>
                       {details ? <p className="mt-2 font-[family-name:var(--font-family-secondary)] text-[13px] leading-5 text-black/75">{details}</p> : null}
-                      <p className="mt-1 font-[family-name:var(--font-family-secondary)] text-[12px] leading-5 text-black/70">{item.selection.loveLetter?.wantsLetter ? `Love letter included${item.selection.loveLetter.recipientName ? ` for ${item.selection.loveLetter.recipientName}` : ''}` : 'No love letter'}</p>
 
                       <div className="mt-auto flex flex-wrap items-end gap-x-6 gap-y-3 pt-5">
                         <Link href={`/shop/${product.slug}`} className="mb-2 font-[family-name:var(--font-family-secondary)] text-[12px] text-black/70 underline underline-offset-4 transition hover:text-black">Edit</Link>
                         <button type="button" onClick={() => removeItem(item.key)} className="mb-2 border-0 bg-transparent p-0 font-[family-name:var(--font-family-secondary)] text-[12px] text-black/70 underline underline-offset-4 transition hover:text-black">Remove</button>
+                        <span className="mb-2"><CartLetterAction item={item} size="regular" /></span>
                       </div>
                     </div>
 

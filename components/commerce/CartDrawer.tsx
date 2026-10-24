@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { Gift, Minus, PackageCheck, Plus, RefreshCcw, X } from 'lucide-react'
 import { useCart } from '@/lib/hooks/useCart'
 import { MAX_CART_QUANTITY } from '@/lib/cart-limits'
+import CartLetterAction from '@/components/commerce/CartLetterAction'
 import { useCurrency } from '@/context/CurrencyContext'
 import { getProductKey, type CartProductSnapshot } from '@/lib/product-keys'
 
@@ -193,13 +194,16 @@ export default function CartDrawer() {
                         </p>
 
                         <div className="mt-auto flex items-end justify-between gap-3 pt-3">
-                          <button
-                            type="button"
-                            onClick={() => removeItem(item.key)}
-                            className="border-0 bg-transparent p-0 text-[11px] text-black underline underline-offset-2 hover:text-black"
-                          >
-                            Remove
-                          </button>
+                          <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+                            <button
+                              type="button"
+                              onClick={() => removeItem(item.key)}
+                              className="border-0 bg-transparent p-0 text-[11px] text-black underline underline-offset-2 hover:text-black"
+                            >
+                              Remove
+                            </button>
+                            <CartLetterAction item={item} />
+                          </div>
 
                           <div className="grid h-8 grid-cols-[30px_34px_30px] border border-black/25" aria-label={`Quantity for ${product.name}`}>
                             <button type="button" onClick={() => updateQuantity(item.key, item.quantity - 1)} aria-label="Decrease quantity" className="flex items-center justify-center border-0 bg-white hover:bg-black hover:text-white">

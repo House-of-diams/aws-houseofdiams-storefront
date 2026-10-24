@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useCurrency } from '@/context/CurrencyContext';
 import { fetchPublicJson } from '@/lib/client/public-json';
 import { normalizeWhatsappNumber } from '@/lib/whatsapp';
+import { MAX_CART_QUANTITY } from '@/lib/cart-limits';
 
 /**
  * CTA button row: primary purchase and enquiry actions.
@@ -14,6 +15,7 @@ import { normalizeWhatsappNumber } from '@/lib/whatsapp';
  * @param {string}   props.checkoutHref - Static checkout route for standard products
  * @param {function} props.onAddToCart  - Adds the configured product to cart
  * @param {function} props.onCheckout   - Opens the pre-checkout love letter flow
+ * @param {{ quantity: number, onChangeQuantity: (quantity: number) => void, onViewBag: () => void } | null} [props.inBag] - Set when this exact piece is already in the bag; replaces Add To Bag
  * @param {boolean} [props.wishlisted] - Whether this product is saved
  * @param {function} [props.onWishlist] - Toggles the saved state
  * @param {'both'|'checkout_only'|'enquire_only'} [props.ctaMode] - Controls which CTAs are visible
@@ -37,7 +39,7 @@ function WishlistButton({ wishlisted, onWishlist }) {
   );
 }
 
-export default function ProductCTAs({ product, ctaMode = 'both', ctaLabel, onEnquire, checkoutHref, onAddToCart, onCheckout, wishlisted = false, onWishlist }) {
+export default function ProductCTAs({ product, ctaMode = 'both', ctaLabel, onEnquire, checkoutHref, onAddToCart, onCheckout, wishlisted = false, onWishlist, inBag = /** @type {{ quantity: number, onChangeQuantity: (quantity: number) => void, onViewBag: () => void } | null} */ (null) }) {
   const { format } = useCurrency();
   const [whatsappNumber, setWhatsappNumber] = useState('919328536178');
   useEffect(() => {
@@ -68,12 +70,30 @@ export default function ProductCTAs({ product, ctaMode = 'both', ctaLabel, onEnq
     </button>
   );
 
+  // A piece that is already in the bag is not offered again: its quantity is changed here, or the bag is opened.
+  const bagControl = inBag ? (
+    <div className="flex w-full items-stretch gap-2" data-testid="in-bag">
+      <div role="group" aria-label="This piece is in your bag" className="flex min-h-[58px] flex-1 items-center justify-between gap-3 border border-[var(--color-brand-primary,#000000)] px-4">
+        <span className="inline-flex items-center gap-2 font-[family-name:var(--font-family-button)] text-[14px] font-medium">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5" /></svg>
+          In your bag
+        </span>
+        <span className="inline-flex items-center border border-black/25">
+          <button type="button" onClick={() => inBag.onChangeQuantity(inBag.quantity - 1)} aria-label="Decrease quantity" className="flex h-9 w-9 items-center justify-center border-0 bg-white text-[18px] leading-none hover:bg-black hover:text-white">−</button>
+          <span className="flex h-9 min-w-9 items-center justify-center border-x border-black/15 px-2 text-[13px]" aria-live="polite">{inBag.quantity}</span>
+          <button type="button" onClick={() => inBag.onChangeQuantity(inBag.quantity + 1)} disabled={inBag.quantity >= MAX_CART_QUANTITY} aria-label="Increase quantity" title={inBag.quantity >= MAX_CART_QUANTITY ? `Maximum ${MAX_CART_QUANTITY} per order` : undefined} className="flex h-9 w-9 items-center justify-center border-0 bg-white text-[18px] leading-none hover:bg-black hover:text-white disabled:cursor-not-allowed disabled:opacity-30">+</button>
+        </span>
+      </div>
+      <button type="button" onClick={inBag.onViewBag} className="shrink-0 border border-[var(--color-brand-primary,#000000)] bg-transparent px-5 font-[family-name:var(--font-family-button)] text-[14px] font-medium hover:bg-[var(--color-brand-primary,#000000)] hover:text-white">View bag</button>
+    </div>
+  ) : addToBagButton;
+
   return (
     <div className="mb-4 flex flex-col gap-3 sm:mb-5">
-      {showCheckout ? addToBagButton : (
+      {showCheckout ? bagControl : (
         <div className="flex items-stretch gap-2">
           {/* Collection (and hip-hop without checkout) products are enquiry-first: no cart. */}
-          {canCheckoutDirectly ? addToBagButton : null}
+          {canCheckoutDirectly ? bagControl : null}
           <WishlistButton wishlisted={wishlisted} onWishlist={onWishlist} />
         </div>
       )}

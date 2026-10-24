@@ -23,7 +23,7 @@ import YouMayAlsoLike from '@/components/product/YouMayAlsoLike';
 import LoveLetterModal from '@/components/product/LoveLetterModal';
 import { useWishlistStore } from '@/lib/hooks/useWishlistStore';
 import { useCart } from '@/lib/hooks/useCart';
-import { getProductKey } from '@/lib/product-keys';
+import { buildCartItemKey, getProductKey, orderLetterLine } from '@/lib/product-keys';
 import { saveLoveLetterDraft, type LoveLetterDraft } from '@/lib/love-letter';
 import { useCurrency } from '@/context/CurrencyContext';
 import { GiftOfferBanner } from '@/components/commerce/GiftOfferBanner';
@@ -63,7 +63,7 @@ export default function ProductClient({ product, relatedProducts, serviceBanner,
   const [engravingText, setEngravingText] = useState('');
   const [customSelections, setCustomSelections] = useState<Record<string, string>>(() => Object.fromEntries(storefrontProduct.customDropdowns.filter((group) => group.isRequired && group.options[0]).map((group) => [group.id, group.options[0].id])));
   const { wishlist, contains, toggle } = useWishlistStore();
-  const { addItem } = useCart();
+  const { addItem, items: cartItems, updateQuantity, openCart } = useCart();
   const { format } = useCurrency();
   const [isEnquireOpen, setIsEnquireOpen] = useState(false);
   const [isLoveLetterOpen, setIsLoveLetterOpen] = useState(false);
@@ -346,8 +346,18 @@ export default function ProductClient({ product, relatedProducts, serviceBanner,
   // Same rule as the product buttons and the server checkout: collection products are enquiry-first.
   const canAddToCart = storefrontProduct.productLane !== 'collection' && (storefrontProduct.productLane !== 'hiphop' || storefrontProduct.allowCheckout);
 
+  // The exact piece (same product, same choices) already in the bag: it is not added again, its quantity is changed instead.
+  const bagLine = canAddToCart ? cartItems.find((entry) => entry.key === buildCartItemKey(product, buildCartSelection())) ?? null : null;
+  const inBag = bagLine ? { quantity: bagLine.quantity, onChangeQuantity: (quantity: number) => updateQuantity(bagLine.key, quantity), onViewBag: openCart } : null;
+
   const handleAddToCart = () => {
     if (!validateCustomSelections()) return;
+    // An order carries one letter. When another piece already has it, this one is added straight away without the letter step.
+    if (orderLetterLine(cartItems)) {
+      addConfiguredProductToCart(null);
+      showToast('Added to cart. The letter on your other piece stays: one letter per order.');
+      return;
+    }
     setLoveLetterIntent('cart');
     setIsLoveLetterOpen(true);
   };
@@ -464,10 +474,10 @@ export default function ProductClient({ product, relatedProducts, serviceBanner,
           </div>
           {canAddToCart ? (<button
             type="button"
-            onClick={handleAddToCart}
+            onClick={inBag ? inBag.onViewBag : handleAddToCart}
             className="brand-button max-[700px]:w-full"
           >
-            Add To Cart
+            {inBag ? `In your bag (${inBag.quantity}) · View bag` : 'Add To Cart'}
           </button>) : null}
         </div>
       </div>
@@ -548,6 +558,7 @@ export default function ProductClient({ product, relatedProducts, serviceBanner,
                   onWishlist={() => handleWishlistToggle(product)}
                   onEnquire={() => setIsEnquireOpen(true)}
                   onAddToCart={handleAddToCart}
+                  inBag={inBag}
                   onCheckout={() => {
                     if (!validateCustomSelections()) return;
                     setLoveLetterIntent('checkout');
