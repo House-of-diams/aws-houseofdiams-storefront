@@ -76,6 +76,7 @@ const fallbackConfig: FormConfigState = {
   guarantees: [
     { label: 'Free design consultation · no obligation' },
     { label: 'CAD rendering provided before production' },
+    { label: 'Full IGI / GIA certification included' },
     { label: 'Insured worldwide shipping complimentary' },
     { label: 'Typically 3-4 weeks from design approval' },
   ],

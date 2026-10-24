@@ -4,9 +4,9 @@ import { BadgeCheck, Globe2, ShieldCheck, Truck } from 'lucide-react'
 
 const TRUST_ITEMS = [
   { label: 'Complimentary Overnight Shipping', Icon: Truck },
-  { label: 'Lab-Grown Diamonds', Icon: BadgeCheck },
+  { label: 'IGI Certified', Icon: BadgeCheck },
   { label: 'Free Worldwide Delivery', Icon: Globe2 },
-  { label: '15-Day Returns', Icon: ShieldCheck },
+  { label: 'Lifetime Warranty', Icon: ShieldCheck },
 ]
 
 export default function HomeTrustStripe() {
