@@ -1,4 +1,5 @@
 'use client';
+import DataNotice from '@/components/consent/DataNotice'
 
 import { useState } from 'react';
 import { cinzelFont } from '@/app/fonts';
@@ -132,6 +133,7 @@ export default function Newsletter({ onToast }: NewsletterProps) {
             {submitting ? 'Joining...' : 'Subscribe'}
           </button>
         </form>
+        <DataNotice tone="inherit" fields="email address" purpose="send you our newsletter (you can unsubscribe at any time)" className="mx-auto mt-3 max-w-[440px]" />
       </div>
     </section>
   );

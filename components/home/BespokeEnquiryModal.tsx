@@ -1,4 +1,5 @@
 'use client';
+import DataNotice from '@/components/consent/DataNotice'
 
 import { useEffect, useState } from 'react';
 import { X } from 'lucide-react';
@@ -359,6 +360,7 @@ export default function BespokeEnquiryModal({ open, onClose }: BespokeEnquiryMod
             />
           </FormField>
 
+          <DataNotice fields="name, contact details and design brief" purpose="prepare your bespoke consultation and quote" />
           <BrandButton
             type="submit"
             disabled={submitting}

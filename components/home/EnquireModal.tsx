@@ -1,4 +1,5 @@
 'use client';
+import DataNotice from '@/components/consent/DataNotice'
 
 import { useEffect, useState } from 'react';
 import { useToast } from './Toast';
@@ -218,6 +219,7 @@ export default function EnquireModal({ open, piece = 'General Enquiry', onClose 
             />
           </FormGroup>
 
+          <DataNotice fields="name, contact details and message" purpose="respond to your enquiry about this piece" className="mb-3" />
           <button
             type="submit"
             disabled={submitting}

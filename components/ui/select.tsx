@@ -73,7 +73,7 @@ export function Select({
           ].join(" ")}
           aria-label={validationLabel}
         >
-          {triggerLabel ? <span>{triggerLabel}</span> : <SelectPrimitive.Value placeholder={placeholder} />}
+          {triggerLabel ? <span className="min-w-0 flex-1 truncate">{triggerLabel}</span> : <SelectPrimitive.Value placeholder={placeholder} />}
           <SelectPrimitive.Icon asChild>
             <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full border border-[rgba(10,22,40,0.08)] bg-white text-[#B8922A]">
               <ChevronDown className="h-4 w-4 transition-transform duration-200 group-data-[state=open]:rotate-180" strokeWidth={1.6} />

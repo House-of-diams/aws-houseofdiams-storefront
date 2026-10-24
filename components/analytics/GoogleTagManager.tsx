@@ -2,7 +2,7 @@ import Script from 'next/script'
 
 const GTM_CONTAINER_ID = process.env.NEXT_PUBLIC_GTM_CONTAINER_ID || 'GTM-TJ5HTTSD'
 
-export default function GoogleTagManager() {
+export default function GoogleTagManager({ marketing = false }: { marketing?: boolean }) {
   if (!GTM_CONTAINER_ID) return null
 
   return (
@@ -11,6 +11,8 @@ export default function GoogleTagManager() {
           dataLayer events pushed earlier are queued and processed once GTM arrives. */}
       <Script id="google-tag-manager" strategy="lazyOnload">
         {`
+          window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}
+          gtag('consent','default',{analytics_storage:'granted',ad_storage:'${marketing ? 'granted' : 'denied'}',ad_user_data:'${marketing ? 'granted' : 'denied'}',ad_personalization:'${marketing ? 'granted' : 'denied'}'});
           (function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
           new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
           j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=

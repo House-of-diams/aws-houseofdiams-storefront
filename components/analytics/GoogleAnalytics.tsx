@@ -13,7 +13,7 @@ declare global {
   }
 }
 
-export default function GoogleAnalytics() {
+export default function GoogleAnalytics({ marketing = false }: { marketing?: boolean }) {
   const pathname = usePathname()
   const searchParams = useSearchParams()
 
@@ -40,6 +40,7 @@ export default function GoogleAnalytics() {
         {`
           window.dataLayer = window.dataLayer || [];
           function gtag(){dataLayer.push(arguments);}
+          gtag('consent','default',{analytics_storage:'granted',ad_storage:'${marketing?'granted':'denied'}',ad_user_data:'${marketing?'granted':'denied'}',ad_personalization:'${marketing?'granted':'denied'}'});
           gtag('js', new Date());
           gtag('config', '${GA_MEASUREMENT_ID}', { send_page_view: false });
         `}

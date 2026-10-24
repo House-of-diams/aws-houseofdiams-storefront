@@ -38,12 +38,6 @@ export default function ShopToolbar({ count, sort, onSortChange, quickFilters })
             grid-row: 2;
             font-size: 10px;
           }
-          .shop-toolbar-sort .shop-sort-trigger {
-            min-width: 132px !important;
-            height: 44px !important;
-            padding: 0 12px !important;
-            font-size: 11px !important;
-          }
         }
       `}</style>
 
@@ -61,9 +55,10 @@ export default function ShopToolbar({ count, sort, onSortChange, quickFilters })
           validationLabel="Sort products"
           triggerLabel={sort && sort !== "best-matches" ? SORT_OPTIONS.find((option) => option.value === sort)?.label ?? "Sort By" : "Sort By"}
           showItemIndicator={false}
-          avoidCollisions
+          avoidCollisions={false}
+          contentSide="bottom"
           contentAlign="end"
-          triggerClassName="shop-sort-trigger !h-[42px] !min-w-[122px] !rounded-none !border-black/15 !bg-white !px-4 !py-0 !font-[family-name:var(--font-family-montserrat)] !text-[11px] !font-semibold !uppercase !tracking-[0.08em] !text-[#0A1628] !shadow-none [&>span:last-child]:!h-auto [&>span:last-child]:!w-auto [&>span:last-child]:!rounded-none [&>span:last-child]:!border-0 [&>span:last-child]:!bg-transparent [&>span:last-child]:!text-[#0A1628]"
+          triggerClassName="shop-sort-trigger !h-[40px] md:!h-[42px] !min-w-[110px] md:!min-w-[122px] !rounded-none !border-black/15 !bg-white !px-3 md:!px-4 !py-0 !font-[family-name:var(--font-family-montserrat)] !text-[11px] !font-semibold !uppercase !tracking-[0.08em] !text-[#0A1628] !shadow-none [&>span:last-child]:!h-auto [&>span:last-child]:!w-auto [&>span:last-child]:!rounded-none [&>span:last-child]:!border-0 [&>span:last-child]:!bg-transparent [&>span:last-child]:!text-[#0A1628]"
           contentClassName="!min-w-[238px] !max-h-none !rounded-none !border-black/10 !bg-white !shadow-[0_10px_26px_rgba(0,0,0,0.16)]"
           itemClassName="!rounded-none !bg-white !px-5 !py-3 !font-[family-name:var(--font-family-montserrat)] !text-[12px] !font-semibold !uppercase !tracking-[0.03em] !text-[#111] focus:!bg-[#F5F5F5] data-[state=checked]:!bg-[#F5F5F5] data-[state=checked]:!text-[#111]"
         />

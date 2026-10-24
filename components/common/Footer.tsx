@@ -9,6 +9,7 @@ import { useCurrency } from '@/context/CurrencyContext';
 import type { NavbarRenderItem } from '@/lib/navbar';
 import { getSafeContactHref } from '@/lib/contact-links';
 import { fetchPublicJson } from '@/lib/client/public-json';
+import CookieSettingsButton from '@/components/consent/CookieSettingsButton';
 
 const PAYMENT_METHODS = [
   { name: 'Visa', src: '/payment svgs/visa 1.svg' },
@@ -284,6 +285,10 @@ export default function Footer({ navItems = [], initialContactRows = null }: { n
             <ColLink href="/returns">Returns</ColLink>
             <ColLink href="/terms">Terms &amp; Conditions</ColLink>
             <ColLink href="/privacy-policy">Privacy Policy</ColLink>
+            <CookieSettingsButton
+              className="group block py-[8px] text-[14px] font-normal leading-relaxed text-white/80 transition-colors duration-200 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+              style={{ fontFamily: 'var(--font-family-secondary)' }}
+            />
           </FooterAccordion>
         </div>
 

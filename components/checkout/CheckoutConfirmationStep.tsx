@@ -1,3 +1,4 @@
+import DataNotice from '@/components/consent/DataNotice'
 import type { CheckoutProfileForm } from '@/components/checkout/types'
 
 export default function CheckoutConfirmationStep({ form, itemCount, onEdit, onPay, processing, disabled, message }: { form: CheckoutProfileForm; itemCount: number; onEdit: () => void; onPay: () => void; processing: boolean; disabled: boolean; message?: string }) {
@@ -17,6 +18,7 @@ export default function CheckoutConfirmationStep({ form, itemCount, onEdit, onPa
         </div>
       </div>
       {message ? <p className="mt-5 font-[family-name:var(--font-family-secondary)] text-[11px] text-amber-700">{message}</p> : null}
+      <DataNotice fields="order and contact details" purpose="take payment through our payment partner and fulfil your order" className="mt-5" />
       <button type="button" onClick={onPay} disabled={processing || disabled} className="mt-7 flex min-h-12 w-full items-center justify-center border border-black bg-black px-6 font-[family-name:var(--font-family-button)] text-[11px] font-semibold uppercase tracking-[0.1em] text-white transition hover:bg-white hover:text-black disabled:cursor-not-allowed disabled:opacity-50">{processing ? 'Opening Secure Payment...' : 'Continue to Payment'}</button>
     </section>
   )

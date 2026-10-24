@@ -1,3 +1,4 @@
+import DataNotice from '@/components/consent/DataNotice'
 import CheckoutField from '@/components/checkout/CheckoutField'
 import type { CheckoutPostalAreaOption, CheckoutPostalLookupState, CheckoutProfileForm } from '@/components/checkout/types'
 import { sanitizePhoneInput } from '@/lib/validation'
@@ -26,6 +27,7 @@ export default function CheckoutInformationStep({ form, onChange, errors = {}, p
       </div>
       {postalAreaOptions.length > 1 ? <label className="mt-3 block border border-black/20 bg-white px-4 py-3"><span className="block font-[family-name:var(--font-family-secondary)] text-[10px] uppercase text-black/50">Select Post Office / Area</span><select className="mt-2 h-10 w-full border-0 bg-transparent font-[family-name:var(--font-family-secondary)] text-[13px] outline-none" onChange={(event) => onPostalAreaSelect?.(event.target.value)} defaultValue={postalAreaOptions[0]?.id}>{postalAreaOptions.map((option) => <option key={option.id} value={option.id}>{option.label}</option>)}</select></label> : null}
       {postalLookup?.message ? <p className={`mt-3 font-[family-name:var(--font-family-secondary)] text-[11px] ${postalLookup.status === 'error' ? 'text-red-700' : 'text-black/55'}`}>{postalLookup.message}</p> : null}
+      <DataNotice fields="name, email, phone and delivery address" purpose="process and deliver your order, send order updates and meet legal and tax obligations" className="mt-6" />
     </section>
   )
 }

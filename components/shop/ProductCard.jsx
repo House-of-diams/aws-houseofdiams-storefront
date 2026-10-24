@@ -231,6 +231,10 @@ export default function ProductCard({ product, wishlisted, onWishlist, onEnquire
     <a
       className="shop-product-card"
       href={`/shop/${product.slug}`}
+      onClick={(event) => {
+        // The heart sits inside this link; a tap on it must never navigate, whatever the browser does with nested controls.
+        if (event.target instanceof Element && event.target.closest("[data-wishlist-toggle]")) event.preventDefault();
+      }}
       style={{
         position: "relative",
         display: "flex",
@@ -269,6 +273,7 @@ export default function ProductCard({ product, wishlisted, onWishlist, onEnquire
       >
         <button
           type="button"
+          data-wishlist-toggle
           onClick={(event) => {
             event.preventDefault();
             event.stopPropagation();

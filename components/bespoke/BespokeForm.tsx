@@ -1,4 +1,5 @@
 'use client';
+import DataNotice from '@/components/consent/DataNotice'
 
 import { useState, useEffect, useRef } from 'react';
 import {
@@ -341,6 +342,7 @@ export default function BespokeForm({ onSuccess, initialConfig }: BespokeFormPro
                 </div>
               </div>
 
+              <DataNotice fields="name, contact details and design brief" purpose="prepare your bespoke consultation and quote" className="mt-5" />
               <div className="mt-5 flex flex-wrap items-center justify-between gap-4 border-t border-black/10 pt-6">
                 <p className="text-[13px] text-black/60">
                   {config.settings.footer_note}

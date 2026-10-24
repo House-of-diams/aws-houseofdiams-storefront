@@ -18,8 +18,8 @@ import { WishlistProvider } from "@/lib/hooks/useWishlistStore";
 import { getSiteUrl } from "@/lib/site-url";
 import JsonLd from "@/components/seo/JsonLd";
 import { createOrganizationSchema } from "@/lib/structured-data";
-import GoogleAnalytics from "@/components/analytics/GoogleAnalytics";
-import GoogleTagManager from "@/components/analytics/GoogleTagManager";
+import ConsentedAnalytics from "@/components/consent/ConsentedAnalytics";
+import CookieBanner from "@/components/consent/CookieBanner";
 import MaintenanceScreen from "@/components/layout/MaintenanceScreen";
 import { getMaintenanceMode } from "@/lib/maintenance";
 import { ToastProvider } from "@/components/home/Toast";
@@ -100,10 +100,9 @@ export default async function RootLayout({
       suppressHydrationWarning
     >
       <body className="min-h-full flex flex-col" suppressHydrationWarning>
-        <GoogleTagManager />
         <JsonLd data={createOrganizationSchema()} />
         <Suspense fallback={null}>
-          <GoogleAnalytics />
+          <ConsentedAnalytics />
         </Suspense>
         {maintenanceMode.enabled ? (
           <MaintenanceScreen message={maintenanceMode.message} />
@@ -120,6 +119,7 @@ export default async function RootLayout({
             </CurrencyProvider>
           </WishlistProvider>
         )}
+        <CookieBanner />
       </body>
     </html>
   );

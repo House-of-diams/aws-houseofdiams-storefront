@@ -1,4 +1,5 @@
 'use client';
+import DataNotice from '@/components/consent/DataNotice'
 
 import { useEffect, useRef, useState } from 'react';
 import { Select } from '@/components/ui/select';
@@ -142,6 +143,7 @@ export default function ContactBody({ onSuccess }: ContactBodyProps) {
               </div>
               <div className="col-span-2 max-md:col-span-1"><label htmlFor="contact-message" className="block text-[9px] font-normal tracking-[0.28em] text-black/60 uppercase mb-2">Your Message</label><textarea id="contact-message" required rows={4} value={form.message} onChange={set('message')} className={`${inputCls} resize-y min-h-[100px]`} /></div>
             </div>
+            <DataNotice fields="name, email, phone and message" purpose="reply to your enquiry" className="mt-5" />
             <div className="flex justify-between items-center mt-6 pt-6 border-t border-[rgba(10,22,40,0.10)] flex-wrap gap-4">
               <p className="text-[10px] text-black/60 tracking-[0.04em]">Replies within 24 hours</p>
               <button type="submit" disabled={isSubmitting} className="inline-flex items-center gap-2.5 text-[10px] font-normal tracking-[0.28em] text-white bg-black px-[34px] py-4 border-none cursor-pointer uppercase relative overflow-hidden group transition-all duration-400 hover:-translate-y-0.5 hover:shadow-[0_12px_40px_rgba(10,22,40,0.18)] disabled:cursor-not-allowed disabled:opacity-70">
