@@ -15,7 +15,17 @@ export async function GET(request: Request) {
   const statePayload = readState(rawState)
   const fail = NextResponse.redirect(new URL('/login?error=authentication', config.baseUrl), 303)
   fail.cookies.set(customerAuthCookieNames().state, '', { ...sessionCookieOptions(0), maxAge: 0 })
-  if (requestUrl.searchParams.has('error') || !code || !state || !statePayload || statePayload.exp < Math.floor(Date.now() / 1000) || state !== statePayload.state) return fail
+  // The customer only ever sees one generic message; the reason goes to the server log so a failed sign-in can be diagnosed.
+  const rejection = requestUrl.searchParams.has('error') ? `the identity provider returned "${(requestUrl.searchParams.get('error') || '').slice(0, 40)}"`
+    : !code || !state ? 'the return address had no code or state'
+    : !statePayload ? 'the sign-in cookie was missing, unreadable or signed with a different secret'
+    : statePayload.exp < Math.floor(Date.now() / 1000) ? 'the sign-in attempt had expired'
+    : state !== statePayload.state ? 'the state did not match the sign-in cookie'
+    : ''
+  if (rejection) {
+    console.error('[customer-auth] callback rejected:', rejection)
+    return fail
+  }
   try {
     const discovery = await getDiscovery()
     const tokens = await exchangeAuthorizationCode(code, statePayload.verifier, discovery)
@@ -30,7 +40,8 @@ export async function GET(request: Request) {
     response.headers.set('cache-control', 'no-store')
     response.headers.set('referrer-policy', 'no-referrer')
     return response
-  } catch {
+  } catch (error) {
+    console.error('[customer-auth] callback failed:', error instanceof Error ? error.message.slice(0, 120) : 'unknown error')
     return fail
   }
 }
