@@ -316,9 +316,11 @@ export default function CheckoutPageClient({ customerAuthEnabled = false }: { cu
     priceFrom: parseCurrency(searchParams.get('price')),
     metal: searchParams.get('metal') ?? '',
     purity: searchParams.get('purity') ?? '',
-    sizeOrFit: searchParams.get('size') ?? '',
+    // The ring size (chosen on the product page) wins over a chain length or fit, the same as in the cart.
+    sizeOrFit: searchParams.get('ring_size') || searchParams.get('size') || '',
     gemstone: searchParams.get('gemstone') ?? '',
     carat: searchParams.get('carat') ?? '',
+    engravingText: (searchParams.get('engraving') ?? '').trim().slice(0, 60),
     customSelections: (() => { try { return JSON.parse(decodeURIComponent(searchParams.get('custom') || '[]')) } catch { return [] } })(),
     quantity: 1,
     gstLabel: taxInfo?.gstLabel ?? '',
@@ -369,6 +371,7 @@ export default function CheckoutPageClient({ customerAuthEnabled = false }: { cu
           purity: entry.selection.purity ?? '',
           sizeOrFit: entry.selection.ringSize || entry.selection.sizeOrFit || '',
           gemstone: entry.selection.gemstone ?? '',
+          engravingText: entry.selection.engravingMode === 'custom' ? (entry.selection.engravingText ?? '').trim().slice(0, 60) : '',
           carat: entry.selection.hiphopCarat ?? '',
           customSelections: entry.selection.customSelections ?? [],
           quantity: entry.quantity,
@@ -1192,26 +1195,41 @@ export default function CheckoutPageClient({ customerAuthEnabled = false }: { cu
           paymentHandlerStarted = true
           setProcessingPayment(true)
           setPaymentUiStage('confirming')
-          const verifyResponse = await fetch('/api/payments/verify', {
-            method: 'POST',
-            headers: {
-              'content-type': 'application/json',
-              ...(guestToken ? { 'x-guest-checkout-token': guestToken } : {}),
-            },
-            body: JSON.stringify({
-              orderId: paymentSession.orderId,
-              orderNumber: paymentSession.orderNumber,
-              razorpay_order_id: paymentResponse.razorpay_order_id,
-              razorpay_payment_id: paymentResponse.razorpay_payment_id,
-              razorpay_signature: paymentResponse.razorpay_signature,
-            }),
+          // The money has already been taken, so a dropped connection or a server hiccup must not leave the page on
+          // "confirming" forever: retry the (repeat-safe) check a few times, then tell the customer exactly what to do.
+          const verifyBody = JSON.stringify({
+            orderId: paymentSession.orderId,
+            orderNumber: paymentSession.orderNumber,
+            razorpay_order_id: paymentResponse.razorpay_order_id,
+            razorpay_payment_id: paymentResponse.razorpay_payment_id,
+            razorpay_signature: paymentResponse.razorpay_signature,
           })
+          let verifyResponse: Response | null = null
+          for (let attempt = 0; attempt < 3 && !verifyResponse?.ok; attempt += 1) {
+            if (attempt) await new Promise((resolve) => window.setTimeout(resolve, attempt === 1 ? 1500 : 4000))
+            try {
+              verifyResponse = await fetch('/api/payments/verify', {
+                method: 'POST',
+                headers: { 'content-type': 'application/json', ...(guestToken ? { 'x-guest-checkout-token': guestToken } : {}) },
+                body: verifyBody,
+              })
+              if (verifyResponse.status > 0 && verifyResponse.status < 500) break
+            } catch {
+              verifyResponse = null
+            }
+          }
+          if (!verifyResponse) {
+            setPaymentUiStage('idle')
+            setProcessingPayment(false)
+            setErrorMessage(`We could not reach our server to confirm your payment. Please do not pay again. Check My Orders, or contact support with order ${paymentSession.orderNumber}.`)
+            return
+          }
 
           const verifyPayload = await verifyResponse.json().catch(() => null)
           if (!verifyResponse.ok) {
             setPaymentUiStage('idle')
             setProcessingPayment(false)
-            setErrorMessage(verifyPayload?.error ?? 'Payment verification failed. Please contact support if the amount was deducted.')
+            setErrorMessage(verifyPayload?.error ?? `Payment verification failed. If the amount was deducted, please do not pay again: contact support with order ${paymentSession.orderNumber}.`)
             return
           }
 

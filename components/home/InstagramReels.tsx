@@ -3,6 +3,7 @@
 import { ChevronLeft, ChevronRight, Volume2, VolumeX } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { HomeInstagramReelsData } from '@/lib/home-data'
+import { openConsentSettings, useConsent } from '@/lib/consent-client'
 
 function toEmbedUrl(url: string) {
   const normalized = url.endsWith('/') ? url : `${url}/`
@@ -58,8 +59,20 @@ function VideoReelCard({ item, videoUrl }: { item: HomeInstagramReelsData['items
 
 function ReelCard({ item }: { item: HomeInstagramReelsData['items'][number] }) {
   const title = item.title || 'House of Diams reel'
+  const consent = useConsent()
   if (item.videoUrl) return <VideoReelCard item={item} videoUrl={item.videoUrl} />
   if (!item.instagramUrl) return null
+
+  // Instagram's embed sets its own cookies and tracks the visitor, so it only loads after marketing cookies are allowed.
+  if (consent?.marketing !== true) {
+    return (
+      <article className={`${cardClass} flex flex-col items-center justify-center gap-4 bg-[#f4f4f2] px-6 text-center`} data-testid="reel-consent-placeholder">
+        <p className="text-[13px] leading-[1.6] text-[#36404f]">This Instagram post loads from Instagram, which uses cookies. Allow marketing cookies to watch it here.</p>
+        <button type="button" onClick={openConsentSettings} className="min-h-11 rounded-full border border-black/20 bg-white px-5 text-[12px] font-semibold text-black hover:bg-black hover:text-white">Cookie settings</button>
+        <a href={item.instagramUrl} target="_blank" rel="noopener noreferrer" className="text-[12px] font-semibold text-black underline underline-offset-4">Open on Instagram</a>
+      </article>
+    )
+  }
 
   return (
     <article className={cardClass}>

@@ -67,7 +67,10 @@ export async function POST(request: Request) {
   const promotion = await findSubmissionPromotion().catch(() => null)
   if (!promotion?.is_active) return NextResponse.json({ error: 'This promotion is no longer available.' }, { status: 410 })
 
-  const questionRows: PromotionQuestionRow[] = await loadSubmissionQuestions(promotion.id).catch(() => [])
+  // A failed read is not the same as "no questions configured": failing open would accept an email-only answer and still reveal the coupon.
+  let questionRows: PromotionQuestionRow[]
+  try { questionRows = await loadSubmissionQuestions(promotion.id) }
+  catch { return NextResponse.json({ error: 'We could not check this form right now. Please try again in a moment.' }, { status: 503 }) }
   const questions: Question[] = !questionRows.length
     ? [{ field_key: 'email', question: 'Email address', input_type: 'email', options: [], allow_multiple: false, validation_pattern: null, validation_message: 'Enter a valid email address.', is_required: true }]
     : questionRows.map((question) => ({

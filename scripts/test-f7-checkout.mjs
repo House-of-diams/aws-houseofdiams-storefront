@@ -8,6 +8,7 @@ import ts from 'typescript'
 // No ENV files are loaded. Every external persistence/provider module must
 // be supplied explicitly, so these tests cannot reach staging or Razorpay.
 const nativeRequire = createRequire(import.meta.url)
+let validationModule
 function load(path, stubs = {}) {
   const source = readFileSync(new URL(`../${path}`, import.meta.url), 'utf8')
   const js = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS,
@@ -16,6 +17,8 @@ function load(path, stubs = {}) {
   new Function('require', 'exports', js)((name) => {
     if (name === 'server-only') return {}
     if (Object.hasOwn(stubs, name)) return stubs[name]
+    // Pure validation rules (email, phone): no I/O, so the real module is used instead of a stub.
+    if (name === '@/lib/validation') return (validationModule ??= load('lib/validation.ts'))
     if (name.startsWith('node:')) return nativeRequire(name)
     throw new Error(`Unmocked dependency: ${name}`)
   }, exports)

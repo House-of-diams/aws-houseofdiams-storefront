@@ -54,6 +54,7 @@ export type CheckoutPayloadItem = {
   sizeOrFit?: string
   gemstone?: string
   carat?: string
+  engravingText?: string
   quantity: number
   gstLabel?: string
   gstPercentage?: number
@@ -311,8 +312,13 @@ export async function prepareCheckoutPayload({
   if (optionsResult.error) return { error: optionsResult.error.message, status: 500 as const }
   const dropdownOptions = (optionsResult.data || []) as CustomDropdownOptionRow[]
   let selectionError = ''
-  const normalizedItems: PreparedItem[] = pricing.lines.map((line) => {
-    const entry = checkoutItems.find((item) => item.slug === line.entry.slug && item.metalVariantId === line.entry.metalVariantId) || (line.entry as CheckoutPayloadItem)
+  const normalizedItems: PreparedItem[] = pricing.lines.map((line, index) => {
+    // Pricing keeps the order of the submitted lines. Pair by position first, so two lines of the same product and metal keep
+    // their own size and options; matching by product and metal alone gave the second line the first line's choices.
+    const positional = checkoutItems[index]
+    const entry = positional && positional.slug === line.entry.slug && positional.metalVariantId === line.entry.metalVariantId
+      ? positional
+      : checkoutItems.find((item) => item.slug === line.entry.slug && item.metalVariantId === line.entry.metalVariantId) || (line.entry as CheckoutPayloadItem)
     const groups = line.product.custom_dropdowns_enabled ? dropdownGroups.filter((group) => group.product_id === line.product.id) : []
     const requested = new Map((entry.customSelections || []).map((selection) => [selection.dropdownId, selection.optionId]))
     if (requested.size !== (entry.customSelections || []).length || [...requested.keys()].some((groupId) => !groups.some((group) => group.id === groupId))) {
@@ -344,6 +350,7 @@ export async function prepareCheckoutPayload({
         sizeOrFit: cleanSelection(entry.sizeOrFit),
         gemstone: cleanSelection(entry.gemstone),
         carat: cleanSelection(entry.carat),
+        engravingText: cleanSelection(entry.engravingText, 60),
       },
       product: line.product,
       quantity: line.quantity,
@@ -353,7 +360,10 @@ export async function prepareCheckoutPayload({
       gstLabel: line.gstLabel,
       gstAmount: line.gstAmount,
       gstSlabId: line.gstSlabId,
-      selectedCustomDropdowns,
+      // The engraving is stored with the other chosen options, so the order page and fulfillment show it.
+      selectedCustomDropdowns: cleanSelection(entry.engravingText, 60)
+        ? [...selectedCustomDropdowns, { dropdown_id: 'engraving', name: 'engraving', label: 'Engraving', option_id: 'engraving', option_label: cleanSelection(entry.engravingText, 60), option_value: cleanSelection(entry.engravingText, 60) }]
+        : selectedCustomDropdowns,
       productName: line.product.name,
       metalLabel: line.metalLabel,
       imageUrl: line.imageUrl,

@@ -293,6 +293,7 @@ export default function ProductClient({ product, relatedProducts, serviceBanner,
     if (selectedRingSize) params.set('ring_size', selectedRingSize);
     if (selectedGemstoneValue) params.set('gemstone', selectedGemstoneValue);
     if (selectedShapeSlug) params.set('shape', selectedShapeSlug);
+    if (engravingMode === 'custom' && engravingText.trim()) params.set('engraving', engravingText.trim());
     if (isGiftSelected && giftPromotion?.code) params.set('gift_coupon', giftPromotion.code);
     const custom = Object.entries(customSelections).map(([dropdownId, optionId]) => { const group = storefrontProduct.customDropdowns.find((entry) => entry.id === dropdownId); const option = group?.options.find((entry) => entry.id === optionId); return { dropdownId, optionId, label: group?.label, optionLabel: option?.label }; }).sort((a, b) => a.dropdownId.localeCompare(b.dropdownId));
     if (custom.length) params.set('custom', encodeURIComponent(JSON.stringify(custom)));
@@ -301,7 +302,7 @@ export default function ProductClient({ product, relatedProducts, serviceBanner,
     if (preserveCategory) params.set('category', preserveCategory);
 
     return `/checkout?${params.toString()}`;
-  }, [activePrice, activeProduct.imageUrl, customSelections, giftPromotion?.code, isGiftSelected, product.name, product.slug, searchParams, selectedCombinedVariant?.label, selectedGemstoneValue, selectedHiphopCarat, selectedMetalMeta?.name, selectedRingSize, selectedShapeSlug, selectedVariantId, sizeOrFit]);
+  }, [activePrice, activeProduct.imageUrl, customSelections, engravingMode, engravingText, giftPromotion?.code, isGiftSelected, product.name, product.slug, searchParams, selectedCombinedVariant?.label, selectedGemstoneValue, selectedHiphopCarat, selectedMetalMeta?.name, selectedRingSize, selectedShapeSlug, selectedVariantId, sizeOrFit]);
 
   const validateCustomSelections = () => {
     const missing = storefrontProduct.customDropdowns.find((group) => group.isRequired && !customSelections[group.id]);

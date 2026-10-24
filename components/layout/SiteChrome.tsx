@@ -58,7 +58,8 @@ export default function SiteChrome({ children, initialNavItems, initialAnnouncem
         shadow="0 0 10px rgba(184, 146, 74, 0.45), 0 0 4px rgba(184, 146, 74, 0.3)"
         zIndex={12000}
       />
-      <DataSourceStatus />
+      {/* Internal diagnostic: off for customers, on only when the team sets NEXT_PUBLIC_SHOW_DATA_SOURCE_STATUS=true. */}
+      {process.env.NEXT_PUBLIC_SHOW_DATA_SOURCE_STATUS === 'true' ? <DataSourceStatus /> : null}
       {isMinimalChromeRoute ? (
         <main className="flex-1">{children}</main>
       ) : (

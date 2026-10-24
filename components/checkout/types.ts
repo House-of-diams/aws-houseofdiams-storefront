@@ -22,6 +22,8 @@ export type CheckoutDisplayItem = {
   sizeOrFit?: string
   gemstone?: string
   carat?: string
+  /** Text to engrave, as typed on the product page. Carried to the order so fulfillment can see it. */
+  engravingText?: string
   quantity: number
   gstLabel?: string
   gstPercentage?: number
