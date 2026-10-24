@@ -22,8 +22,8 @@ export async function GET(request: Request) {
     : statePayload.exp < Math.floor(Date.now() / 1000) ? 'the sign-in attempt had expired'
     : state !== statePayload.state ? 'the state did not match the sign-in cookie'
     : ''
-  if (rejection) {
-    console.error('[customer-auth] callback rejected:', rejection)
+  if (rejection || !code || !state || !statePayload) {
+    console.error('[customer-auth] callback rejected:', rejection || 'the sign-in details were incomplete')
     return fail
   }
   try {
