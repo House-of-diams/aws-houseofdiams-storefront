@@ -45,20 +45,38 @@ function ModelViewer({ src }: { src: string }) {
   });
 }
 
-function ProductVideo({ src }: { src: string }) {
+function ProductVideo({ src, poster }: { src: string; poster?: string }) {
   const [hasError, setHasError] = useState(false);
+  const [shouldLoad, setShouldLoad] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const boxRef = useRef<HTMLDivElement>(null);
+
+  // The gallery renders a desktop grid and a phone carousel side by side; only the one that is actually displayed should
+  // download its video. A copy hidden by the layout has no boxes, so it never loads (and loads if the window is resized to show it).
+  useEffect(() => {
+    const box = boxRef.current;
+    if (!box) return;
+    const showIfDisplayed = () => { if (box.getClientRects().length > 0) setShouldLoad(true); };
+    showIfDisplayed();
+    window.addEventListener('resize', showIfDisplayed);
+    return () => window.removeEventListener('resize', showIfDisplayed);
+  }, []);
 
   return (
-    <div className="absolute inset-0 flex items-center justify-center overflow-hidden bg-white">
-      {!hasError ? (
+    <div ref={boxRef} className="absolute inset-0 flex items-center justify-center overflow-hidden bg-white">
+      {/* The product photo is there from the first paint, so there is no blank box while the video starts. */}
+      {poster && !hasError ? <img src={poster} alt="" aria-hidden="true" className="absolute inset-0 h-full w-full object-contain object-center" /> : null}
+      {shouldLoad && !hasError ? (
         <video
-          src={`${src}#t=0.1`}
-          className="absolute inset-0 h-full w-full bg-white object-contain object-center"
+          src={src}
+          poster={poster}
+          className={`absolute inset-0 h-full w-full bg-white object-contain object-center transition-opacity duration-300 ${isPlaying || !poster ? 'opacity-100' : 'opacity-0'}`}
           autoPlay
           loop
           muted
           playsInline
-          preload="metadata"
+          preload="auto"
+          onPlaying={() => setIsPlaying(true)}
           onError={() => setHasError(true)}
         />
       ) : null}
@@ -126,6 +144,9 @@ export default function ProductGallery({
     () => assets.filter((asset): asset is SlideAsset => asset.type === 'image' || asset.type === 'video'),
     [assets],
   );
+
+  // The first product photo doubles as the video's poster frame.
+  const posterUrl = imageAssets[0]?.url ?? imageUrl ?? undefined;
 
   // A product video is the primary gallery asset wherever the gallery is shown.
   // Keep the remaining image and 3D assets in their supplied order.
@@ -401,13 +422,14 @@ export default function ProductGallery({
               <div className="aspect-square h-[min(78dvh,88vw)] max-h-[900px] max-w-[900px] overflow-hidden bg-white">
                 {activeLightboxAsset.type === 'video' ? (
                   <video
-                    src={`${activeLightboxAsset.url}#t=0.1`}
+                    src={activeLightboxAsset.url}
+                    poster={posterUrl}
                     className="h-full w-full bg-white object-contain object-center"
                     autoPlay
                     loop
                     muted
                     playsInline
-                    preload="metadata"
+                    preload="auto"
                   />
                 ) : (
                   <img
@@ -459,14 +481,18 @@ export default function ProductGallery({
                     aria-current={isSelected ? 'true' : undefined}
                   >
                     {asset.type === 'video' ? (
-                      <video
-                        src={`${asset.url}#t=0.1`}
-                        className="pointer-events-none h-full w-full bg-white object-contain object-center"
-                        muted
-                        playsInline
-                        preload="metadata"
-                        aria-hidden="true"
-                      />
+                      posterUrl ? (
+                        <img src={posterUrl} alt="" aria-hidden="true" className="pointer-events-none h-full w-full bg-white object-contain object-center" loading="lazy" />
+                      ) : (
+                        <video
+                          src={`${asset.url}#t=0.1`}
+                          className="pointer-events-none h-full w-full bg-white object-contain object-center"
+                          muted
+                          playsInline
+                          preload="metadata"
+                          aria-hidden="true"
+                        />
+                      )
                     ) : (
                       <img src={asset.url} alt="" className="h-full w-full object-contain object-center" loading="lazy" />
                     )}
@@ -500,7 +526,7 @@ export default function ProductGallery({
                 ) : asset.type === 'rotate' ? (
                   <HoverRotateView frames={asset.frames} alt={asset.alt || 'Product rotation view'} />
                 ) : asset.type === 'video' ? (
-                  <ProductVideo key={asset.url} src={asset.url} />
+                  <ProductVideo key={asset.url} src={asset.url} poster={posterUrl} />
                 ) : (
                   <button
                     type="button"
@@ -558,7 +584,7 @@ export default function ProductGallery({
               <HoverRotateView frames={activeAsset.frames} alt={activeAsset.alt || 'Product rotation view'} />
             ) : activeAsset?.type === 'video' ? (
               <div className="absolute inset-0 overflow-hidden">
-                <ProductVideo key={activeAsset.url} src={activeAsset.url} />
+                <ProductVideo key={activeAsset.url} src={activeAsset.url} poster={posterUrl} />
               </div>
             ) : activeAsset?.type === 'image' ? (
               <button
@@ -620,14 +646,18 @@ export default function ProductGallery({
                     </div>
                   ) : thumb.type === 'video' ? (
                     <div className="relative flex h-full w-full items-center justify-center overflow-hidden">
-                      <video
-                        src={`${thumb.url}#t=0.1`}
-                        className={thumbMediaClass}
-                        muted
-                        playsInline
-                        preload="metadata"
-                        aria-hidden="true"
-                      />
+                      {posterUrl ? (
+                        <img src={posterUrl} alt="" aria-hidden="true" className={thumbMediaClass} loading="lazy" />
+                      ) : (
+                        <video
+                          src={`${thumb.url}#t=0.1`}
+                          className={thumbMediaClass}
+                          muted
+                          playsInline
+                          preload="metadata"
+                          aria-hidden="true"
+                        />
+                      )}
                       <span className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/10">
                         <Film className="h-4 w-4 text-white drop-shadow-sm" strokeWidth={1.8} aria-hidden="true" />
                       </span>
