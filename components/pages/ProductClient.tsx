@@ -8,6 +8,7 @@ import EnquireModal from '@/components/home/EnquireModal';
 import { Toast } from '@/components/home/Toast';
 import ProductBreadcrumb from '@/components/product/ProductBreadcrumb';
 import ProductGallery from '@/components/product/ProductGallery';
+import { fillImageAlts } from '@/lib/product-alt';
 import ProductPriceBlock from '@/components/product/ProductPriceBlock';
 import ProductMetalComposition from '@/components/product/ProductMetalComposition';
 import ProductConfigurator from '@/components/product/ProductConfigurator';
@@ -138,7 +139,7 @@ export default function ProductClient({ product, relatedProducts, serviceBanner,
       if (fallbackAlts.length > 0) return fallbackAlts;
     }
 
-    return storefrontProduct.imageAlts?.length ? storefrontProduct.imageAlts : activeImageUrls.map(() => product.name);
+    return fillImageAlts(product.name, activeImageUrls, storefrontProduct.imageAlts);
   }, [activeImageUrls, product.name, selectedCombinedVariant, storefrontProduct.defaultVariantMediaItems, storefrontProduct.imageAlts]);
   const activeVideoUrl =
     selectedCombinedVariant?.mediaItems.find((entry) => entry.type === 'video')?.url ||
