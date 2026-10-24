@@ -66,13 +66,13 @@ function resolveResult(product: Product, trackId: TrackId, answers: Record<strin
     const wardrobe = answers.wardrobe;
     const life = answers.life;
     const undertone = answers.undertone === 'unsure' ? 'neutral' : answers.undertone;
-    const colour = config.metal.colourMatrix[undertone]?.[wardrobe] ?? 'Yellow';
+    const color = config.metal.colourMatrix[undertone]?.[wardrobe] ?? 'Yellow';
     const karat = config.metal.karatMap[life] ?? '14K';
-    const name = `${karat} ${colour} Gold`;
+    const name = `${karat} ${color} Gold`;
     return {
       name,
-      runnerUp: `${karat} ${config.metal.altColour[colour] ?? 'White'} Gold`,
-      reason: `Your ${optionLabel(config.metal.questions[0], wardrobe).toLowerCase()} wardrobe points to ${colour.toLowerCase()} gold, and because you chose ${optionLabel(config.metal.questions[1], life).toLowerCase()}, ${config.metal.karatReason[life]}. ${config.metal.colourReason[colour]}.`,
+      runnerUp: `${karat} ${config.metal.altColour[color] ?? 'White'} Gold`,
+      reason: `Your ${optionLabel(config.metal.questions[0], wardrobe).toLowerCase()} wardrobe points to ${color.toLowerCase()} gold, and because you chose ${optionLabel(config.metal.questions[1], life).toLowerCase()}, ${config.metal.karatReason[life]}. ${config.metal.colourReason[color]}.`,
       query: `metal=${slug(name)}`,
     };
   }

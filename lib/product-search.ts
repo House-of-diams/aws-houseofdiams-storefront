@@ -35,7 +35,7 @@ export const SEARCH_FIELD_WEIGHTS = {
 
 const STOP_WORDS = new Set(['a', 'an', 'and', 'the', 'for', 'with', 'in', 'of', 'to', 'by', 'on', 'my', 'me'])
 
-// Customer wording -> catalogue wording. Values are tried with a small penalty.
+// Customer wording -> catalog wording. Values are tried with a small penalty.
 const SYNONYMS: Record<string, string[]> = {
   ring: ['band'],
   band: ['ring'],
@@ -132,7 +132,7 @@ function wordMatchScore(token: string, word: string) {
   return 0
 }
 
-// Distinct words across the catalogue, computed once per index.
+// Distinct words across the catalog, computed once per index.
 const vocabularyByDocs = new WeakMap<ProductSearchDoc[], string[]>()
 
 function getVocabulary(docs: ProductSearchDoc[]) {
@@ -144,7 +144,7 @@ function getVocabulary(docs: ProductSearchDoc[]) {
   return vocabulary
 }
 
-// Scores a query token against each distinct catalogue word once, so the
+// Scores a query token against each distinct catalog word once, so the
 // per-product pass is only cheap map lookups.
 function scoreTokenAgainstVocabulary(token: string, vocabulary: string[]) {
   const variants: Array<[string, number]> = [[token, 1], ...(SYNONYMS[token] ?? []).map((synonym): [string, number] => [stem(synonym), SYNONYM_FACTOR])]

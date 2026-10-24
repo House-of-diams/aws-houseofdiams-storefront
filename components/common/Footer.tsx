@@ -271,7 +271,7 @@ export default function Footer({ navItems = [], initialContactRows = null }: { n
             <ColLink href="/contact">Contact</ColLink>
           </FooterAccordion>
 
-          <FooterAccordion title="JEWELLERY">
+          <FooterAccordion title="JEWELRY">
             {visibleServiceCategories.map((category) => (
               <ColLink key={category.id} href={`/${encodeURIComponent(category.slug)}`}>
                 {category.name}

@@ -22,7 +22,7 @@ export async function generateMetadata({
   const isFiltered = hasShopFilterQuery(params)
   const metadata = await createFixedPageMetadata('shop', {
     title: 'Shop',
-    description: 'Browse our collection of fine jewellery and hip hop jewellery with certified lab-grown diamonds.',
+    description: 'Browse our collection of fine jewelry and hip hop jewelry with certified lab-grown diamonds.',
     path: isFiltered ? '/shop' : getCatalogCanonicalPath('/shop', params),
   })
 
@@ -74,7 +74,7 @@ export default async function ShopPage({
         totalCount={productPage.totalCount}
         serverPaginated
         heroTitle="Our Collection"
-        heroSubtitle="Browse our curated selection of fine jewellery, engagement rings, and wedding bands."
+        heroSubtitle="Browse our curated selection of fine jewelry, engagement rings, and wedding bands."
         initialFilters={{
           ...(typeof params.category === 'string' ? { category: [params.category] } : {}),
           ...(typeof params.shape === 'string' ? { shape: [params.shape] } : {}),

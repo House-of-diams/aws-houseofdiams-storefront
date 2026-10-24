@@ -41,7 +41,7 @@ export default function SelectedCouponOffer() {
   const heading = offer
     ? fillOfferTokens(content.heading, { offer: formatAmount(offer), minimum: minimum ? usd(minimum) : '' })
     : fillOfferTokens(content.giftHeading, { minimum: minimum ? usd(minimum) : '' })
-  const body = content.description || offer?.description || gift?.description || 'Discover fine jewellery and enjoy an exclusive offer selected for you.'
+  const body = content.description || offer?.description || gift?.description || 'Discover fine jewelry and enjoy an exclusive offer selected for you.'
 
   return (
     <section aria-labelledby="selected-coupon-offer-heading" className="w-full bg-[var(--color-brand-secondary)] px-[var(--space-4)] py-[var(--space-6)] text-center sm:px-[var(--space-6)] lg:py-[var(--space-6)]">

@@ -38,7 +38,7 @@ const posts = [
   },
   {
     cat: 'Care Guide',
-    title: 'Caring for Your Diamond Jewellery',
+    title: 'Caring for Your Diamond Jewelry',
     excerpt: 'Keep your pieces sparkling for decades with these tips.',
     date: 'Mar 10',
     icon: (
@@ -53,7 +53,7 @@ const posts = [
   {
     cat: 'Education',
     title: 'Understanding the 4Cs of Diamonds',
-    excerpt: 'Cut, colour, clarity, carat — decoded simply.',
+    excerpt: 'Cut, color, clarity, carat — decoded simply.',
     date: 'Feb 22',
     icon: (
       <svg width="70" height="70" viewBox="0 0 70 70" fill="none">
@@ -375,7 +375,7 @@ export default function BlogSection() {
               className="font-numeric section-title font-light text-[#0A1628] leading-[1.05]"
               style={{ fontSize: 'clamp(40px, 5vw, 64px)', fontFamily: 'Manrope, sans-serif' }}
             >
-              Our Jewellery <span className="text-[#0A1628]">Blog</span>
+              Our Jewelry <span className="text-[#0A1628]">Blog</span>
             </h2>
           </div>
           <a

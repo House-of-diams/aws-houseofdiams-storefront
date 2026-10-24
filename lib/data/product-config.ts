@@ -63,6 +63,7 @@ export const DIAMOND_SPEC_KEYS = [
   'Stones',
   'Total Stones',
   'Colour Grade',
+  'Color Grade',
   'Clarity',
   'Cut Grade',
   'Total Carat',
@@ -80,7 +81,7 @@ const typeLabel = (kind: string) => {
     chain: 'chain',
     grillz: 'grillz',
   };
-  return map[kind] ?? 'jewellery piece';
+  return map[kind] ?? 'jewelry piece';
 };
 
 const formatMetal = (metals: string[]) => METAL_META[metals[0]]?.name ?? metals[0] ?? '18K Gold';

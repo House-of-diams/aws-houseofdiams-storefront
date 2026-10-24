@@ -30,7 +30,7 @@ export default function B2BHero() {
         >
           B2B Diamonds.
           <br />
-          Jewellery Supply.
+          Jewelry Supply.
         </h1>
 
         <p className="text-[13px] font-light leading-[2] text-[#292727] tracking-[0.06em] max-w-[720px] mx-auto mb-10">
@@ -41,7 +41,7 @@ export default function B2BHero() {
 
         <div className="flex gap-[18px] justify-center flex-wrap max-md:flex-col max-md:w-full max-md:items-stretch">
           <ButtonPrimary href="#b2b-cta">
-            Request Wholesale Catalogue
+            Request Wholesale Catalog
           </ButtonPrimary>
           <ButtonOutline href="https://wa.me/919328536178?text=Hi%2C%20I%27d%20like%20to%20enquire%20about%20B2B%20wholesale%20with%20House%20of%20Diams">
             WhatsApp Us

@@ -18,7 +18,7 @@ const BENEFITS = [
   {
     title: "Consistent Parcels",
     description:
-      "Matching colour and clarity across parcels with repeatable quality for ongoing collections.",
+      "Matching color and clarity across parcels with repeatable quality for ongoing collections.",
     icon: (
       <svg width="36" height="36" viewBox="0 0 24 24" fill="none" aria-hidden="true">
         <rect x="4" y="6" width="16" height="12" rx="2" stroke="#0A1628" strokeWidth="1" />
@@ -29,7 +29,7 @@ const BENEFITS = [
   {
     title: "Fast Turnaround",
     description:
-      "Responsive support and rapid fulfilment from Surat with insured worldwide shipping options.",
+      "Responsive support and rapid fulfillment from Surat with insured worldwide shipping options.",
     icon: (
       <svg width="36" height="36" viewBox="0 0 24 24" fill="none" aria-hidden="true">
         <path d="M3 12h10" stroke="#0A1628" strokeWidth="1.2" strokeLinecap="round" />
@@ -51,7 +51,7 @@ const BENEFITS = [
   {
     title: "Bespoke Production",
     description:
-      "From CAD to setting: partner with our atelier to manufacture jewellery lines to specification.",
+      "From CAD to setting: partner with our atelier to manufacture jewelry lines to specification.",
     icon: (
       <svg width="36" height="36" viewBox="0 0 24 24" fill="none" aria-hidden="true">
         <path d="M4 20V9l8-5 8 5v11" stroke="#0A1628" strokeWidth="1" />

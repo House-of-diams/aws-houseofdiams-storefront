@@ -33,7 +33,7 @@ type ThumbnailSlot = MediaAsset | { type: 'placeholder'; key: string };
 function ModelViewer({ src }: { src: string }) {
   return React.createElement('model-viewer', {
     src,
-    alt: 'Interactive 3D jewellery model',
+    alt: 'Interactive 3D jewelry model',
     'camera-controls': true,
     'auto-rotate': true,
     'auto-rotate-delay': '0',
@@ -412,7 +412,7 @@ export default function ProductGallery({
                 ) : (
                   <img
                     src={activeLightboxAsset.url}
-                    alt={activeLightboxAsset.alt || `Jewellery product view ${visibleLightboxIndex + 1}`}
+                    alt={activeLightboxAsset.alt || `Jewelry product view ${visibleLightboxIndex + 1}`}
                     className="h-full w-full object-contain object-center"
                   />
                 )}
@@ -510,7 +510,7 @@ export default function ProductGallery({
                   >
                     <img
                       src={asset.url}
-                      alt={asset.alt || `Jewellery product media ${imageAssets.indexOf(asset) + 1}`}
+                      alt={asset.alt || `Jewelry product media ${imageAssets.indexOf(asset) + 1}`}
                       className={mainMediaClass}
                       loading="lazy"
                     />
@@ -569,7 +569,7 @@ export default function ProductGallery({
               >
                 <img
                   src={activeAsset.url}
-                  alt={activeAsset.alt || 'Jewellery product media'}
+                  alt={activeAsset.alt || 'Jewelry product media'}
                   className={mainMediaClass}
                   loading={visibleActiveIndex === firstMobileImageIndex ? 'eager' : 'lazy'}
                   fetchPriority={visibleActiveIndex === firstMobileImageIndex ? 'high' : 'auto'}

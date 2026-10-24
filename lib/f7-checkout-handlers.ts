@@ -33,7 +33,7 @@ function repeatCheckoutResponse(order: Omit<CheckoutOrder, 'payment_amount'> & {
     orderId: order.id, orderNumber: order.order_number, razorpay: {
       keyId: getRazorpayKeyId(), orderId: razorpayOrderId,
       amount: toRazorpayAmountInSubunits(Number(order.payment_amount || 0), String(order.payment_currency || '')),
-      currency: order.payment_currency, name: 'House of Diams', description: 'Secure jewellery checkout',
+      currency: order.payment_currency, name: 'House of Diams', description: 'Secure jewelry checkout',
       prefill: {
         name: `${order.customer_first_name || ''} ${order.customer_last_name || ''}`.trim(),
         email: order.customer_email || '', contact: toPaymentContact(order.customer_phone)
@@ -102,7 +102,7 @@ export async function handleF7Place(request: Request) {
       orderId: created.data.order.id, orderNumber: created.data.order.order_number,
       razorpay: {
         keyId: getRazorpayKeyId(), orderId: gatewayOrder.id, amount: gatewayOrder.amount,
-        currency: gatewayOrder.currency, name: 'House of Diams', description: 'Secure jewellery checkout',
+        currency: gatewayOrder.currency, name: 'House of Diams', description: 'Secure jewelry checkout',
         prefill: {
           name: `${prepared.resolvedCustomer.first_name} ${prepared.resolvedCustomer.last_name}`.trim(),
           email: prepared.resolvedCustomer.email, contact: toPaymentContact(prepared.resolvedCustomer.phone)

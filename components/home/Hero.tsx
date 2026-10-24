@@ -32,10 +32,10 @@ interface HeroProps {
 }
 
 const defaultContent: HeroContent = {
-  eyebrow: 'Surat, India · Est. 2014 · Fine Jewellery',
+  eyebrow: 'Surat, India · Est. 2014 · Fine Jewelry',
   headline: 'Crafted in Light.',
   subtitle:
-    'Certified lab-grown diamonds, precious gemstones and bespoke fine jewellery — handcrafted in the diamond capital of the world.',
+    'Certified lab-grown diamonds, precious gemstones and bespoke fine jewelry — handcrafted in the diamond capital of the world.',
   slider_enabled: false,
   slider_items: [],
 };

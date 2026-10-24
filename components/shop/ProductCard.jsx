@@ -308,7 +308,7 @@ export default function ProductCard({ product, wishlisted, onWishlist, onEnquire
             <Image
               key={visibleImageUrl}
               src={visibleImageUrl}
-              alt={`${product.name} jewellery`}
+              alt={`${product.name} jewelry`}
               fill
               sizes="(max-width: 768px) 50vw, (max-width: 1024px) 33vw, 25vw"
               onError={() => setFailedImageUrl(visibleImageUrl)}

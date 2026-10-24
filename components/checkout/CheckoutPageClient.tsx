@@ -1428,7 +1428,7 @@ export default function CheckoutPageClient({ customerAuthEnabled = false }: { cu
 
             {quoteStatus === 'ready' && hasAuthoritativePriceChange ? (
               <div className="rounded-[24px] border border-[#b2ddff] bg-[#eff8ff] px-5 py-4 text-sm text-[#175cd3]">
-                One or more catalogue prices changed since this checkout was opened. The order summary now shows the latest confirmed price.
+                One or more catalog prices changed since this checkout was opened. The order summary now shows the latest confirmed price.
               </div>
             ) : null}
 

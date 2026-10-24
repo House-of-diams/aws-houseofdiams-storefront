@@ -30,7 +30,7 @@ const STEPS = [
     eyebrow: "Ship",
     title: "Insured Worldwide Delivery",
     description:
-      "Fast fulfilment from Surat with insured logistics and tracking. Repeat orders supported with consistent parcels.",
+      "Fast fulfillment from Surat with insured logistics and tracking. Repeat orders supported with consistent parcels.",
   },
 ];
 

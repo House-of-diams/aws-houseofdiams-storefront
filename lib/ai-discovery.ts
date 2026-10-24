@@ -18,10 +18,10 @@ function link(path: string, label: string, description?: string | null) {
 }
 
 const corePages = [
-  ['/', 'House of Diams', 'Luxury diamond jewellery crafted in Surat, India.'],
-  ['/shop', 'Shop', 'Browse the complete jewellery catalogue.'],
+  ['/', 'House of Diams', 'Luxury diamond jewelry crafted in Surat, India.'],
+  ['/shop', 'Shop', 'Browse the complete jewelry catalog.'],
   ['/collection', 'Collections', 'Curated House of Diams collections.'],
-  ['/bespoke', 'Bespoke Jewellery', 'Custom jewellery design and manufacturing.'],
+  ['/bespoke', 'Bespoke Jewelry', 'Custom jewelry design and manufacturing.'],
   ['/about', 'About', 'Company, craftsmanship, values, and founders.'],
   ['/shipping', 'Shipping', 'Shipping information and policies.'],
   ['/returns', 'Returns', 'Returns policy and guidance.'],
@@ -38,7 +38,7 @@ export async function buildLlmsText(full = false) {
   const lines = [
     '# House of Diams',
     '',
-    '> House of Diams is a luxury diamond jewellery company based in Surat, India, offering fine jewellery, engagement rings, wedding bands, bespoke pieces, and jewellery education.',
+    '> House of Diams is a luxury diamond jewelry company based in Surat, India, offering fine jewelry, engagement rings, wedding bands, bespoke pieces, and jewelry education.',
     '',
     'Use canonical public URLs below. Prices and availability can change; verify current details on the linked product page. Private account, cart, checkout, wishlist, and API routes are intentionally excluded.',
     '',
@@ -46,7 +46,7 @@ export async function buildLlmsText(full = false) {
     '',
     ...corePages.map(([path, label, description]) => link(path, label, description)),
     '',
-    '## Product catalogue',
+    '## Product catalog',
     '',
     ...products.map((product) =>
       link(
@@ -58,7 +58,7 @@ export async function buildLlmsText(full = false) {
       )
     ),
     '',
-    '## Jewellery education',
+    '## Jewelry education',
     '',
     ...educationPosts
       .filter((post) => post.slug && post.slug !== 'education-copy')

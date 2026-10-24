@@ -19,7 +19,7 @@ export default function AuthShell({ asideTitle, asideBody, asidePoints, children
     <section className="bg-white">
       <div className="grid min-h-dvh md:grid-cols-[minmax(0,52.25%)_minmax(390px,47.75%)]">
         <div className="relative min-h-[42dvh] overflow-hidden border-b border-[var(--theme-border)] md:min-h-dvh md:border-b-0 md:border-r">
-          <img src={authImage} alt="House of Diams jewellery" className="absolute inset-0 h-full w-full object-cover object-center" />
+          <img src={authImage} alt="House of Diams jewelry" className="absolute inset-0 h-full w-full object-cover object-center" />
         </div>
         <div className="flex min-h-[58dvh] items-center justify-center px-5 py-10 sm:px-8 md:min-h-dvh lg:px-12">
           <div className="w-full max-w-[390px]">

@@ -19,7 +19,7 @@ export type HipHopHeroContent = {
 
 export const fallbackHipHopHeroContent: HipHopHeroContent = {
   eyebrow: 'Hip Hop',
-  headline: 'Hip Hop Jewellery',
+  headline: 'Hip Hop Jewelry',
   subtitle: 'Fully iced chains, grillz, pendants and statement rings - handcrafted with lab-grown diamonds in 14K and 18K gold.',
   slider_enabled: false,
 }

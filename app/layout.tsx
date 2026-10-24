@@ -60,7 +60,7 @@ const baseMetadata: Metadata = {
     default: "House of Diams",
     template: "%s | House of Diams",
   },
-  description: "Luxury diamond jewellery, crafted in Surat, India.",
+  description: "Luxury diamond jewelry, crafted in Surat, India.",
   icons: {
     icon: "/favicon.ico",
   },

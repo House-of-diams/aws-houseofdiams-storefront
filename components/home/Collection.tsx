@@ -34,7 +34,7 @@ interface CollectionApiItem {
 const PANELS: PanelData[] = [
   {
     index: 0,
-    name: 'Fine Jewellery',
+    name: 'Fine Jewelry',
     label: 'Collection 01',
     desc: 'Necklaces, earrings, bracelets & pendants',
     cta: 'Shop Now',

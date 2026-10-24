@@ -6,7 +6,7 @@ type DataNoticeProps = {
   /** Why we collect it, completing "We use your ... to ...". */
   purpose: string
   className?: string
-  /** `inherit` follows the surrounding text colour, for dark sections. */
+  /** `inherit` follows the surrounding text color, for dark sections. */
   tone?: 'default' | 'inherit'
 }
 

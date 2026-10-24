@@ -6,7 +6,7 @@ export default function MaintenanceScreen({ message }: MaintenanceScreenProps) {
   return (
     <main className="fixed inset-0 z-[9999] grid min-h-screen bg-white md:grid-cols-2">
       <div className="relative min-h-[42vh] overflow-hidden border-b border-[var(--theme-border)] md:min-h-screen md:border-b-0 md:border-r">
-        <img src={maintenanceImage} alt="House of Diams jewellery" className="absolute inset-0 h-full w-full object-cover object-center" />
+        <img src={maintenanceImage} alt="House of Diams jewelry" className="absolute inset-0 h-full w-full object-cover object-center" />
       </div>
       <div className="flex items-center justify-center px-8 py-16 text-center md:px-14 lg:px-20">
         <div className="max-w-[460px]">

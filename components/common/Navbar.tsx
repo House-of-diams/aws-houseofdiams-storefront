@@ -1004,7 +1004,7 @@ export default function Navbar({ navItems = [], customerAuthEnabled = false, ini
                         aria-expanded={isShowingTextSuggestions ? textSearchSuggestions.length > 0 : searchLoadState === 'ready' && displayedSearchItems.length > 0}
                         aria-controls={isShowingTextSuggestions ? 'navbar-search-suggestions' : searchLoadState === 'ready' ? 'navbar-search-results' : undefined}
                         aria-activedescendant={isShowingTextSuggestions && textSearchSuggestions[activeSearchIndex] ? `navbar-search-suggestion-${activeSearchIndex}` : displayedSearchItems[activeSearchIndex] ? `navbar-search-option-${activeSearchIndex}` : undefined}
-                        placeholder="Search jewellery, settings, diamonds..."
+                        placeholder="Search jewelry, settings, diamonds..."
                         className="h-12 min-w-0 flex-1 border-0 bg-transparent text-[16px] text-[var(--color-brand-primary)] outline-none placeholder:text-black/55 sm:h-14"
                       />
                       {searchQuery ? <button type="button" onClick={() => { setSearchQuery(''); setSubmittedSearchQuery(''); setActiveSearchIndex(-1); searchInputRef.current?.focus(); }} aria-label="Clear search" className="shrink-0 text-xl text-black/55 hover:text-black">×</button> : null}
@@ -1023,7 +1023,7 @@ export default function Navbar({ navItems = [], customerAuthEnabled = false, ini
                     <button type="button" onClick={closeSearch} className="hidden shrink-0 text-[13px] text-[var(--color-brand-primary)] underline underline-offset-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 lg:inline-flex">Cancel</button>
                   </div>
                   <div className="mt-[var(--space-4)] flex items-center justify-between border-b border-black/10 pb-[var(--space-3)] text-[10px] font-semibold uppercase tracking-[0.18em] text-black/70 sm:text-[11px]">
-                    <span>{isShowingTextSuggestions ? 'Top suggestions' : submittedSearchQuery.trim() ? 'Products' : 'Explore jewellery'}</span>
+                    <span>{isShowingTextSuggestions ? 'Top suggestions' : submittedSearchQuery.trim() ? 'Products' : 'Explore jewelry'}</span>
                     {isShowingTextSuggestions ? <span>{textSearchSuggestions.length} suggestions</span> : searchLoadState === 'ready' && filteredSearchItems.length ? <span>{filteredSearchItems.length} {submittedSearchQuery.trim() ? 'results' : 'suggestions'}</span> : null}
                   </div>
                   <span className="sr-only" aria-live="polite">{isShowingTextSuggestions ? `${textSearchSuggestions.length} search suggestions available.` : searchLoadState === 'loading' ? 'Loading products.' : searchLoadState === 'error' ? 'Unable to load products.' : isSearchFallback ? `No exact matches. ${displayedSearchItems.length} popular pieces shown.` : `${filteredSearchItems.length} products shown.`}</span>

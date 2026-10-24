@@ -1110,7 +1110,7 @@ const getCachedRelatedStorefrontProducts = unstable_cache(
   ): Promise<StorefrontProduct[]> => {
     if (!productId || !mainCategoryId || limit < 1) return []
 
-    // The main category (for example Fine Jewellery) mixes earrings, necklaces and bracelets, so
+    // The main category (for example Fine Jewelry) mixes earrings, necklaces and bracelets, so
     // fetch a wider set and put pieces from the same subcategory first, then fill with the rest.
     const candidates = await fetchStorefrontProducts(productLane, {
       mainCategoryId,
@@ -1125,7 +1125,7 @@ const getCachedRelatedStorefrontProducts = unstable_cache(
     const tier = (candidate: StorefrontProduct) =>
       sharesAny(wantedSubcategories, [candidate.subcategorySlug, ...(candidate.linkedSubcategorySlugs ?? [])]) ? 0
         : sharesAny(wantedOptions, [candidate.optionSlug, ...(candidate.linkedOptionSlugs ?? [])]) ? 1 : 2
-    // Array.prototype.sort is stable, so the catalogue order is kept inside each tier.
+    // Array.prototype.sort is stable, so the catalog order is kept inside each tier.
     return [...candidates].sort((left, right) => tier(left) - tier(right)).slice(0, limit)
   },
   ['storefront-related-products-v3'],
@@ -1383,7 +1383,7 @@ async function getDefaultProductSearchItemsUncached(limit: number): Promise<Prod
 }
 
 // The index stores only compact search documents (about 1 KB per product), so it
-// stays well under the 2 MB per-entry data-cache limit as the catalogue grows.
+// stays well under the 2 MB per-entry data-cache limit as the catalog grows.
 // It is rebuilt at most every five minutes; searches then run fully in memory.
 const getCachedProductSearchDocs = unstable_cache(
   async (_source?: 'rds'): Promise<ProductSearchDoc[]> => {

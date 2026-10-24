@@ -21,11 +21,11 @@ export default function BespokeShowcase({
 
   const renderMedia = (src: string, video: boolean) =>
     video ? (
-      <BannerMedia src={src} alt={section.imageAlt || section.heading || 'House of Diams bespoke jewellery showcase'} />
+      <BannerMedia src={src} alt={section.imageAlt || section.heading || 'House of Diams bespoke jewelry showcase'} />
     ) : (
       <Image
         src={src}
-        alt={section.imageAlt || section.heading || 'House of Diams bespoke jewellery showcase'}
+        alt={section.imageAlt || section.heading || 'House of Diams bespoke jewelry showcase'}
         fill
         sizes="100vw"
         quality={90}

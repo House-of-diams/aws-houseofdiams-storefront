@@ -53,20 +53,20 @@ export const blogPosts: BlogPost[] = [
     readTime: '3 min read',
     tags: ['Bespoke', 'Craft', 'Process'],
     body: [
-      'Custom jewellery starts with clarity: what should the piece feel like, not just how should it look. That shapes every design decision after.',
+      'Custom jewelry starts with clarity: what should the piece feel like, not just how should it look. That shapes every design decision after.',
       'Sketches, stone selection, CAD refinement, and finishing all work together to turn an idea into something deeply personal.',
     ],
   },
   {
     id: 4,
     slug: 'care-tips-for-fine-jewellery',
-    title: '<em>Care Tips</em> for Fine Jewellery You Wear Every Day',
+    title: '<em>Care Tips</em> for Fine Jewelry You Wear Every Day',
     excerpt: 'Simple habits that help your rings, pendants, and bracelets keep their shine longer.',
     category: 'Care',
     bgColor: 'linear-gradient(135deg, #172554 0%, #1d4ed8 40%, #d4a840 100%)',
     date: 'April 12, 2026',
     readTime: '4 min read',
-    tags: ['Care', 'Maintenance', 'Jewellery'],
+    tags: ['Care', 'Maintenance', 'Jewelry'],
     body: [
       'Daily wear pieces benefit from regular gentle cleaning and thoughtful storage. Small habits prevent dullness and avoidable damage.',
       'Professional checks are still valuable, especially for prongs and settings that protect your center stone over time.',
@@ -75,7 +75,7 @@ export const blogPosts: BlogPost[] = [
   {
     id: 5,
     slug: 'styling-layered-diamond-jewellery',
-    title: 'Styling <em>Layered Diamond Jewellery</em> Without Overdoing It',
+    title: 'Styling <em>Layered Diamond Jewelry</em> Without Overdoing It',
     excerpt: 'A simple framework for stacking pieces so the final look feels intentional and elevated.',
     category: 'Style',
     bgColor: 'linear-gradient(135deg, #1c1917 0%, #44403c 45%, #e7c873 100%)',

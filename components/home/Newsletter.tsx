@@ -103,7 +103,7 @@ export default function Newsletter({ onToast }: NewsletterProps) {
             lineHeight: 1.8,
           }}
         >
-          Join our private list for exclusive previews, bespoke releases and jeweller&apos;s notes from the Surat workshop.
+          Join our private list for exclusive previews, bespoke releases and jeweler&apos;s notes from the Surat workshop.
         </p>
 
         <form

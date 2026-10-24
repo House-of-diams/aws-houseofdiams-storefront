@@ -26,7 +26,7 @@ export default function RingGuide() {
             </span>
             <span>
               <span className="block font-display-title text-[22px] leading-none text-[var(--color-brand-primary,#000000)]">Find your ring size</span>
-              <span className="mt-2 block text-[11px] leading-[1.6] text-[var(--theme-muted,#6a6a6a)]">Get personalised guidance before you choose.</span>
+              <span className="mt-2 block text-[11px] leading-[1.6] text-[var(--theme-muted,#6a6a6a)]">Get personalized guidance before you choose.</span>
             </span>
           </span>
           <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--color-brand-primary,#000000)]">Start</span>

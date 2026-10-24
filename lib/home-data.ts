@@ -765,7 +765,7 @@ const loadHomePageData = unstable_cache(
         ctaLabel: bespokeShowcaseResult.data?.cta_label ?? 'Start Bespoke Enquiry',
         imageUrl: toPublicUrl(bespokeShowcaseResult.data?.image_path),
         mobileImageUrl: toPublicUrl(bespokeShowcaseResult.data?.mobile_image_path),
-        imageAlt: bespokeShowcaseResult.data?.image_alt ?? 'House of Diams bespoke jewellery showcase',
+        imageAlt: bespokeShowcaseResult.data?.image_alt ?? 'House of Diams bespoke jewelry showcase',
       },
       bestSellerSection: {
         eyebrow: bestSellerSectionResult.data?.eyebrow ?? 'House of Diams',

@@ -19,7 +19,7 @@ export async function generateMetadata({
   const params = await searchParams
   const metadata = await createFixedPageMetadata('blog', {
     title: 'Blog',
-    description: 'Read House of Diams journal articles on diamonds, jewellery craft, buying guides, and design inspiration.',
+    description: 'Read House of Diams journal articles on diamonds, jewelry craft, buying guides, and design inspiration.',
     path: '/blog',
   })
 

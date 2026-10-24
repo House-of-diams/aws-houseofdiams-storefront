@@ -8,7 +8,7 @@ import { getEducationPageHero, getPublishedEducationSummaries } from '@/lib/educ
 export function generateMetadata(): Promise<Metadata> {
   return createFixedPageMetadata('education', {
   title: 'Education',
-  description: 'Learn about diamonds, jewellery, craftsmanship, care, and confident buying from House of Diams.',
+  description: 'Learn about diamonds, jewelry, craftsmanship, care, and confident buying from House of Diams.',
   path: '/education',
 })
 }

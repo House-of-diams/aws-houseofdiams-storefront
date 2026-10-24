@@ -58,8 +58,8 @@ export async function generateMetadata(): Promise<Metadata> {
   const seo = await getHomeSeoData();
 
   return createPageMetadata({
-    title: seo.title || 'Luxury Diamond Jewellery',
-    description: seo.description || 'House of Diams creates certified lab-grown diamond jewellery, including engagement rings, wedding bands, T-bar jewellery, and bespoke commissions.',
+    title: seo.title || 'Luxury Diamond Jewelry',
+    description: seo.description || 'House of Diams creates certified lab-grown diamond jewelry, including engagement rings, wedding bands, T-bar jewelry, and bespoke commissions.',
     path: '/',
   });
 }

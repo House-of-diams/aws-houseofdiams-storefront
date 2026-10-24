@@ -34,7 +34,7 @@ const steps: Step[] = [
   {
     num: 'Step 01',
     title: 'Stone Selection',
-    body: 'Every lab-grown diamond is hand-picked for colour, clarity and cut consistency. We review over 100 stones to approve one for a solitaire, ten for a tennis bracelet.',
+    body: 'Every lab-grown diamond is hand-picked for color, clarity and cut consistency. We review over 100 stones to approve one for a solitaire, ten for a tennis bracelet.',
     icon: (
       <svg className="w-[55%] max-w-[220px] relative z-10 filter drop-shadow-[0_8px_20px_rgba(10,22,40,0.15)] transition-transform duration-[600ms] group-hover:scale-105" viewBox="0 0 80 80" fill="none">
         <polygon points="40,12 60,22 60,50 40,60 20,50 20,22" stroke="#0A1628" strokeWidth="1" fill="rgba(10,22,40,0.08)" />
